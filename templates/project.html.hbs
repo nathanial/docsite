@@ -22,6 +22,37 @@
     </div>
   </div>
 
+  {{#if documentation}}
+  <!-- Full documentation view -->
+  <div class="doc-overview">
+    {{{documentation.overview}}}
+  </div>
+
+  <div class="doc-section">
+    <h2>Installation</h2>
+    <div class="doc-content">
+      {{{documentation.installation}}}
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <h2>Quick Start</h2>
+    <div class="doc-content">
+      {{{documentation.quickStart}}}
+    </div>
+  </div>
+
+  {{#each documentation.sections}}
+  <div class="doc-section">
+    <h2>{{title}}</h2>
+    <div class="doc-content">
+      {{{content}}}
+    </div>
+  </div>
+  {{/each}}
+
+  {{else}}
+  <!-- Placeholder view for projects without documentation -->
   <div class="coming-soon">
     <h2>Documentation Coming Soon</h2>
     <p>
@@ -52,4 +83,5 @@
       </div>
     </div>
   </div>
+  {{/if}}
 </div>

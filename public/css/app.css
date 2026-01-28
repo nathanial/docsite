@@ -413,6 +413,175 @@ a.meta-value:hover {
   color: var(--color-text-muted);
 }
 
+/* Documentation styles */
+.doc-overview {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 1.5rem 2rem;
+  margin-bottom: 2rem;
+}
+
+.doc-overview h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.doc-overview h3:first-child {
+  margin-top: 0;
+}
+
+.doc-overview p {
+  color: var(--color-text-muted);
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
+}
+
+.doc-overview ul {
+  color: var(--color-text-muted);
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.doc-overview li {
+  margin-bottom: 0.5rem;
+}
+
+.doc-overview strong {
+  color: var(--color-text);
+}
+
+.doc-section {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 1.5rem 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.doc-section h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.doc-content {
+  color: var(--color-text-muted);
+  line-height: 1.7;
+}
+
+.doc-content p {
+  margin-bottom: 0.75rem;
+}
+
+.doc-content h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.doc-content h4 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.doc-content ul,
+.doc-content ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.doc-content li {
+  margin-bottom: 0.5rem;
+}
+
+.doc-content strong {
+  color: var(--color-text);
+}
+
+/* Code blocks */
+.doc-content pre,
+.doc-overview pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 1rem 1.25rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+  font-family: 'SF Mono', Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.doc-content pre code,
+.doc-overview pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* Inline code */
+.doc-content code,
+.doc-overview code {
+  background: #f1f5f9;
+  color: #0f172a;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: 'SF Mono', Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.85em;
+}
+
+/* API reference tables */
+.api-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.api-table th {
+  background: #f8fafc;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.api-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.api-table tr:last-child td {
+  border-bottom: none;
+}
+
+.api-table code {
+  background: #f1f5f9;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.api-table tr:hover {
+  background: #f8fafc;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar {
@@ -431,5 +600,19 @@ a.meta-value:hover {
   .project-meta {
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .doc-section,
+  .doc-overview {
+    padding: 1rem;
+  }
+
+  .api-table {
+    font-size: 0.8rem;
+  }
+
+  .api-table th,
+  .api-table td {
+    padding: 0.5rem;
   }
 }

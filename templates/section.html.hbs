@@ -1,0 +1,40 @@
+<div class="page-header">
+  <nav class="breadcrumb">
+    <a href="/">Home</a>
+    <span class="breadcrumb-separator">/</span>
+    <a href="/category/{{categorySlug}}">{{category}}</a>
+    <span class="breadcrumb-separator">/</span>
+    <a href="/project/{{projectSlug}}">{{projectName}}</a>
+    <span class="breadcrumb-separator">/</span>
+    <span>{{pageTitle}}</span>
+  </nav>
+  <h1>{{pageTitle}}</h1>
+</div>
+
+<div class="section-content">
+  <div class="doc-section">
+    <div class="doc-content">
+      {{{sectionContent}}}
+    </div>
+  </div>
+
+  <nav class="section-nav">
+    {{#if prevSection}}
+    <a href="{{prevSection.url}}" class="section-nav-link section-nav-prev">
+      <span class="section-nav-label">Previous</span>
+      <span class="section-nav-title">{{prevSection.title}}</span>
+    </a>
+    {{else}}
+    <div class="section-nav-spacer"></div>
+    {{/if}}
+
+    {{#if nextSection}}
+    <a href="{{nextSection.url}}" class="section-nav-link section-nav-next">
+      <span class="section-nav-label">Next</span>
+      <span class="section-nav-title">{{nextSection.title}}</span>
+    </a>
+    {{else}}
+    <div class="section-nav-spacer"></div>
+    {{/if}}
+  </nav>
+</div>

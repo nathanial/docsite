@@ -31,7 +31,7 @@
               </button>
               <div id="proj-{{slug}}" class="sidebar-children{{#unless expanded}} collapsed{{/unless}}">
                 {{#each sections}}
-                <a href="/project/{{../slug}}#{{anchor}}" class="sidebar-doc-link">{{title}}</a>
+                <a href="/project/{{../slug}}/{{anchor}}" class="sidebar-doc-link{{#if active}} sidebar-section-active{{/if}}">{{title}}</a>
                 {{/each}}
               </div>
               {{else}}

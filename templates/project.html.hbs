@@ -23,33 +23,30 @@
   </div>
 
   {{#if documentation}}
-  <!-- Full documentation view -->
+  <!-- Documentation overview with section index -->
   <div class="doc-overview">
     {{{documentation.overview}}}
   </div>
 
-  <div class="doc-section" id="installation">
-    <h2>Installation</h2>
-    <div class="doc-content">
-      {{{documentation.installation}}}
+  <div class="section-index">
+    <h2>Documentation</h2>
+    <div class="section-index-grid">
+      <a href="/project/{{slug}}/installation" class="section-link-card">
+        <h3>Installation</h3>
+        <p>Add {{name}} to your project</p>
+      </a>
+      <a href="/project/{{slug}}/quick-start" class="section-link-card">
+        <h3>Quick Start</h3>
+        <p>Get up and running quickly</p>
+      </a>
+      {{#each documentation.sections}}
+      <a href="/project/{{../slug}}/{{anchor}}" class="section-link-card">
+        <h3>{{title}}</h3>
+        <p>Learn about {{title}}</p>
+      </a>
+      {{/each}}
     </div>
   </div>
-
-  <div class="doc-section" id="quick-start">
-    <h2>Quick Start</h2>
-    <div class="doc-content">
-      {{{documentation.quickStart}}}
-    </div>
-  </div>
-
-  {{#each documentation.sections}}
-  <div class="doc-section" id="{{anchor}}">
-    <h2>{{title}}</h2>
-    <div class="doc-content">
-      {{{content}}}
-    </div>
-  </div>
-  {{/each}}
 
   {{else}}
   <!-- Placeholder view for projects without documentation -->

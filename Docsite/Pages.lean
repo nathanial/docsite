@@ -8,6 +8,7 @@
 import Docsite.Pages.Home
 import Docsite.Pages.Category
 import Docsite.Pages.Project
+import Docsite.Pages.Section
 
 namespace Docsite.Pages
 

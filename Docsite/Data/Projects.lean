@@ -102,39 +102,288 @@ updates whenever the source event fires, and we can observe those changes throug
   sections := [
     { title := "Core Types"
       content := "
-<p>Reactive provides three fundamental types for modeling time-varying data:</p>
+<p>Reactive is built on three fundamental abstractions that together model all aspects of time-varying
+computation: <strong>Event</strong> for discrete occurrences, <strong>Behavior</strong> for continuous
+values, and <strong>Dynamic</strong> for stateful values that change and notify observers. Understanding
+when and how to use each type is essential for building correct reactive systems.</p>
 
-<table class=\"api-table\">
-  <thead>
-    <tr><th>Type</th><th>Description</th><th>Semantics</th></tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>Event t a</code></td>
-      <td>Discrete occurrences over time</td>
-      <td>Push-based stream of values. Conceptually <code>[(Time, a)]</code></td>
-    </tr>
-    <tr>
-      <td><code>Behavior t a</code></td>
-      <td>Time-varying values</td>
-      <td>Pull-based (sampable). Conceptually <code>Time → a</code></td>
-    </tr>
-    <tr>
-      <td><code>Dynamic t a</code></td>
-      <td>Behavior with change notifications</td>
-      <td>Combines <code>Behavior</code> + change <code>Event</code></td>
-    </tr>
-  </tbody>
-</table>
+<p>These types follow a <strong>push/pull hybrid model</strong>. Events are push-based—when something happens,
+the change propagates through the network automatically. Behaviors are pull-based—you sample them when you
+need a value, and they compute it on demand. Dynamics combine both: they maintain current state you can
+sample (pull) while also pushing change notifications to subscribers.</p>
 
-<p>The phantom type <code>t</code> represents the timeline, ensuring type-safe separation between different reactive networks.</p>
+<p>Each type carries a phantom type parameter <code>t</code> representing the timeline. This ensures type
+safety at compile time: you cannot accidentally mix events or behaviors from different reactive networks.
+The concrete timeline used in practice is <code>Spider</code>, an IO-based push runtime.</p>
 
-<h4>When to Use Each</h4>
+<h3>Event — Discrete Occurrences</h3>
+
+<p><code>Event t a</code> represents discrete occurrences over time. Think of it as a stream of values that
+fire at specific moments—user clicks, key presses, network responses, timer ticks, or any other momentary
+happening. Conceptually, an Event is a sparse timeline: <code>[(Time, a)]</code>—a list of time/value
+pairs where most times have no value.</p>
+
+<p>Events are <strong>push-based</strong>. When an event fires, its value propagates through all derived
+events and subscribers automatically. You don't poll events; you subscribe to them or derive new events
+from them, and the system notifies you when something happens.</p>
+
+<h4>Internal Structure</h4>
+
+<p>Under the hood, each Event is backed by an <code>EventNode</code> containing:</p>
 <ul>
-  <li><strong>Event</strong> - User actions (clicks, key presses), network responses, timer ticks</li>
-  <li><strong>Behavior</strong> - Mouse position, current time, computed values you need to sample</li>
-  <li><strong>Dynamic</strong> - Application state that changes over time and needs to notify dependents</li>
+  <li><strong>nodeId</strong> — Unique identifier for ordering and debugging</li>
+  <li><strong>height</strong> — Topological depth used for glitch-free propagation</li>
+  <li><strong>subscribers</strong> — Array of callback functions to invoke when the event fires</li>
+  <li><strong>lazy deletion</strong> — Unsubscribed callbacks are marked and cleaned up lazily</li>
 </ul>
+
+<p>The height system ensures that when multiple events fire in response to a single trigger, they process
+in dependency order. A derived event always has height greater than its sources, so parents fire before
+children. This prevents glitches where a subscriber might see inconsistent intermediate states.</p>
+
+<h4>Creating Events</h4>
+
+<p>The primary way to create an event you can fire programmatically is <code>newTriggerEvent</code>:</p>
+
+<pre><code class=\"language-lean\">-- Returns the event and a trigger function
+let (clickEvent, fireClick) ← newTriggerEvent
+
+-- Fire the event with a value
+fireClick \"button-1\"  -- All subscribers receive \"button-1\"</code></pre>
+
+<p>The trigger function runs in <code>IO</code>, not <code>SpiderM</code>, so you can call it from anywhere—
+event handlers, callbacks, external integrations. Each call fires the event in a new frame, processing
+all propagations atomically before returning.</p>
+
+<h4>Key Combinators</h4>
+
+<p><strong>Transformation:</strong> <code>mapM</code>, <code>filterM</code>, and <code>mapMaybeM</code>
+transform event values. Successive maps fuse into a single function internally for efficiency.</p>
+
+<pre><code class=\"language-lean\">let doubled ← Event.mapM (· * 2) numbers
+let positives ← Event.filterM (· > 0) numbers
+let parsed ← Event.mapMaybeM String.toNat? inputs</code></pre>
+
+<p><strong>Combining:</strong> <code>mergeM</code> combines two event streams; when both fire simultaneously,
+the first wins. <code>mergeListM</code> and <code>leftmostM</code> extend this to multiple events.</p>
+
+<pre><code class=\"language-lean\">let anyClick ← Event.mergeM buttonClick keyPress
+let firstResponse ← Event.leftmostM [server1, server2, server3]</code></pre>
+
+<p><strong>Behavior Interaction:</strong> Events often need to read current state when they fire.
+<code>tagM</code> samples a behavior and replaces the event value. <code>attachM</code> pairs the
+behavior value with the event value. <code>gateM</code> filters events based on a boolean behavior.</p>
+
+<pre><code class=\"language-lean\">-- On click, capture current mouse position
+let clickPos ← Event.tagM mousePosition clickEvent
+
+-- Pair click with current modifier keys
+let clickWithMods ← Event.attachM modifierKeys clickEvent
+
+-- Only allow clicks when not dragging
+let allowedClicks ← Event.gateM (Behavior.map not isDragging) clickEvent</code></pre>
+
+<p><strong>Stateful:</strong> <code>accumulateM</code> folds over events, emitting accumulated values.
+<code>distinctM</code> suppresses consecutive duplicate values (requires <code>BEq</code>).</p>
+
+<pre><code class=\"language-lean\">let runningSum ← Event.accumulateM (· + ·) 0 numbers
+let changes ← Event.distinctM mousePosition  -- Only fire on actual movement</code></pre>
+
+<p><strong>Timing:</strong> <code>zipEM</code> pairs events that fire simultaneously (useful for
+coordination). <code>differenceM</code> fires the first event only when the second doesn't fire.
+<code>delayFrameM</code> defers an event to the next frame.</p>
+
+<h4>Subscription</h4>
+
+<p>To observe an event, use <code>subscribe</code>:</p>
+
+<pre><code class=\"language-lean\">let unsub ← clickEvent.subscribe fun value => do
+  IO.println s!\"Clicked: {value}\"
+
+-- Later, to stop receiving events:
+unsub</code></pre>
+
+<p>In <code>SpiderM</code> context, subscriptions are automatically registered with the current scope
+and cleaned up when the scope is disposed.</p>
+
+<h3>Behavior — Time-Varying Values</h3>
+
+<p><code>Behavior t a</code> represents a value that varies continuously over time. Unlike events which
+fire at discrete moments, a behavior always has a current value—you can sample it at any time.
+Conceptually, a Behavior is a function from time to value: <code>Time → a</code>.</p>
+
+<p>Behaviors are <strong>pull-based</strong>. They don't push updates; instead, you ask for the current
+value when you need it. This makes them ideal for values that change frequently or continuously (like
+mouse position) where you only care about the value at specific moments (like when a click occurs).</p>
+
+<h4>Internal Structure</h4>
+
+<p>A Behavior is essentially a wrapped sampling action: <code>IO a</code>. When you sample a behavior,
+it computes and returns the current value. For simple behaviors this might read a reference; for derived
+behaviors it might compute from other behaviors. There's no caching—each sample recomputes, which
+ensures you always get the current value.</p>
+
+<h4>Creating Behaviors</h4>
+
+<p><code>constant</code> creates a behavior that always returns the same value. <code>fromSample</code>
+wraps an arbitrary IO action as a behavior. <code>hold</code> creates a behavior from an initial value
+and an event that updates it.</p>
+
+<pre><code class=\"language-lean\">-- Always returns 42
+let answer ← Behavior.constant 42
+
+-- Samples current system time on each access
+let now ← Behavior.fromSample IO.monoMsNow
+
+-- Starts at 0, updates to each event value
+let lastClick ← Behavior.hold 0 clickPositions</code></pre>
+
+<h4>Key Combinators</h4>
+
+<p>Behavior implements <code>Functor</code>, <code>Applicative</code>, and <code>Monad</code>, enabling
+familiar functional composition:</p>
+
+<pre><code class=\"language-lean\">-- Functor: transform values
+let doubled ← Behavior.map (· * 2) counter
+
+-- Applicative: combine independent behaviors
+let sum ← Behavior.zipWith (· + ·) countA countB
+
+-- Monad: dynamic behavior selection
+let currentPage ← Behavior.bind pageIndex (pages.get!)</code></pre>
+
+<p><strong>Combining:</strong> <code>zipWith</code>, <code>zip</code>, and <code>zipWith3</code> combine
+multiple behaviors. <code>allTrue</code> and <code>anyTrue</code> work on lists of boolean behaviors.
+Boolean operations <code>not</code>, <code>and</code>, <code>or</code> compose boolean behaviors.</p>
+
+<p><strong>Higher-order:</strong> <code>switch</code> flattens a <code>Behavior (Behavior a)</code>
+into <code>Behavior a</code>, dynamically switching which inner behavior is sampled based on the
+outer behavior's current value.</p>
+
+<h4>Sampling</h4>
+
+<p>Use <code>sample</code> to read a behavior's current value:</p>
+
+<pre><code class=\"language-lean\">let pos ← sample mousePosition
+IO.println s!\"Mouse at: {pos}\"</code></pre>
+
+<p>Sampling is synchronous and returns immediately with the current value.</p>
+
+<h4>When to Use Behavior</h4>
+
+<p>Use Behavior when you have a continuously available value that you need to read on demand:
+mouse position, current window size, computed values derived from other behaviors, configuration
+that rarely changes. If you also need to know <em>when</em> the value changes, use Dynamic instead.</p>
+
+<h3>Dynamic — The Best of Both Worlds</h3>
+
+<p><code>Dynamic t a</code> combines the capabilities of Behavior and Event. It maintains a current
+value you can sample at any time (like Behavior), while also providing an event that fires whenever
+the value changes (like Event). This makes it the primary choice for application state.</p>
+
+<p>A Dynamic provides two access patterns through its fields:</p>
+<ul>
+  <li><code>.current</code> — A <code>Behavior t a</code> for sampling the current value</li>
+  <li><code>.updated</code> — An <code>Event t a</code> that fires with the new value on each change</li>
+</ul>
+
+<h4>Internal Structure</h4>
+
+<p>Internally, a Dynamic contains:</p>
+<ul>
+  <li><strong>valueRef</strong> — An <code>IO.Ref a</code> holding the current value</li>
+  <li><strong>updateEvent</strong> — An <code>Event t a</code> that fires on changes</li>
+  <li><strong>trigger</strong> — Function to update the value and fire the event atomically</li>
+</ul>
+
+<p>When you update a Dynamic, both the reference and the event update in a single atomic action.
+This ensures observers never see the reference and event out of sync.</p>
+
+<h4>Creating Dynamics</h4>
+
+<p><code>holdDyn</code> creates a Dynamic that holds the most recent event value:</p>
+
+<pre><code class=\"language-lean\">let lastInput ← holdDyn \"\" inputEvents
+-- Initially \"\", updates to each new input value</code></pre>
+
+<p><code>foldDyn</code> folds over events to accumulate state:</p>
+
+<pre><code class=\"language-lean\">let counter ← foldDyn (fun _ n => n + 1) 0 clicks
+-- Starts at 0, increments on each click</code></pre>
+
+<h4>Key Combinators</h4>
+
+<p><strong>Mapping:</strong> <code>mapM</code> transforms Dynamic values. Note that it does <em>not</em>
+deduplicate—if the source fires with the same value, the mapped Dynamic fires too.</p>
+
+<pre><code class=\"language-lean\">let doubled ← Dynamic.mapM (· * 2) counter</code></pre>
+
+<p><strong>Deduplication:</strong> <code>mapUniqM</code> adds deduplication using <code>BEq</code>.
+The derived Dynamic only fires when the mapped value actually changes.</p>
+
+<pre><code class=\"language-lean\">-- Only fires when parity changes, not on every increment
+let isEven ← Dynamic.mapUniqM (· % 2 == 0) counter</code></pre>
+
+<p>This distinction matters for performance and correctness. Use <code>mapM</code> when every source
+update matters; use <code>mapUniqM</code> when you only care about distinct values.</p>
+
+<p><strong>Combining:</strong> <code>zipWithM</code> and <code>zipWith3M</code> combine multiple Dynamics:</p>
+
+<pre><code class=\"language-lean\">let total ← Dynamic.zipWithM (· + ·) countA countB
+-- Updates whenever either input changes</code></pre>
+
+<p><strong>Switching:</strong> <code>switchM</code> flattens <code>Dynamic (Dynamic a)</code> into
+<code>Dynamic a</code>. When the outer Dynamic changes, the result switches to tracking the new
+inner Dynamic.</p>
+
+<pre><code class=\"language-lean\">let currentTab ← Dynamic.switchM selectedTabDynamic
+-- Tracks whichever Dynamic is currently selected</code></pre>
+
+<p><strong>Changes:</strong> <code>changesM</code> gives you <code>(old, new)</code> pairs on each update,
+useful when you need to know what changed:</p>
+
+<pre><code class=\"language-lean\">let transitions ← Dynamic.changesM counter
+-- Fires (0, 1), then (1, 2), etc.</code></pre>
+
+<h4>When to Use Dynamic</h4>
+
+<p>Use Dynamic for application state that:</p>
+<ul>
+  <li>Changes over time in response to events</li>
+  <li>Needs to be read synchronously (e.g., to render current UI state)</li>
+  <li>Has observers that need change notifications (e.g., to re-render on updates)</li>
+</ul>
+
+<p>Most interactive application state is best modeled as Dynamic. Use plain Events for fire-and-forget
+notifications and plain Behaviors for computed values you only need to sample.</p>
+
+<h3>Type Safety with Timeline Phantom Types</h3>
+
+<p>Every Event, Behavior, and Dynamic carries a phantom type parameter <code>t</code> representing
+its timeline. This type parameter appears in the type signature but has no runtime representation—it
+exists purely for compile-time safety.</p>
+
+<pre><code class=\"language-lean\">def Event (t : Type) (a : Type) : Type := ...
+def Behavior (t : Type) (a : Type) : Type := ...
+def Dynamic (t : Type) (a : Type) : Type := ...</code></pre>
+
+<p>The <code>Spider</code> timeline is the concrete IO-based implementation you use in practice.
+When you work within <code>SpiderM</code>, all your events, behaviors, and dynamics share the same
+<code>Spider</code> timeline type.</p>
+
+<p>The phantom type prevents accidentally mixing values from different reactive networks. If you
+somehow had two separate Spider runtimes (unusual, but possible), their events couldn't be combined—
+the type checker would reject it. This catches a class of bugs at compile time that would otherwise
+cause subtle runtime issues.</p>
+
+<p>After <code>open Reactive.Host</code>, you get convenient type aliases:</p>
+<ul>
+  <li><code>Evt a</code> = <code>Event Spider a</code></li>
+  <li><code>Beh a</code> = <code>Behavior Spider a</code></li>
+  <li><code>Dyn a</code> = <code>Dynamic Spider a</code></li>
+</ul>
+
+<p>These aliases are used throughout the API for conciseness while maintaining full type safety.</p>
 " },
     { title := "Event Combinators"
       content := "

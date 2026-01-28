@@ -1,0 +1,25 @@
+<div class="page-header">
+  <nav class="breadcrumb">
+    <a href="/">Home</a>
+    <span class="breadcrumb-separator">/</span>
+    <span>{{categoryName}}</span>
+  </nav>
+  <h1>{{categoryName}}</h1>
+  <p class="page-subtitle">{{projectCount}} projects in this category</p>
+</div>
+
+<div class="projects-list">
+  {{#each projects}}
+  <a href="/project/{{slug}}" class="project-card">
+    <h2 class="project-card-title">{{name}}</h2>
+    <p class="project-card-description">{{description}}</p>
+    <span class="project-card-link">View documentation</span>
+  </a>
+  {{/each}}
+</div>
+
+{{#unless projects}}
+<div class="empty-state">
+  <p>No projects found in this category.</p>
+</div>
+{{/unless}}

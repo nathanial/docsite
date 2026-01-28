@@ -5,6 +5,7 @@ import Loom
 import Loom.Stencil
 import Stencil
 import Docsite.Data.Projects
+import Docsite.Data.Sidebar
 
 namespace Docsite.Pages
 
@@ -12,6 +13,7 @@ open Loom
 open Loom.Page
 open Loom.ActionM
 open Docsite.Data.Projects
+open Docsite.Data.Sidebar
 
 def projectsListData (projects : List Project) : Stencil.Value :=
   let ps := projects.map fun p =>
@@ -31,7 +33,8 @@ page category "/category/:slug" GET (slug : String) do
       ("categoryName", .string categoryName),
       ("categorySlug", .string slug),
       ("projects", projectsListData projects),
-      ("projectCount", .int projects.length)
+      ("projectCount", .int projects.length),
+      ("sidebar", sidebarToValue (buildSidebar (some slug) none))
     ]
     Loom.Stencil.ActionM.renderWithLayout "main" "category" data
   | none =>

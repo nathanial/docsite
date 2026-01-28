@@ -28,14 +28,14 @@
     {{{documentation.overview}}}
   </div>
 
-  <div class="doc-section">
+  <div class="doc-section" id="installation">
     <h2>Installation</h2>
     <div class="doc-content">
       {{{documentation.installation}}}
     </div>
   </div>
 
-  <div class="doc-section">
+  <div class="doc-section" id="quick-start">
     <h2>Quick Start</h2>
     <div class="doc-content">
       {{{documentation.quickStart}}}
@@ -43,7 +43,7 @@
   </div>
 
   {{#each documentation.sections}}
-  <div class="doc-section">
+  <div class="doc-section" id="{{anchor}}">
     <h2>{{title}}</h2>
     <div class="doc-content">
       {{{content}}}

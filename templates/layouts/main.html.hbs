@@ -15,18 +15,33 @@
         <span class="sidebar-subtitle">Documentation</span>
       </div>
       <nav class="sidebar-nav">
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Categories</div>
-          <a href="/category/graphics" class="sidebar-link">Graphics</a>
-          <a href="/category/web" class="sidebar-link">Web</a>
-          <a href="/category/network" class="sidebar-link">Network</a>
-          <a href="/category/data" class="sidebar-link">Data</a>
-          <a href="/category/apps" class="sidebar-link">Apps</a>
-          <a href="/category/util" class="sidebar-link">Util</a>
-          <a href="/category/math" class="sidebar-link">Math</a>
-          <a href="/category/audio" class="sidebar-link">Audio</a>
-          <a href="/category/testing" class="sidebar-link">Testing</a>
+        {{#each sidebar}}
+        <div class="sidebar-category">
+          <button class="sidebar-toggle" data-target="cat-{{slug}}">
+            <span class="toggle-icon">{{#if expanded}}&#9660;{{else}}&#9654;{{/if}}</span>
+            {{name}}
+          </button>
+          <div id="cat-{{slug}}" class="sidebar-children{{#unless expanded}} collapsed{{/unless}}">
+            {{#each projects}}
+            <div class="sidebar-project">
+              {{#if hasDoc}}
+              <button class="sidebar-toggle sidebar-toggle-project" data-target="proj-{{slug}}">
+                <span class="toggle-icon">{{#if expanded}}&#9660;{{else}}&#9654;{{/if}}</span>
+                <a href="/project/{{slug}}" class="sidebar-project-link{{#if active}} sidebar-active{{/if}}">{{name}}</a>
+              </button>
+              <div id="proj-{{slug}}" class="sidebar-children{{#unless expanded}} collapsed{{/unless}}">
+                {{#each sections}}
+                <a href="/project/{{../slug}}#{{anchor}}" class="sidebar-doc-link">{{title}}</a>
+                {{/each}}
+              </div>
+              {{else}}
+              <a href="/project/{{slug}}" class="sidebar-link{{#if active}} sidebar-active{{/if}}">{{name}}</a>
+              {{/if}}
+            </div>
+            {{/each}}
+          </div>
         </div>
+        {{/each}}
       </nav>
       <div class="sidebar-footer">
         <span class="sidebar-footer-text">66 Projects</span>
@@ -38,5 +53,6 @@
       {{{content}}}
     </main>
   </div>
+  <script src="/js/sidebar.js"></script>
 </body>
 </html>

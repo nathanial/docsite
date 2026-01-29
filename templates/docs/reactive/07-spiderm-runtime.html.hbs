@@ -1,0 +1,34 @@
+<p>The <code>Spider</code> timeline provides an IO-based push runtime for reactive networks.
+<code>SpiderM</code> is the monad for building reactive computations.</p>
+
+<h4>Key Operations</h4>
+<pre><code class="language-lean">-- Run a reactive network
+runSpider : SpiderM a → IO a
+
+-- Create triggerable events
+newTriggerEvent : SpiderM (Evt a × (a → IO Unit))
+
+-- Create state
+holdDyn : a → Evt a → SpiderM (Dyn a)
+foldDyn : (a → b → b) → b → Evt a → SpiderM (Dyn b)
+
+-- Sample behaviors
+sample : Beh a → SpiderM a</code></pre>
+
+<h4>Type Aliases</h4>
+<p>After <code>open Reactive.Host</code>:</p>
+<ul>
+  <li><code>Evt a</code> = <code>Event Spider a</code></li>
+  <li><code>Beh a</code> = <code>Behavior Spider a</code></li>
+  <li><code>Dyn a</code> = <code>Dynamic Spider a</code></li>
+</ul>
+
+<h4>Running with Event Loop</h4>
+<pre><code class="language-lean">-- Run with external event source
+runSpiderLoop : SpiderM a → (Evt a) → (a → Bool) → IO Unit
+
+-- Or manually control the loop
+def myApp : SpiderM Unit := do
+  let (quit, fireQuit) ← newTriggerEvent
+  -- Set up reactive network...
+  -- fireQuit () when done</code></pre>

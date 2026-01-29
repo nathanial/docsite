@@ -1,0 +1,27 @@
+<p>Here's a simple counter that tracks button clicks:</p>
+<pre><code class="language-lean">import Reactive
+
+open Reactive
+open Reactive.Host
+
+def counterExample : SpiderM Unit := do
+  -- Create a triggerable event for button clicks
+  let (clickEvent, fireClick) ← newTriggerEvent
+
+  -- Fold over clicks to maintain a count
+  let clickCount ← foldDyn (fun _ n => n + 1) 0 clickEvent
+
+  -- Subscribe to see count changes
+  let _ ← clickCount.updated.subscribe fun n =>
+    IO.println s!"Click count: {n}"
+
+  -- Simulate some clicks
+  fireClick ()  -- prints "Click count: 1"
+  fireClick ()  -- prints "Click count: 2"
+  fireClick ()  -- prints "Click count: 3"
+
+def main : IO Unit := do
+  runSpider counterExample</code></pre>
+
+<p>The key insight is that <code>foldDyn</code> creates a <code>Dynamic</code> that automatically
+updates whenever the source event fires, and we can observe those changes through <code>.updated</code>.</p>

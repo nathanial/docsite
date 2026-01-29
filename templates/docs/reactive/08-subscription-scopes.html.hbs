@@ -1,0 +1,21 @@
+<p>Subscriptions are automatically managed through <code>SubscriptionScope</code>. When you create
+derived events or dynamics in SpiderM, their subscriptions are registered with the current scope.</p>
+
+<h4>Hierarchical Cleanup</h4>
+<pre><code class="language-lean">let scope ← SubscriptionScope.new
+
+-- Register cleanup action
+scope.register someUnsub
+
+-- Create child scope (disposed when parent is disposed)
+let child ← scope.child
+
+-- Dispose all (children first, then parent's registrations)
+scope.dispose</code></pre>
+
+<p>SpiderM tracks a <code>currentScope</code> - all combinators automatically register their
+subscriptions, so cleanup happens correctly when the scope is disposed.</p>
+
+<h4>Best Practice</h4>
+<p>Let SpiderM manage scopes automatically. Manual scope management is only needed for
+advanced patterns like dynamically created/destroyed reactive subnetworks.</p>

@@ -1,0 +1,22 @@
+<p>Reactive uses <strong>frame-based propagation</strong> to ensure glitch-free updates. A "glitch"
+occurs when a derived value sees inconsistent intermediate states during an update.</p>
+
+<h4>How It Works</h4>
+<ol>
+  <li><strong>Height Assignment</strong> - Each event node has a height based on its dependencies. Derived nodes are always higher than their sources.</li>
+  <li><strong>Priority Queue</strong> - When events fire, they're queued by (height, nodeId) in a binary min-heap.</li>
+  <li><strong>Ordered Processing</strong> - Events are processed in height order, ensuring all dependencies fire before dependents.</li>
+</ol>
+
+<pre><code class="language-lean">-- Example: Without glitch-free propagation, this could produce wrong results
+let (input, fire) ← newTriggerEvent
+let doubled ← Event.mapM (· * 2) input
+let plusOne ← Event.mapM (· + 1) input
+let combined ← Dynamic.zipWithM (·, ·) doubled plusOne
+
+-- With glitch-free: When input fires 5, combined sees (10, 6) atomically
+-- Without: combined might briefly see (10, oldValue) or (oldValue, 6)</code></pre>
+
+<h4>Frame Boundaries</h4>
+<p>All events fired by a single trigger are processed in the same frame. Use <code>delayFrameM</code>
+to explicitly defer an event to the next frame.</p>

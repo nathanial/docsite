@@ -25,11 +25,13 @@ def categoriesData : Stencil.Value :=
   .array cats.toArray
 
 page home "/" GET do
+  let templatesDir := "templates"
+  let sidebar ← buildSidebarIO templatesDir none none
   let data : Stencil.Value := .object #[
     ("title", .string "Documentation"),
     ("categories", categoriesData),
     ("totalProjects", .int allProjects.length),
-    ("sidebar", sidebarToValue (buildSidebar none none))
+    ("sidebar", sidebarToValue sidebar)
   ]
   Loom.Stencil.ActionM.renderWithLayout "main" "home" data
 

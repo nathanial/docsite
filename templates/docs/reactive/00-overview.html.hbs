@@ -1,0 +1,12 @@
+<p>Reactive is a <strong>Reflex-style Functional Reactive Programming (FRP)</strong> library for Lean 4.
+It provides a declarative way to work with time-varying values and discrete events,
+enabling you to build reactive systems with clean, composable abstractions.</p>
+
+<h3>Key Features</h3>
+<ul>
+  <li><strong>Push/Pull Hybrid Model</strong> - Events are push-based for efficiency, Behaviors are pull-based for consistency</li>
+  <li><strong>Timeline Phantom Types</strong> - Type-safe separation of reactive networks prevents accidental cross-timeline operations</li>
+  <li><strong>Glitch-Free Propagation</strong> - Height-based topological ordering ensures consistent state during updates</li>
+  <li><strong>Frame-Based Updates</strong> - All events in a frame are processed atomically, preventing intermediate states</li>
+  <li><strong>Automatic Subscription Management</strong> - Scoped subscriptions with hierarchical cleanup</li>
+</ul>

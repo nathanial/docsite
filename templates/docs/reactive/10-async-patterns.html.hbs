@@ -1,0 +1,25 @@
+<p>Reactive provides helpers for integrating with asynchronous IO operations:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>asyncIO action</code></td><td>Run IO async, track as <code>Dyn (AsyncState e a)</code></td></tr>
+    <tr><td><code>asyncOnEvent e action</code></td><td>Run async on each event (cancels previous)</td></tr>
+    <tr><td><code>asyncWithRetry config action</code></td><td>Async with exponential backoff retry</td></tr>
+    <tr><td><code>performEvent e</code></td><td>Run IO on event, return result event</td></tr>
+    <tr><td><code>performEvent_ e</code></td><td>Run IO on event, discard result</td></tr>
+  </tbody>
+</table>
+
+<h4>Example: Async Data Loading</h4>
+<pre><code class="language-lean">-- Load data when button clicked
+let (loadClick, fireLoad) ← newTriggerEvent
+let loadState ← asyncOnEvent loadClick fun _ => do
+  -- This runs asynchronously
+  let data ← fetchDataFromServer
+  pure data
+
+-- loadState is Dyn (AsyncState String Data)
+-- .loading, .success data, or .error msg</code></pre>

@@ -1,0 +1,26 @@
+<p>For circular dependencies between events/dynamics, Reactive provides fix-point combinators:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Combinator</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>SpiderM.fixDynM f</code></td><td>Self-referential Dynamic via lazy Behavior</td></tr>
+    <tr><td><code>SpiderM.fixDyn2M f</code></td><td>Mutually recursive Dynamic pair</td></tr>
+    <tr><td><code>SpiderM.fixEventM f</code></td><td>Self-referential Event</td></tr>
+  </tbody>
+</table>
+
+<h4>Example: Counter with Maximum</h4>
+<pre><code class="language-lean">-- Counter that stops at maxValue
+let counter ← SpiderM.fixDynM fun counterBehavior => do
+  let (clicks, fire) ← newTriggerEvent
+
+  -- Gate clicks by whether we're below max
+  let gated ← Event.gateM (counterBehavior.map (· < maxValue)) clicks
+
+  -- Fold gated clicks into count
+  foldDyn (fun _ n => n + 1) 0 gated</code></pre>
+
+<p>The key is that <code>fixDynM</code> provides access to the Dynamic's <em>Behavior</em> (for sampling)
+before the Dynamic is fully constructed. This enables self-reference without actual recursion.</p>

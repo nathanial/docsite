@@ -6,6 +6,7 @@ import Loom.Stencil
 import Stencil
 import Docsite.Data.Projects
 import Docsite.Data.Sidebar
+import Docsite.Data.DocLoader
 
 namespace Docsite.Pages
 
@@ -14,56 +15,45 @@ open Loom.Page
 open Loom.ActionM
 open Docsite.Data.Projects
 open Docsite.Data.Sidebar
-
-/-- Convert a title to a URL slug -/
-def titleToSlug (title : String) : String :=
-  title.toLower
-    |>.replace " " "-"
-    |>.replace "/" "-"
+open Docsite.Data.DocLoader
 
 /-- Information about a section for navigation -/
-structure SectionInfo where
+structure SectionNavInfo where
   title : String
   slug : String
-  content : String
   deriving Repr
 
-/-- Get all sections for a project in order -/
-def getAllSections (doc : ProjectDoc) : List SectionInfo :=
-  let installation : SectionInfo := {
-    title := "Installation"
-    slug := "installation"
-    content := doc.installation
-  }
-  let quickStart : SectionInfo := {
-    title := "Quick Start"
-    slug := "quick-start"
-    content := doc.quickStart
-  }
-  let custom := doc.sections.map fun sec => {
-    title := sec.title
-    slug := titleToSlug sec.title
-    content := sec.content
-  }
-  [installation, quickStart] ++ custom
+/-- Get all sections for a project in order (from template files) -/
+def getAllSectionsIO (templatesDir : System.FilePath) (projectSlug : String)
+    : IO (List SectionNavInfo) := do
+  -- All sections come from the file scan (includes 01-installation, 02-quick-start, etc.)
+  let sectionInfos ← getSectionInfos templatesDir projectSlug
+  pure (sectionInfos.map fun info => { title := info.title, slug := info.slug })
 
-/-- Find a section by slug -/
-def findSectionBySlug (doc : ProjectDoc) (sectionSlug : String) : Option SectionInfo :=
-  (getAllSections doc).find? (·.slug == sectionSlug)
+/-- Find a section by slug and load its content -/
+def findSectionBySlugIO (templatesDir : System.FilePath) (projectSlug : String)
+    (sectionSlug : String) : IO (Option (SectionNavInfo × String)) := do
+  -- Load any section by slug - all sections are discovered from files
+  let content ← loadSection templatesDir projectSlug sectionSlug
+  match content with
+  | some c =>
+    let title := slugToTitle sectionSlug
+    pure (some ({ title := title, slug := sectionSlug }, c))
+  | none => pure none
 
 /-- Get prev/next section for navigation -/
-def getPrevNextSections (doc : ProjectDoc) (sectionSlug : String)
-    : Option SectionInfo × Option SectionInfo :=
-  let sections := getAllSections doc
+def getPrevNextSectionsIO (templatesDir : System.FilePath) (projectSlug : String)
+    (sectionSlug : String) : IO (Option SectionNavInfo × Option SectionNavInfo) := do
+  let sections ← getAllSectionsIO templatesDir projectSlug
   match sections.findIdx? (·.slug == sectionSlug) with
-  | none => (none, none)
+  | none => pure (none, none)
   | some idx =>
     let prev := if idx > 0 then sections[idx - 1]? else none
     let next := sections[idx + 1]?
-    (prev, next)
+    pure (prev, next)
 
-/-- Convert SectionInfo to Stencil value for navigation -/
-def sectionNavToValue (projectSlug : String) (sec : SectionInfo) : Stencil.Value :=
+/-- Convert SectionNavInfo to Stencil value for navigation -/
+def sectionNavToValue (projectSlug : String) (sec : SectionNavInfo) : Stencil.Value :=
   .object #[
     ("title", .string sec.title),
     ("slug", .string sec.slug),
@@ -74,13 +64,18 @@ page docSection "/project/:projectSlug/:sectionSlug" GET (projectSlug : String) 
   match findProject projectSlug with
   | none => html "<h1>Project not found</h1>"
   | some p =>
-    match p.documentation with
-    | none => html "<h1>Documentation not available</h1>"
-    | some doc =>
-      match findSectionBySlug doc sectionSlug with
+    let templatesDir := "templates"
+
+    -- Check if this project has documentation
+    let hasDoc ← hasDocumentation templatesDir p.slug
+    if !hasDoc then
+      html "<h1>Documentation not available</h1>"
+    else
+      -- Find and load the section
+      match ← findSectionBySlugIO templatesDir p.slug sectionSlug with
       | none => html "<h1>Section not found</h1>"
-      | some sec =>
-        let (prevSec, nextSec) := getPrevNextSections doc sectionSlug
+      | some (secInfo, content) =>
+        let (prevSec, nextSec) ← getPrevNextSectionsIO templatesDir p.slug sectionSlug
 
         -- Build navigation data
         let prevNav := match prevSec with
@@ -90,17 +85,20 @@ page docSection "/project/:projectSlug/:sectionSlug" GET (projectSlug : String) 
           | some next => sectionNavToValue p.slug next
           | none => .null
 
+        -- Build sidebar
+        let sidebar ← buildSidebarIO templatesDir (some p.categorySlug) (some p.slug) (some sectionSlug)
+
         let data : Stencil.Value := .object #[
-          ("title", .string s!"{sec.title} - {p.name}"),
-          ("pageTitle", .string sec.title),
+          ("title", .string s!"{secInfo.title} - {p.name}"),
+          ("pageTitle", .string secInfo.title),
           ("projectName", .string p.name),
           ("projectSlug", .string p.slug),
           ("category", .string p.category),
           ("categorySlug", .string p.categorySlug),
-          ("sectionContent", .string sec.content),
+          ("sectionContent", .string content),
           ("prevSection", prevNav),
           ("nextSection", nextNav),
-          ("sidebar", sidebarToValue (buildSidebar (some p.categorySlug) (some p.slug) (some sectionSlug)))
+          ("sidebar", sidebarToValue sidebar)
         ]
         Loom.Stencil.ActionM.renderWithLayout "main" "section" data
 

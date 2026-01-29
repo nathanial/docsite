@@ -28,13 +28,15 @@ page category "/category/:slug" GET (slug : String) do
   let projects := projectsByCategory slug
   match findCategoryName slug with
   | some categoryName =>
+    let templatesDir := "templates"
+    let sidebar ← buildSidebarIO templatesDir (some slug) none
     let data : Stencil.Value := .object #[
       ("title", .string s!"{categoryName} Projects"),
       ("categoryName", .string categoryName),
       ("categorySlug", .string slug),
       ("projects", projectsListData projects),
       ("projectCount", .int projects.length),
-      ("sidebar", sidebarToValue (buildSidebar (some slug) none))
+      ("sidebar", sidebarToValue sidebar)
     ]
     Loom.Stencil.ActionM.renderWithLayout "main" "category" data
   | none =>

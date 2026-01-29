@@ -3,10 +3,12 @@
 -/
 import Stencil
 import Docsite.Data.Projects
+import Docsite.Data.DocLoader
 
 namespace Docsite.Data.Sidebar
 
 open Docsite.Data.Projects
+open Docsite.Data.DocLoader
 
 /-- A section within project documentation for sidebar display -/
 structure SidebarSection where
@@ -39,33 +41,31 @@ def titleToAnchor (title : String) : String :=
     |>.replace " " "-"
     |>.replace "/" "-"
 
-/-- Build sections for a project with documentation -/
-def buildProjectSections (doc : ProjectDoc) (currentSectionSlug : Option String := none) : List SidebarSection :=
-  -- Fixed sections: installation and quick-start
-  let fixed := [
-    { title := "Installation", anchor := "installation", active := currentSectionSlug == some "installation" },
-    { title := "Quick Start", anchor := "quick-start", active := currentSectionSlug == some "quick-start" }
-  ]
-  -- Dynamic sections from doc.sections
-  let dynamic := doc.sections.map fun sec =>
-    let anchor := titleToAnchor sec.title
-    { title := sec.title, anchor := anchor, active := currentSectionSlug == some anchor }
-  fixed ++ dynamic
+/-- Build sections for a project from DocLoader section infos -/
+def buildProjectSections (sectionInfos : List DocSectionInfo) (currentSectionSlug : Option String := none)
+    : List SidebarSection :=
+  -- All sections come from the file scan (includes 01-installation, 02-quick-start, etc.)
+  sectionInfos.map fun info =>
+    { title := info.title, anchor := info.slug, active := currentSectionSlug == some info.slug }
 
-/-- Build a sidebar project from a Project -/
-def buildSidebarProject (p : Project) (currentProjectSlug : Option String)
-    (currentSectionSlug : Option String := none) : SidebarProject :=
+/-- Build a sidebar project from a Project (IO version that checks for docs on disk) -/
+def buildSidebarProjectIO (templatesDir : System.FilePath) (p : Project)
+    (currentProjectSlug : Option String) (currentSectionSlug : Option String := none)
+    : IO SidebarProject := do
   let isActive := currentProjectSlug == some p.slug
-  match p.documentation with
-  | some doc => {
+  let hasDoc ← hasDocumentation templatesDir p.slug
+  if hasDoc then
+    let sectionInfos ← getSectionInfos templatesDir p.slug
+    pure {
       name := p.name
       slug := p.slug
       hasDoc := true
-      sections := buildProjectSections doc (if isActive then currentSectionSlug else none)
+      sections := buildProjectSections sectionInfos (if isActive then currentSectionSlug else none)
       expanded := isActive
       active := isActive
     }
-  | none => {
+  else
+    pure {
       name := p.name
       slug := p.slug
       hasDoc := false
@@ -74,20 +74,23 @@ def buildSidebarProject (p : Project) (currentProjectSlug : Option String)
       active := isActive
     }
 
-/-- Build the full sidebar structure -/
-def buildSidebar (currentCategorySlug : Option String := none)
+/-- Build the full sidebar structure (IO version) -/
+def buildSidebarIO (templatesDir : System.FilePath)
+    (currentCategorySlug : Option String := none)
     (currentProjectSlug : Option String := none)
-    (currentSectionSlug : Option String := none) : List SidebarCategory :=
-  categories.map fun (catName, catSlug) =>
+    (currentSectionSlug : Option String := none) : IO (List SidebarCategory) := do
+  let mut result := []
+  for (catName, catSlug) in categories do
     let projects := projectsByCategory catSlug
-    let builtProjects := projects.map (buildSidebarProject · currentProjectSlug currentSectionSlug)
+    let builtProjects ← projects.mapM (buildSidebarProjectIO templatesDir · currentProjectSlug currentSectionSlug)
     let hasActiveProject := builtProjects.any (·.active)
-    {
+    result := result ++ [{
       name := catName
       slug := catSlug
       projects := builtProjects
       expanded := currentCategorySlug == some catSlug || hasActiveProject
-    }
+    }]
+  pure result
 
 /-- Convert a SidebarSection to a Stencil value -/
 def sidebarSectionToValue (sec : SidebarSection) : Stencil.Value :=

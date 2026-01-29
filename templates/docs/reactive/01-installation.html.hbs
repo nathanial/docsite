@@ -1,4 +1,10 @@
 <p>Add Reactive to your <code>lakefile.lean</code>:</p>
+<p><strong>Update note:</strong> This installation snippet is out of date and does not match the current Reactive release.</p>
+<ul>
+  <li>The doc says <code>v0.0.1</code>, but <code>data/reactive/lakefile.lean</code> declares <code>version := v!"0.1.6"</code>.</li>
+  <li>The project README shows a newer tag (<code>v0.0.4</code>), so the pinned git ref here should be reconciled with the actual release/tag you want documented.</li>
+  <li>If the intended install source is the same GitHub repo, update the require line to the correct tag and consider reflecting any changes to the package name or dependencies.</li>
+</ul>
 <pre><code class="language-lean">require reactive from git "https://github.com/nathanial/reactive" @ "v0.0.1"</code></pre>
 
 <p>Then import in your Lean files:</p>

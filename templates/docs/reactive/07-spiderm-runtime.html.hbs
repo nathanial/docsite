@@ -1,5 +1,10 @@
 <p>The <code>Spider</code> timeline provides an IO-based push runtime for reactive networks.
 <code>SpiderM</code> is the monad for building reactive computations.</p>
+<p><strong>Update note:</strong> The event loop signature shown here is from an older API.</p>
+<ul>
+  <li>Current signature (see <code>Reactive/Host/Spider/Integration.lean</code>): <code>runSpiderLoop : SpiderM a → IO (Option (IO Unit)) → IO Bool → IO a</code>.</li>
+  <li>The doc currently shows <code>runSpiderLoop : SpiderM a → (Evt a) → (a → Bool) → IO Unit</code>, which is incorrect. Update the example to match the <code>eventSource</code> and <code>shouldQuit</code> callbacks.</li>
+</ul>
 
 <h4>Key Operations</h4>
 <pre><code class="language-lean">-- Run a reactive network

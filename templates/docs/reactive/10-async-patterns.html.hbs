@@ -1,4 +1,10 @@
 <p>Reactive provides helpers for integrating with asynchronous IO operations:</p>
+<p><strong>Update note:</strong> Async helpers have more specific types/semantics than described here.</p>
+<ul>
+  <li><code>asyncIO</code> currently returns <code>Dyn (AsyncState String a)</code>, not a generic <code>Dyn (AsyncState e a)</code>. Use <code>asyncIOE</code> if you want an explicit error type.</li>
+  <li><code>asyncOnEvent</code> does <em>not</em> abort the previous task; it only ignores stale results using a generation counter. The “cancels previous” wording is misleading.</li>
+  <li><code>asyncWithRetry</code> returns <code>Dyn (AsyncState (RetryState × String) a)</code>, not a plain <code>AsyncState e a</code>.</li>
+</ul>
 
 <table class="api-table">
   <thead>

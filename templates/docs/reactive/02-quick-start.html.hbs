@@ -1,4 +1,10 @@
 <p>Here's a simple counter that tracks button clicks:</p>
+<p><strong>Update note:</strong> The example compiles against an older API usage pattern.</p>
+<ul>
+  <li><code>newTriggerEvent</code> returns a trigger of type <code>a → IO Unit</code>. In <code>SpiderM</code>, calling <code>fireClick ()</code> directly is a type mismatch; it should be lifted (e.g., <code>SpiderM.liftIO (fireClick ())</code>).</li>
+  <li>Alternatively, move the triggering into <code>IO</code> after <code>runSpider</code>, but then you need to keep the network alive long enough to observe updates.</li>
+  <li>Make sure the example reflects the current “frame-based” semantics if you add multiple triggers in sequence.</li>
+</ul>
 <pre><code class="language-lean">import Reactive
 
 open Reactive

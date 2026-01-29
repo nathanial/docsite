@@ -2,12 +2,6 @@
 computation: <strong>Event</strong> for discrete occurrences, <strong>Behavior</strong> for continuous
 values, and <strong>Dynamic</strong> for stateful values that change and notify observers. Understanding
 when and how to use each type is essential for building correct reactive systems.</p>
-<p><strong>Update note:</strong> Several semantics described here no longer match the current implementation.</p>
-<ul>
-  <li><code>Event.mergeM</code> does <em>not</em> choose a “first wins” value on simultaneous fires; both values are delivered in the same frame (it effectively fires twice). If you need left-bias/first-only semantics, use a dedicated combinator or implement it explicitly.</li>
-  <li><code>Event.leftmostM</code> is currently implemented as a simple merge (it registers all sources and fires for each), so it is not “leftmost” in the Reflex sense. The text should be corrected or the implementation changed.</li>
-  <li>The “internal structure” section implies specific firing order guarantees; in practice, subscribers at the same height can fire in any order within a frame, so examples should avoid relying on deterministic ordering.</li>
-</ul>
 
 <p>These types follow a <strong>push/pull hybrid model</strong>. Events are push-based—when something happens,
 the change propagates through the network automatically. Behaviors are pull-based—you sample them when you

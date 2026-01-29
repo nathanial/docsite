@@ -11,8 +11,15 @@ loading states, and nearly all interactive application state fits this pattern.<
 <p>Dynamics bridge the push-pull divide. The <code>.current</code> field gives you a Behavior
 for pull-based sampling, while the <code>.updated</code> field gives you an Event for push-based
 change notifications. You can use whichever access pattern suits your needs.</p>
+<p><strong>Update note:</strong> A few items here are slightly out of sync with the current combinator behavior.</p>
+<ul>
+  <li><code>Dynamic.zipWithM</code> requires <code>BEq</code> on the output and deduplicates updates; it only fires when the combined value actually changes. The text saying it “updates whenever either input changes” should be softened to reflect this.</li>
+  <li>The “Loading state” example calls <code>Event.mergeAllM</code> with three arguments. <code>mergeAllM</code> is binary; use nested merges or <code>Event.mergeAllListM</code> instead.</li>
+</ul>
 
 <h3>Internal Structure</h3>
+
+<img src="/images/dynamic-structure.png" alt="Dynamic internal structure showing valueRef, changeEvent, and trigger" style="max-width: 100%; margin-bottom: 1.5rem; border-radius: 8px;">
 
 <p>A Dynamic contains three components working together:</p>
 

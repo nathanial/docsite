@@ -7,6 +7,11 @@ the Spider monad.</p>
 <p>The name "Spider" evokes the web of interconnected event nodes that form a reactive network,
 with values propagating outward from triggers like vibrations along strands of silk. But more
 practically, Spider is what you use—the API surface where FRP concepts become executable code.</p>
+<p><strong>Update note:</strong> The examples below fire triggers directly inside <code>SpiderM</code>, but triggers are <code>IO</code> actions.</p>
+<ul>
+  <li>When calling a trigger inside <code>SpiderM</code>, lift it (e.g., <code>SpiderM.liftIO (fire ())</code>), or move triggering outside <code>runSpider</code>.</li>
+  <li>This applies to the “Running Reactive Networks” and “Frame-Based Propagation” snippets.</li>
+</ul>
 
 <h3>Timeline Phantom Types</h3>
 

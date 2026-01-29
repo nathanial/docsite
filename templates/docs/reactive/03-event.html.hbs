@@ -1,3 +1,5 @@
+<img src="/images/reactive-types-overview.png" alt="Overview of Event, Behavior, and Dynamic types" style="max-width: 100%; margin-bottom: 1.5rem; border-radius: 8px;">
+
 <p><code>Event t a</code> is the foundation of reactive programming in the Reactive library. It represents
 discrete occurrences over time—moments when something happens and a value is produced. Think of
 user clicks, key presses, network responses, timer ticks, or any other momentary happening. Unlike
@@ -14,6 +16,11 @@ automatically propagates through all derived events and subscribers. You don't p
 subscribe to them or derive new events from them, and the system notifies you when something
 happens. This push model enables efficient reactive networks where computation only occurs when
 values actually change.</p>
+<p><strong>Update note:</strong> A couple of examples in this page use outdated trigger semantics.</p>
+<ul>
+  <li><code>newTriggerEvent</code> returns a trigger of type <code>a → IO Unit</code>. If you fire it inside <code>SpiderM</code>, you must lift it (e.g., <code>SpiderM.liftIO (fireClick "button-1")</code>) or trigger it outside <code>runSpider</code>.</li>
+  <li><code>newEventWithTrigger</code> does not fire once at construction time; it only wires a trigger. For a “fire once after build” event, use <code>getPostBuild</code> (PostBuild) or call the trigger explicitly.</li>
+</ul>
 
 <h3>Internal Structure</h3>
 

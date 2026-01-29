@@ -1,6 +1,8 @@
 <p>Reactive uses <strong>frame-based propagation</strong> to ensure glitch-free updates. A "glitch"
 occurs when a derived value sees inconsistent intermediate states during an update.</p>
 
+<img src="/images/frame-propagation.png" alt="Frame-based propagation with height ordering" style="max-width: 100%; margin: 1.5rem 0; border-radius: 8px;">
+
 <h4>How It Works</h4>
 <ol>
   <li><strong>Height Assignment</strong> - Each event node has a height based on its dependencies. Derived nodes are always higher than their sources.</li>

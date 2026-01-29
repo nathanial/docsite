@@ -1,0 +1,291 @@
+<p><code>Dynamic t a</code> combines the best of both Event and Behavior. It maintains a current
+value you can sample at any time (like a Behavior), while also providing an event that fires
+whenever the value changes (like an Event). This dual nature makes Dynamic the primary choice
+for application state in reactive programs.</p>
+
+<p>Think of a Dynamic as answering two questions simultaneously: "What is the current value?"
+and "When does it change?" A counter is a perfect example—you need to both display its current
+value and know when to re-render after each increment. Text input fields, selected items,
+loading states, and nearly all interactive application state fits this pattern.</p>
+
+<p>Dynamics bridge the push-pull divide. The <code>.current</code> field gives you a Behavior
+for pull-based sampling, while the <code>.updated</code> field gives you an Event for push-based
+change notifications. You can use whichever access pattern suits your needs.</p>
+
+<h3>Internal Structure</h3>
+
+<p>A Dynamic contains three components working together:</p>
+
+<pre><code class="language-lean">structure Dynamic (t : Type) (a : Type) where
+  private valueRef : IO.Ref a      -- Current value
+  private changeEvent : Event t a  -- Fires with new value on change
+  private triggerChange : a → IO Unit  -- Internal trigger</code></pre>
+
+<ul>
+  <li><strong>valueRef</strong> — An <code>IO.Ref</code> holding the current value. Sampling
+  the Dynamic reads from this reference, giving O(1) access to the current state.</li>
+
+  <li><strong>changeEvent</strong> — An <code>Event t a</code> that fires each time the
+  value changes, carrying the new value. Subscribers receive notifications automatically.</li>
+
+  <li><strong>triggerChange</strong> — Internal function that updates the reference and
+  fires the event atomically. This ensures observers never see the reference and event
+  out of sync.</li>
+</ul>
+
+<p>When a Dynamic updates, the reference is modified and the event fires in a single atomic
+action within the propagation frame. This atomicity is crucial—derived dynamics and
+subscribers always see consistent state.</p>
+
+<h3>Accessing Components</h3>
+
+<p>The two faces of a Dynamic are accessible through fields:</p>
+
+<pre><code class="language-lean">let counter : Dynamic Spider Nat := ...
+
+-- Get the current value as a Behavior
+let currentCount : Behavior Spider Nat := counter.current
+let n ← sample currentCount  -- or sample counter.current
+
+-- Get the change event
+let countChanges : Event Spider Nat := counter.updated
+let _ ← Event.subscribeM countChanges fun newCount =>
+  IO.println s!"Count changed to: {newCount}"</code></pre>
+
+<p>The <code>.current</code> behavior is a thin wrapper that samples from the internal
+reference. The <code>.updated</code> event is the internal change event itself. You can
+use these independently or together depending on your needs.</p>
+
+<h3>Creating Dynamics</h3>
+
+<p>The two primary ways to create dynamics are <code>holdDyn</code> and <code>foldDyn</code>:</p>
+
+<pre><code class="language-lean">-- holdDyn: hold the most recent value from an event
+let lastInput ← holdDyn "" inputEvents
+-- Initially "", updates to each new input value
+-- lastInput.current samples the latest input
+-- lastInput.updated fires with each new input
+
+-- foldDyn: fold over events to accumulate state
+let counter ← foldDyn (fun _ n => n + 1) 0 clickEvents
+-- Starts at 0, increments on each click
+-- counter.current samples current count
+-- counter.updated fires with new count after each click</code></pre>
+
+<p>The difference is subtle but important: <code>holdDyn</code> simply stores each event
+value, while <code>foldDyn</code> combines each event value with the current state using
+a folding function. Use <code>holdDyn</code> when each event is a complete new value; use
+<code>foldDyn</code> when events represent updates or deltas.</p>
+
+<p>For monadic folding where the update function itself runs in <code>SpiderM</code>:</p>
+
+<pre><code class="language-lean">let state ← foldDynM (fun action current => do
+  -- Can sample other behaviors, create events, etc.
+  let modifier ← sample someModifier
+  pure (action * modifier + current)
+) 0 updateEvents</code></pre>
+
+<h3>Mapping Dynamics</h3>
+
+<p>There are two mapping variants with an important distinction:</p>
+
+<pre><code class="language-lean">-- mapM: transform values, fires on every source update
+let doubled ← Dynamic.mapM (· * 2) counter
+-- When counter changes from 5 to 5 (same value), doubled still fires
+
+-- mapUniqM: transform with deduplication (requires BEq)
+let isEven ← Dynamic.mapUniqM (· % 2 == 0) counter
+-- Only fires when the parity ACTUALLY changes
+-- 4→5: fires (true→false), 5→7: doesn't fire (false→false)</code></pre>
+
+<p>This distinction matters for both correctness and performance. Use <code>mapM</code>
+when every source update is meaningful; use <code>mapUniqM</code> when you only care
+about actual value changes. The latter is especially important for derived state that
+drives UI re-renders—unnecessary updates waste computation.</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Combinator</th><th>Deduplication</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Dynamic.mapM f d</code></td><td>No</td><td>Transform values, fires on every update</td></tr>
+    <tr><td><code>Dynamic.mapUniqM f d</code></td><td>Yes (BEq)</td><td>Transform, only fires on actual change</td></tr>
+  </tbody>
+</table>
+
+<h3>Combining Dynamics</h3>
+
+<p>Multiple dynamics can be combined into one:</p>
+
+<pre><code class="language-lean">-- Combine two dynamics with a function
+let total ← Dynamic.zipWithM (· + ·) countA countB
+-- Updates whenever EITHER input changes
+-- If countA=3 and countB=7, total=10
+-- When countA changes to 5, total fires with 12
+
+-- Three-way combination
+let rgb ← Dynamic.zipWith3M (fun r g b => (r, g, b)) red green blue
+
+-- Applicative-style for complex combinations
+let canSubmit ← Dynamic.zipWithM (· && ·)
+  (← Dynamic.mapM (·.isValid) formState)
+  (← Dynamic.mapM not isLoading)</code></pre>
+
+<p>Combined dynamics update whenever any input changes. The new value is computed using
+the current values of all inputs—you always get a consistent snapshot.</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Combinator</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Dynamic.zipWithM f d1 d2</code></td><td>Combine two dynamics</td></tr>
+    <tr><td><code>Dynamic.zipWith3M f d1 d2 d3</code></td><td>Combine three dynamics</td></tr>
+    <tr><td><code>Dynamic.pureM x</code></td><td>Constant dynamic (never updates)</td></tr>
+    <tr><td><code>Dynamic.apM df da</code></td><td>Applicative apply</td></tr>
+  </tbody>
+</table>
+
+<h3>Switching Dynamics</h3>
+
+<p>When you have a Dynamic containing another Dynamic, you can flatten the structure:</p>
+
+<pre><code class="language-lean">-- Dynamic selection from multiple dynamics
+let tabs : Array (Dynamic Spider TabContent) := #[tab1, tab2, tab3]
+let selectedIndex : Dynamic Spider Nat := ...
+
+let selectedTab ← Dynamic.mapM (fun i => tabs[i]!) selectedIndex
+-- selectedTab : Dynamic Spider (Dynamic Spider TabContent)
+
+let currentContent ← Dynamic.switchM selectedTab
+-- currentContent : Dynamic Spider TabContent
+-- Tracks whichever tab is currently selected</code></pre>
+
+<p>The <code>switchM</code> combinator flattens <code>Dynamic (Dynamic a)</code> into
+<code>Dynamic a</code>. When the outer dynamic changes to point to a different inner
+dynamic, the result switches to tracking that new inner dynamic. Changes from both the
+outer selection and the currently-selected inner dynamic propagate to the result.</p>
+
+<p>For Events inside Dynamics, use <code>switchDynM</code>:</p>
+
+<pre><code class="language-lean">let buttonEvents : Dynamic Spider (Event Spider Click) := ...
+let currentClicks ← Event.switchDynM buttonEvents
+-- Fires clicks from whichever button is currently selected</code></pre>
+
+<h3>Observing Changes</h3>
+
+<p>Sometimes you need to know what changed, not just the new value:</p>
+
+<pre><code class="language-lean">-- Get (old, new) pairs on each change
+let transitions ← Dynamic.changesM counter
+-- transitions : Event Spider (Nat × Nat)
+-- Fires (0, 1), then (1, 2), then (2, 3)...
+
+-- Useful for animations, undo systems, change tracking
+transitions.subscribe fun (oldVal, newVal) => do
+  IO.println s!"Changed from {oldVal} to {newVal}"</code></pre>
+
+<p>The <code>changesM</code> combinator returns an Event that fires with <code>(old, new)</code>
+pairs whenever the Dynamic updates. This is invaluable for computing deltas, implementing
+undo/redo, or triggering animations based on state transitions.</p>
+
+<h3>Application State Patterns</h3>
+
+<p><strong>Simple counter:</strong></p>
+
+<pre><code class="language-lean">let (incEvent, fireInc) ← newTriggerEvent
+let (decEvent, fireDec) ← newTriggerEvent
+
+let changes ← Event.mergeM
+  (← Event.mapConstM 1 incEvent)
+  (← Event.mapConstM (-1) decEvent)
+
+let counter ← foldDyn (· + ·) 0 changes</code></pre>
+
+<p><strong>Form state with validation:</strong></p>
+
+<pre><code class="language-lean">let nameInput ← holdDyn "" nameChangeEvents
+let emailInput ← holdDyn "" emailChangeEvents
+
+let formValid ← Dynamic.zipWithM (fun name email =>
+  name.length > 0 && email.contains '@')
+  nameInput emailInput</code></pre>
+
+<p><strong>Loading state:</strong></p>
+
+<pre><code class="language-lean">inductive LoadState (a : Type) where
+  | idle | loading | success (data : a) | error (msg : String)
+
+let loadState ← foldDyn (fun action _ => action) LoadState.idle
+  (← Event.mergeAllM
+    (← Event.mapConstM LoadState.loading startLoadEvent)
+    (← Event.mapM LoadState.success dataReceivedEvent)
+    (← Event.mapM LoadState.error errorEvent))</code></pre>
+
+<p><strong>Derived state with caching:</strong></p>
+
+<pre><code class="language-lean">-- Expensive computation, only runs when source actually changes
+let filteredItems ← Dynamic.mapUniqM
+  (fun (items, query) => items.filter (·.matches query))
+  (← Dynamic.zipWithM Prod.mk itemsDyn searchQueryDyn)</code></pre>
+
+<h3>Dynamic vs Event vs Behavior</h3>
+
+<p>Choosing the right type is fundamental to clean reactive code:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Use Case</th><th>Type</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>User clicks, key presses</td><td>Event</td><td>Discrete occurrences, no "current click"</td></tr>
+    <tr><td>Counter value</td><td>Dynamic</td><td>Need current value + change notifications</td></tr>
+    <tr><td>Mouse position (polling)</td><td>Behavior</td><td>Continuous, sample when needed</td></tr>
+    <tr><td>Form field value</td><td>Dynamic</td><td>Display current + update on change</td></tr>
+    <tr><td>Computed "can submit?"</td><td>Dynamic or Behavior</td><td>Dynamic if driving UI updates</td></tr>
+    <tr><td>Timer ticks</td><td>Event</td><td>Discrete moments in time</td></tr>
+    <tr><td>Current time</td><td>Behavior</td><td>Continuous, sample when needed</td></tr>
+  </tbody>
+</table>
+
+<p>When in doubt, start with Event for inputs and Dynamic for state. Convert as needed
+using <code>holdDyn</code> (Event→Dynamic) or <code>.updated</code> (Dynamic→Event).</p>
+
+<h3>Complete Combinator Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Combinator</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>holdDyn init e</code></td><td><code>a → Evt a → SpiderM (Dyn a)</code></td><td>Hold latest event value</td></tr>
+    <tr><td><code>foldDyn f init e</code></td><td><code>(a → b → b) → b → Evt a → SpiderM (Dyn b)</code></td><td>Fold over events</td></tr>
+    <tr><td><code>foldDynM f init e</code></td><td><code>(a → b → SpiderM b) → b → Evt a → SpiderM (Dyn b)</code></td><td>Monadic fold</td></tr>
+    <tr><td><code>Dynamic.mapM f d</code></td><td><code>(a → b) → Dyn a → SpiderM (Dyn b)</code></td><td>Transform (no dedup)</td></tr>
+    <tr><td><code>Dynamic.mapUniqM f d</code></td><td><code>[BEq b] → (a → b) → Dyn a → SpiderM (Dyn b)</code></td><td>Transform with dedup</td></tr>
+    <tr><td><code>Dynamic.zipWithM f d1 d2</code></td><td><code>(a → b → c) → Dyn a → Dyn b → SpiderM (Dyn c)</code></td><td>Combine two</td></tr>
+    <tr><td><code>Dynamic.zipWith3M f d1 d2 d3</code></td><td><code>(a → b → c → d) → ... → SpiderM (Dyn d)</code></td><td>Combine three</td></tr>
+    <tr><td><code>Dynamic.switchM dd</code></td><td><code>Dyn (Dyn a) → SpiderM (Dyn a)</code></td><td>Flatten nested</td></tr>
+    <tr><td><code>Dynamic.changesM d</code></td><td><code>Dyn a → SpiderM (Evt (a × a))</code></td><td>(old, new) pairs</td></tr>
+    <tr><td><code>Dynamic.pureM x</code></td><td><code>a → SpiderM (Dyn a)</code></td><td>Constant dynamic</td></tr>
+    <tr><td><code>Dynamic.apM df da</code></td><td><code>Dyn (a → b) → Dyn a → SpiderM (Dyn b)</code></td><td>Applicative apply</td></tr>
+    <tr><td><code>Dynamic.holdUniqDynM d</code></td><td><code>[BEq a] → Dyn a → SpiderM (Dyn a)</code></td><td>Deduplicate updates</td></tr>
+  </tbody>
+</table>
+
+<h3>Best Practices</h3>
+
+<ul>
+  <li><strong>Prefer foldDyn over subscribe/set</strong> — Don't subscribe to an event and
+  manually update a Dynamic. Use <code>foldDyn</code> to express state updates declaratively.</li>
+
+  <li><strong>Use mapUniqM for derived UI state</strong> — When derived values drive UI
+  re-renders, deduplication avoids unnecessary work.</li>
+
+  <li><strong>Keep Dynamics focused</strong> — Each Dynamic should represent one logical
+  piece of state. Combine with <code>zipWithM</code> rather than creating mega-Dynamics.</li>
+
+  <li><strong>Remember the atomic update guarantee</strong> — When you read multiple
+  Dynamics that derive from the same source, you get consistent values from the same
+  propagation frame.</li>
+</ul>

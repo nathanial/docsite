@@ -1,0 +1,337 @@
+<p><code>Spider</code> is the concrete IO-based timeline implementation that brings the Reactive
+library to life. While Event, Behavior, and Dynamic are abstract types parameterized by a
+timeline <code>t</code>, Spider provides the actual runtime machinery that makes propagation
+happen. When you build reactive networks in practice, you're working with <code>SpiderM</code>,
+the Spider monad.</p>
+
+<p>The name "Spider" evokes the web of interconnected event nodes that form a reactive network,
+with values propagating outward from triggers like vibrations along strands of silk. But more
+practically, Spider is what you use—the API surface where FRP concepts become executable code.</p>
+
+<h3>Timeline Phantom Types</h3>
+
+<p>Every Event, Behavior, and Dynamic carries a phantom type parameter <code>t</code>:</p>
+
+<pre><code class="language-lean">def Event (t : Type) (a : Type) : Type := ...
+def Behavior (t : Type) (a : Type) : Type := ...
+def Dynamic (t : Type) (a : Type) : Type := ...</code></pre>
+
+<p>This <code>t</code> parameter has no runtime representation—it exists purely for compile-time
+type checking. The <code>Spider</code> type is a marker that fills this role:</p>
+
+<pre><code class="language-lean">structure Spider where
+  private mk ::
+
+instance : Timeline Spider where</code></pre>
+
+<p>The phantom type prevents accidentally mixing values from different reactive networks.
+If you had two separate Spider runtimes (unusual but possible), their events couldn't be
+merged—the type checker would reject the combination. This catches a class of bugs at
+compile time that would otherwise cause subtle runtime issues.</p>
+
+<p>In practice, you won't think about phantom types much. After <code>open Reactive.Host</code>,
+you get convenient aliases that hide the parameter:</p>
+
+<pre><code class="language-lean">-- These are equivalent:
+Event Spider Nat  =  Evt Nat
+Behavior Spider String  =  Beh String
+Dynamic Spider Bool  =  Dyn Bool</code></pre>
+
+<h3>The SpiderM Monad</h3>
+
+<p><code>SpiderM</code> is the monad for building reactive networks. It provides access to
+the Spider runtime environment and implements all the FRP typeclasses:</p>
+
+<pre><code class="language-lean">structure SpiderM (a : Type) where
+  run : SpiderEnv → IO a</code></pre>
+
+<p>SpiderM is essentially a reader monad over <code>SpiderEnv</code>, which contains:</p>
+
+<ul>
+  <li><strong>timelineCtx</strong> — Context for generating unique node IDs</li>
+  <li><strong>propagationQueue</strong> — Priority queue for frame-based event processing</li>
+  <li><strong>currentScope</strong> — Subscription scope for automatic cleanup</li>
+  <li><strong>postBuildActions</strong> — Actions to run after network construction</li>
+  <li><strong>errorHandler</strong> — Handler for exceptions during propagation</li>
+  <li><strong>constructionDepth / propagationDepth</strong> — Counters for infinite loop detection</li>
+  <li><strong>frameMutex</strong> — Recursive mutex for thread-safe frame execution</li>
+</ul>
+
+<p>All the FRP combinators you've seen—<code>newTriggerEvent</code>, <code>foldDyn</code>,
+<code>Event.mapM</code>, etc.—run in SpiderM and access this environment implicitly.</p>
+
+<h3>Type Aliases for Convenience</h3>
+
+<p>After <code>open Reactive.Host</code>, these short aliases are available:</p>
+
+<pre><code class="language-lean">abbrev Dyn := Dynamic Spider  -- Dyn a = Dynamic Spider a
+abbrev Evt := Event Spider    -- Evt a = Event Spider a
+abbrev Beh := Behavior Spider -- Beh a = Behavior Spider a</code></pre>
+
+<p>These make signatures more readable and are used consistently throughout the API:</p>
+
+<pre><code class="language-lean">-- Without aliases
+def myCounter : SpiderM (Dynamic Spider Nat) := ...
+
+-- With aliases (preferred)
+def myCounter : SpiderM (Dyn Nat) := ...</code></pre>
+
+<h3>Running Reactive Networks</h3>
+
+<p>To execute a reactive network, use <code>runSpider</code>:</p>
+
+<pre><code class="language-lean">-- One-shot execution: build network, return result
+def main : IO Unit := do
+  let result ← runSpider do
+    -- Build your reactive network
+    let (event, fire) ← newTriggerEvent
+    let counter ← foldDyn (fun _ n => n + 1) 0 event
+
+    -- Fire some events
+    fire ()
+    fire ()
+    fire ()
+
+    -- Sample final state
+    sample counter.current
+
+  IO.println s!"Final count: {result}"  -- "Final count: 3"</code></pre>
+
+<p>For applications that need continuous event processing, use <code>runSpiderLoop</code>:</p>
+
+<pre><code class="language-lean">-- Event loop: continuously poll for external events
+partial def runSpiderLoop
+  (network : SpiderM a)
+  (eventSource : IO (Option (IO Unit)))
+  (shouldQuit : IO Bool)
+  : IO a</code></pre>
+
+<p>The event loop repeatedly calls <code>eventSource</code> to get external events (returning
+<code>some action</code> to fire an event, <code>none</code> when idle) until
+<code>shouldQuit</code> returns true.</p>
+
+<h3>Frame-Based Propagation</h3>
+
+<p>Spider uses <strong>frames</strong> to ensure glitch-free event propagation. When a trigger
+fires, all derived events process in a single atomic frame:</p>
+
+<ol>
+  <li>The trigger fires an event with a value</li>
+  <li>Spider enters a new propagation frame</li>
+  <li>Events are queued by (height, nodeId) in a priority queue</li>
+  <li>Events are processed in height order (lowest first)</li>
+  <li>Frame completes, all subscribers have seen consistent state</li>
+</ol>
+
+<p>This height-based ordering prevents glitches. Consider:</p>
+
+<pre><code class="language-lean">let (input, fire) ← newTriggerEvent    -- height 0
+let doubled ← Event.mapM (· * 2) input  -- height 1
+let plusOne ← Event.mapM (· + 1) input  -- height 1
+let doubleDyn ← holdDyn 0 doubled       -- height 2
+let plusOneDyn ← holdDyn 0 plusOne      -- height 2
+let combined ← Dynamic.zipWithM (·,·) doubleDyn plusOneDyn  -- height 3
+
+fire 5
+-- Processing order:
+--   input fires 5 (height 0)
+--   doubled fires 10, plusOne fires 6 (height 1, both processed)
+--   doubleDyn updates to 10, plusOneDyn updates to 6 (height 2)
+--   combined updates to (10, 6) (height 3)
+-- combined sees (10, 6) atomically, never (10, 0) or (0, 6)</code></pre>
+
+<p>Without this ordering, <code>combined</code> might see inconsistent intermediate states
+during propagation.</p>
+
+<h3>Integration Helpers</h3>
+
+<p>Spider provides helpers for common integration patterns:</p>
+
+<pre><code class="language-lean">-- Run IO actions when events fire
+let saveResults ← performEvent (saveEvent.map' fun doc => saveFile doc)
+-- saveResults fires with the IO action's result
+
+-- Run IO for side effects only
+performEvent_ (clickEvent.map' fun _ => IO.println "clicked!")
+
+-- Create poll-based event source
+let (inputEvent, pollInput) ← fromIO do
+  if ← stdin.hasData then some <$> stdin.getLine
+  else pure none
+
+-- Export event as callback for external systems
+toCallback myEvent fun value => ExternalSystem.notify value</code></pre>
+
+<h3>Error Handling</h3>
+
+<p>Exceptions during event propagation are caught and handled according to the configured
+error handler:</p>
+
+<pre><code class="language-lean">-- Default: log error, continue processing other subscribers
+def defaultErrorHandler : PropagationErrorHandler := fun err => do
+  IO.eprintln s!"[Reactive] Error in subscriber: {err}"
+  pure true  -- true = continue
+
+-- Strict: re-raise first error, stop propagation
+def strictErrorHandler : PropagationErrorHandler := fun _ =>
+  pure false  -- false = stop and re-raise
+
+-- Custom handler
+SpiderM.setErrorHandler fun err => do
+  Metrics.recordError err
+  pure true  -- continue after recording</code></pre>
+
+<p>Set the handler during network construction or use <code>runSpiderWithErrorHandler</code>
+to specify it at the entry point.</p>
+
+<h3>Subscription Scopes</h3>
+
+<p>SpiderM tracks a <code>currentScope</code> that automatically manages subscription lifetimes.
+When you create derived events or subscribe to events, the subscription is registered with the
+current scope:</p>
+
+<pre><code class="language-lean">let derived ← Event.mapM transform source
+-- derived's subscription to source is registered with currentScope
+
+-- When scope is disposed, all registered subscriptions are cleaned up
+scope.dispose</code></pre>
+
+<p>You can create child scopes for more granular lifetime management:</p>
+
+<pre><code class="language-lean">-- Run action with a new child scope that auto-disposes
+let result ← SpiderM.withAutoDisposeScope do
+  -- Subscriptions here are cleaned up when this block exits
+  ...
+
+-- Or manage the scope manually
+let (result, childScope) ← SpiderM.withScope do
+  ...
+-- childScope.dispose when ready</code></pre>
+
+<h3>Recursive Network Combinators</h3>
+
+<p>For circular dependencies, Spider provides fix-point combinators:</p>
+
+<pre><code class="language-lean">-- Self-referential dynamic (e.g., counter that stops at maxValue)
+let counter ← SpiderM.fixDynM fun counterBehavior => do
+  let (clicks, fire) ← newTriggerEvent
+  let gated ← Event.gateM (counterBehavior.map (· < maxValue)) clicks
+  foldDyn (fun _ n => n + 1) 0 gated
+
+-- Mutually recursive dynamics
+let (dynA, dynB) ← SpiderM.fixDyn2M fun behA behB => do
+  -- dynA depends on behB, dynB depends on behA
+  ...
+  pure (dynA, dynB)
+
+-- Self-referential event
+let event ← SpiderM.fixEventM fun getEvent => do
+  -- Can access getEvent in event handlers (not during construction)
+  ...</code></pre>
+
+<p>These work by providing lazy access to values that will be wired up after construction.
+The behavior/event should only be sampled/accessed inside event handlers, not during network
+construction.</p>
+
+<h3>Thread Safety</h3>
+
+<p>Spider is thread-safe for concurrent event firing. The frame mutex ensures that multiple
+threads firing events don't interleave their propagation frames:</p>
+
+<ul>
+  <li>Thread A fires event → enters frame → processes all derived events → exits frame</li>
+  <li>Thread B fires event → waits for A's frame → enters own frame → processes</li>
+</ul>
+
+<p>The mutex is recursive, allowing same-thread reentrant calls (e.g., an event handler
+that triggers another event) without deadlock.</p>
+
+<h3>Lifting IO into SpiderM</h3>
+
+<p>SpiderM implements <code>MonadLiftT IO</code>, so you can lift IO actions directly:</p>
+
+<pre><code class="language-lean">-- Implicit lifting (preferred)
+let data ← IO.FS.readFile "config.json"
+
+-- Explicit lifting
+let data ← SpiderM.liftIO (IO.FS.readFile "config.json")
+
+-- Direct construction (rare, for low-level needs)
+let action : SpiderM Unit := ⟨fun env => do
+  -- env.currentScope, env.timelineCtx available
+  someIOAction
+⟩</code></pre>
+
+<h3>Common Patterns</h3>
+
+<p><strong>Basic reactive application structure:</strong></p>
+
+<pre><code class="language-lean">def main : IO Unit := do
+  runSpider do
+    -- 1. Create triggerable events for external inputs
+    let (userInput, fireInput) ← newTriggerEvent
+
+    -- 2. Build reactive network from events
+    let processedInput ← Event.mapMaybeM parseCommand userInput
+    let appState ← foldDyn applyCommand initialState processedInput
+
+    -- 3. Subscribe to outputs
+    appState.updated.subscribeM fun state =>
+      render state
+
+    -- 4. Wire external event sources
+    setupInputHandler fireInput</code></pre>
+
+<p><strong>Custom monad stacking:</strong></p>
+
+<pre><code class="language-lean">-- Reader over SpiderM
+abbrev AppM := ReaderT AppConfig SpiderM
+
+-- Need explicit ForIn instance
+instance [ForIn SpiderM ρ α] : ForIn AppM ρ α where
+  forIn x init f := fun ctx => ForIn.forIn x init fun a b => f a b ctx</code></pre>
+
+<h3>Best Practices</h3>
+
+<ul>
+  <li><strong>Build network first, then run</strong> — Construct your entire reactive network
+  before firing events. This ensures all subscriptions are in place.</li>
+
+  <li><strong>Use scopes for dynamic UI</strong> — When parts of your UI are created/destroyed
+  dynamically, use child scopes to manage their subscription lifetimes.</li>
+
+  <li><strong>Prefer combinators over manual subscribe</strong> — Direct subscriptions can
+  lead to imperative anti-patterns. Use FRP combinators to express transformations.</li>
+
+  <li><strong>Handle errors appropriately</strong> — For production, set an error handler
+  that logs issues without crashing. Use strict mode for development to catch bugs early.</li>
+
+  <li><strong>Test with multiple threads</strong> — If your app fires events from multiple
+  threads, test concurrent scenarios to ensure frame serialization works as expected.</li>
+</ul>
+
+<h3>API Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>runSpider m</code></td><td>Run SpiderM network, return result</td></tr>
+    <tr><td><code>runSpiderLoop m source quit</code></td><td>Run with event loop</td></tr>
+    <tr><td><code>runSpiderWithErrorHandler m h</code></td><td>Run with custom error handler</td></tr>
+    <tr><td><code>SpiderM.liftIO action</code></td><td>Lift IO into SpiderM</td></tr>
+    <tr><td><code>SpiderM.getEnv</code></td><td>Access SpiderEnv (advanced)</td></tr>
+    <tr><td><code>SpiderM.getScope</code></td><td>Get current subscription scope</td></tr>
+    <tr><td><code>SpiderM.withScope action</code></td><td>Run with child scope (manual dispose)</td></tr>
+    <tr><td><code>SpiderM.withAutoDisposeScope action</code></td><td>Run with auto-disposed child scope</td></tr>
+    <tr><td><code>SpiderM.setErrorHandler h</code></td><td>Set propagation error handler</td></tr>
+    <tr><td><code>SpiderM.fixDynM f</code></td><td>Self-referential Dynamic</td></tr>
+    <tr><td><code>SpiderM.fixDyn2M f</code></td><td>Mutually recursive Dynamic pair</td></tr>
+    <tr><td><code>SpiderM.fixEventM f</code></td><td>Self-referential Event</td></tr>
+    <tr><td><code>performEvent e</code></td><td>Run IO on event, return result event</td></tr>
+    <tr><td><code>performEvent_ e</code></td><td>Run IO on event, discard result</td></tr>
+    <tr><td><code>fromIO poll</code></td><td>Create poll-based event source</td></tr>
+    <tr><td><code>toCallback e cb</code></td><td>Export event as callback</td></tr>
+  </tbody>
+</table>

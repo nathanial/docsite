@@ -1,0 +1,267 @@
+<p><code>Event t a</code> is the foundation of reactive programming in the Reactive library. It represents
+discrete occurrences over time—moments when something happens and a value is produced. Think of
+user clicks, key presses, network responses, timer ticks, or any other momentary happening. Unlike
+continuous signals, events are sparse: they don't have a value at every instant, only at specific
+moments when they "fire."</p>
+
+<p>Conceptually, an Event is like a sparse timeline: <code>[(Time, a)]</code>—a list of time/value
+pairs where most times have no value. This mental model helps distinguish events from behaviors
+(which always have a value) and explains why you can't simply "read" an event's current value—there
+may be no current value to read.</p>
+
+<p>Events follow a <strong>push-based</strong> propagation model. When an event fires, its value
+automatically propagates through all derived events and subscribers. You don't poll events; you
+subscribe to them or derive new events from them, and the system notifies you when something
+happens. This push model enables efficient reactive networks where computation only occurs when
+values actually change.</p>
+
+<h3>Internal Structure</h3>
+
+<p>Under the hood, each Event is backed by an <code>EventNode</code> structure that manages the
+push-based propagation machinery:</p>
+
+<ul>
+  <li><strong>nodeId</strong> — A unique identifier for this event node, used for ordering within
+  the propagation queue and for debugging. Node IDs are allocated sequentially from a
+  <code>TimelineCtx</code> to ensure uniqueness within a reactive network.</li>
+
+  <li><strong>height</strong> — The topological depth in the dependency graph. When you derive
+  event B from event A, B's height is A's height plus one. This ordering is crucial for
+  glitch-free propagation: events are processed in height order, ensuring parents always
+  fire before children.</li>
+
+  <li><strong>subscribers</strong> — An array of callback functions to invoke when the event
+  fires. Each subscriber is a simple <code>a → IO Unit</code> action that receives the fired
+  value.</li>
+
+  <li><strong>lazy deletion</strong> — Rather than filtering the subscriber array when
+  unsubscribing (which would be O(n)), unsubscribed callbacks are marked as <code>none</code>
+  and skipped during firing. The array is compacted when the node disconnects entirely.</li>
+</ul>
+
+<p>The height system prevents glitches—situations where a subscriber might see inconsistent
+intermediate states. Consider a scenario where event C depends on both A and B, and both A and B
+fire in response to some trigger. Without height ordering, C might process A's new value while
+still seeing B's old value. Height ordering ensures all height-N events complete before any
+height-(N+1) events begin.</p>
+
+<h3>Creating Events</h3>
+
+<p>The primary way to create an event you can fire programmatically is <code>newTriggerEvent</code>:</p>
+
+<pre><code class="language-lean">-- In SpiderM context
+let (clickEvent, fireClick) ← newTriggerEvent
+
+-- clickEvent : Event Spider String
+-- fireClick : String → IO Unit
+
+-- Fire the event with a value
+fireClick "button-1"  -- All subscribers receive "button-1"</code></pre>
+
+<p>The returned trigger function runs in <code>IO</code>, not <code>SpiderM</code>. This is
+intentional: you can call it from anywhere—event handlers, callbacks, external integrations,
+or even other threads. Each call fires the event in a new propagation frame, processing all
+downstream effects atomically before returning.</p>
+
+<p>For events that should fire once at construction time, use <code>newEventWithTrigger</code>:</p>
+
+<pre><code class="language-lean">-- Create an event and immediately wire it to something
+let event ← newEventWithTrigger fun fire => do
+  -- Set up external integration that calls fire
+  ExternalSystem.onCallback (fun value => fire value)</code></pre>
+
+<p>The never-firing event is available via <code>Event.neverM</code>—useful as a placeholder
+or for constant dynamics that never update.</p>
+
+<h3>Transformation Combinators</h3>
+
+<p>The most common event operations transform values as they flow through:</p>
+
+<pre><code class="language-lean">-- Transform each value with a function
+let doubled ← Event.mapM (· * 2) numbers
+-- When numbers fires 5, doubled fires 10
+
+-- Keep only values matching a predicate
+let positives ← Event.filterM (· > 0) numbers
+-- When numbers fires -3, positives doesn't fire
+-- When numbers fires 7, positives fires 7
+
+-- Combined filter + transform
+let parsed ← Event.mapMaybeM String.toNat? inputs
+-- When inputs fires "42", parsed fires 42
+-- When inputs fires "hello", parsed doesn't fire</code></pre>
+
+<p>These transformations create new event nodes at height = source.height + 1, ensuring
+proper propagation order. Successive maps are fused internally into a single function
+composition for efficiency—mapping twice doesn't create two separate subscriptions.</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Combinator</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Event.mapM f e</code></td><td><code>(a → b) → Evt a → SpiderM (Evt b)</code></td><td>Transform each value</td></tr>
+    <tr><td><code>Event.filterM p e</code></td><td><code>(a → Bool) → Evt a → SpiderM (Evt a)</code></td><td>Keep values matching predicate</td></tr>
+    <tr><td><code>Event.mapMaybeM f e</code></td><td><code>(a → Option b) → Evt a → SpiderM (Evt b)</code></td><td>Filter + transform in one step</td></tr>
+    <tr><td><code>Event.voidM e</code></td><td><code>Evt a → SpiderM (Evt Unit)</code></td><td>Discard values, keep timing</td></tr>
+    <tr><td><code>Event.mapConstM b e</code></td><td><code>β → Evt α → SpiderM (Evt β)</code></td><td>Replace all values with constant</td></tr>
+  </tbody>
+</table>
+
+<h3>Merging Combinators</h3>
+
+<p>Merging combines multiple event streams into one. The Reactive library follows Reflex-style
+<strong>left-biased</strong> semantics: when two events fire simultaneously (in the same
+propagation frame), only the left event's value is delivered.</p>
+
+<pre><code class="language-lean">-- Merge two events with left-bias
+let anyInput ← Event.mergeM keyPress mouseClick
+-- If both fire simultaneously, keyPress wins
+
+-- Take first from a list of events
+let firstResponse ← Event.leftmostM [server1, server2, server3]
+-- First to fire wins; if multiple fire simultaneously, leftmost in list wins
+
+-- Collect all simultaneous fires into a list
+let allClicks ← Event.mergeListM [btn1Click, btn2Click, btn3Click]
+-- Fires with [value1, value2] if btn1 and btn2 fire together</code></pre>
+
+<p>For situations where you want all simultaneous values (pre-Reflex behavior), use the
+<code>mergeAll</code> variants:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Combinator</th><th>Simultaneous Behavior</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Event.mergeM e1 e2</code></td><td>Left-bias (first only)</td><td>Merge two events</td></tr>
+    <tr><td><code>Event.mergeAllM e1 e2</code></td><td>Both fire</td><td>Merge without bias</td></tr>
+    <tr><td><code>Event.leftmostM es</code></td><td>First-only</td><td>First from list</td></tr>
+    <tr><td><code>Event.mergeListM es</code></td><td>Batched list</td><td>Collect simultaneous into list</td></tr>
+    <tr><td><code>Event.mergeAllListM es</code></td><td>All fire separately</td><td>All from list, no batching</td></tr>
+  </tbody>
+</table>
+
+<h3>Behavior Interaction</h3>
+
+<p>Events often need to read current state when they fire. Behaviors represent continuous
+values that can be sampled at any time, and several combinators connect events to behaviors:</p>
+
+<pre><code class="language-lean">-- Sample a behavior when event fires, replacing event value
+let clickPos ← Event.tagM mousePosition clickEvent
+-- On click, fires with current mouse position (click value discarded)
+
+-- Pair behavior value with event value
+let clickWithMods ← Event.attachM modifierKeys clickEvent
+-- Fires (modifiers, clickValue) pairs
+
+-- Combine with a function
+let scaledClick ← Event.attachWithM (fun scale pos => pos * scale) zoomLevel clickEvent
+
+-- Gate: only pass events when behavior is true
+let allowedClicks ← Event.gateM (not <$> isDragging) clickEvent
+-- Clicks only pass through when not dragging</code></pre>
+
+<p>The sampling happens synchronously when the event fires, within the same propagation frame.
+This ensures you get a consistent snapshot of the behavior's value at the moment of the event.</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Combinator</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Event.tagM b e</code></td><td><code>Beh a → Evt b → SpiderM (Evt a)</code></td><td>Sample behavior, discard event value</td></tr>
+    <tr><td><code>Event.attachM b e</code></td><td><code>Beh a → Evt c → SpiderM (Evt (a × c))</code></td><td>Pair behavior with event</td></tr>
+    <tr><td><code>Event.attachWithM f b e</code></td><td><code>(a → c → d) → Beh a → Evt c → SpiderM (Evt d)</code></td><td>Combine with function</td></tr>
+    <tr><td><code>Event.gateM b e</code></td><td><code>Beh Bool → Evt a → SpiderM (Evt a)</code></td><td>Pass only when behavior is true</td></tr>
+  </tbody>
+</table>
+
+<h3>Stateful Combinators</h3>
+
+<p>Some event patterns require maintaining state across firings:</p>
+
+<pre><code class="language-lean">-- Running accumulation (like fold, but emits each intermediate value)
+let runningSum ← Event.accumulateM (· + ·) 0 numbers
+-- Fires 1, 3, 6, 10... as numbers fires 1, 2, 3, 4...
+
+-- Skip consecutive duplicates (requires BEq)
+let changes ← Event.distinctM mousePosition
+-- Only fires when position actually changes
+
+-- Get (previous, current) pairs
+let deltas ← Event.withPreviousM positions
+-- Fires (oldPos, newPos) — useful for computing velocity</code></pre>
+
+<p>Note that <code>accumulateM</code> returns an Event (firing each accumulated value), while
+<code>foldDyn</code> returns a Dynamic (maintaining current state with change notifications).
+Use <code>accumulateM</code> when you only need the event stream; use <code>foldDyn</code>
+when you also need to sample the current accumulated value.</p>
+
+<h3>Timing Combinators</h3>
+
+<p>These combinators deal with the timing relationships between events:</p>
+
+<pre><code class="language-lean">-- Pair events that fire in the same frame
+let coordinated ← Event.zipEM userAction systemResponse
+-- Only fires when both happen simultaneously
+
+-- Fire e1 only when e2 doesn't fire
+let clicksNotDrags ← Event.differenceM clicks drags
+-- Useful for "A but not B" patterns
+
+-- Defer to next propagation frame
+let delayed ← Event.delayFrameM immediate
+-- Useful for breaking dependency cycles
+
+-- Take only first n occurrences
+let firstThree ← Event.takeNM 3 clicks
+let justOnce ← Event.onceM clicks  -- Shorthand for takeNM 1
+
+-- Drop first n occurrences
+let afterWarmup ← Event.dropNM 5 samples</code></pre>
+
+<p>For time-based operations (debounce, throttle, delay by duration), see the temporal
+combinators that work with <code>Chronos.Duration</code>.</p>
+
+<h3>Subscription</h3>
+
+<p>While combinators are the preferred way to work with events, sometimes you need direct
+subscription for integration with external systems:</p>
+
+<pre><code class="language-lean">-- In SpiderM context, subscriptions auto-register with current scope
+let unsub ← Event.subscribeM clickEvent fun value => do
+  IO.println s!"Clicked: {value}"
+
+-- Subscription is automatically cleaned up when scope is disposed
+-- Or manually unsubscribe:
+unsub</code></pre>
+
+<p><strong>Best Practice:</strong> Prefer FRP combinators (<code>foldDyn</code>, <code>holdDyn</code>,
+<code>mapM</code>, etc.) over direct subscriptions. Direct subscribe can lead to imperative
+patterns that break FRP semantics—particularly the "subscribe/sample/set" anti-pattern where
+you sample and modify the same Dynamic in a subscription callback.</p>
+
+<h3>Best Practices</h3>
+
+<p><strong>Use Event when:</strong></p>
+<ul>
+  <li>Values occur at discrete moments (clicks, key presses, messages)</li>
+  <li>You don't need to read a "current value" outside of event handlers</li>
+  <li>You're modeling notifications or commands</li>
+</ul>
+
+<p><strong>Use Dynamic instead when:</strong></p>
+<ul>
+  <li>You need both the current value AND change notifications</li>
+  <li>You're modeling application state that changes over time</li>
+  <li>You need to sample the value outside of event handlers</li>
+</ul>
+
+<p><strong>Common patterns:</strong></p>
+<ul>
+  <li>UI events → <code>Event</code> (clicks, input, focus)</li>
+  <li>Application state → <code>Dynamic</code> (form fields, counters, selections)</li>
+  <li>Network responses → <code>Event</code> initially, often folded into <code>Dynamic</code></li>
+  <li>Computed/derived values → <code>Behavior</code> or <code>Dynamic</code> depending on whether you need change notifications</li>
+</ul>

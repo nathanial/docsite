@@ -1,0 +1,267 @@
+<p><code>Behavior t a</code> represents a value that varies continuously over time. Unlike events,
+which fire at discrete moments, a behavior always has a current value—you can sample it at any
+instant and get a meaningful result. Conceptually, a Behavior is a function from time to value:
+<code>Time → a</code>.</p>
+
+<p>Think of behaviors as describing continuous phenomena: the current mouse position, the width
+of a window, the system time, or any computed value that "exists" at every moment. You don't
+subscribe to behaviors or wait for them to fire; you simply ask for their current value when
+you need it.</p>
+
+<p>Behaviors follow a <strong>pull-based</strong> model. They don't push updates to subscribers;
+instead, you pull their current value when you need it. This makes behaviors ideal for values
+that change frequently or continuously (like mouse position tracked at 60fps) where you only
+care about the value at specific moments (like when a click occurs). There's no need to process
+every intermediate value—just sample when relevant.</p>
+
+<h3>Internal Structure</h3>
+
+<p>A Behavior is remarkably simple internally—it's essentially a wrapped sampling action:</p>
+
+<pre><code class="language-lean">structure Behavior (t : Type) (a : Type) where
+  private sampleIO : IO a</code></pre>
+
+<p>When you sample a behavior, it computes and returns the current value. For simple behaviors
+this might read an <code>IO.Ref</code>; for derived behaviors it might compute from other
+behaviors by sampling them in turn. There's intentionally no caching—each sample recomputes,
+ensuring you always get the truly current value.</p>
+
+<p>This design has important implications:</p>
+
+<ul>
+  <li><strong>No change notifications</strong> — Behaviors don't tell you when they change.
+  If you need change notifications, use <code>Dynamic</code> instead.</li>
+
+  <li><strong>Recomputation on each sample</strong> — Derived behaviors recompute their
+  value every time you sample. For expensive computations sampled frequently, consider
+  caching via <code>Dynamic</code>.</li>
+
+  <li><strong>Consistent snapshots</strong> — When you sample multiple behaviors at the
+  same point in time, you get a consistent view of the world at that instant.</li>
+</ul>
+
+<h3>Creating Behaviors</h3>
+
+<p>There are several ways to create behaviors depending on your use case:</p>
+
+<pre><code class="language-lean">-- Constant behavior: always returns the same value
+let answer := Behavior.constant 42
+-- sample answer = 42, always
+
+-- From an IO sampling action
+let now := Behavior.fromSample IO.monoMsNow
+-- sample now = current monotonic time in milliseconds
+
+-- Hold the latest value from an event (in SpiderM)
+let lastClick ← Behavior.holdM 0 clickPositions
+-- Starts at 0, updates to each new click position
+
+-- Fold over events to accumulate state
+let clickCount ← Behavior.foldBM (fun _ n => n + 1) 0 clicks
+-- Running count of all clicks</code></pre>
+
+<p>The <code>hold</code> and <code>foldB</code> combinators bridge the gap between push-based
+events and pull-based behaviors: they subscribe to an event internally and maintain a mutable
+reference that you can sample at any time.</p>
+
+<h3>Functor Instance</h3>
+
+<p>Behavior implements <code>Functor</code>, allowing you to transform values:</p>
+
+<pre><code class="language-lean">-- Transform the value with a function
+let doubled := Behavior.map (· * 2) counter
+-- sample doubled = (sample counter) * 2
+
+-- Functor syntax also works
+let doubled := (· * 2) <$> counter</code></pre>
+
+<p>Importantly, <code>map</code> doesn't create any subscriptions or maintain any state—it just
+wraps the sampling action with a function application. The transformation runs each time you
+sample the derived behavior.</p>
+
+<h3>Applicative Instance</h3>
+
+<p>The <code>Applicative</code> instance enables combining independent behaviors:</p>
+
+<pre><code class="language-lean">-- Combine two behaviors with a function
+let sum := Behavior.zipWith (· + ·) countA countB
+-- sample sum = (sample countA) + (sample countB)
+
+-- Pair two behaviors
+let pair := Behavior.zip mouseX mouseY
+-- sample pair = (sample mouseX, sample mouseY)
+
+-- Three-way combination
+let rgb := Behavior.zipWith3 (fun r g b => (r, g, b)) red green blue
+
+-- Applicative style
+let point := Prod.mk <$> mouseX <*> mouseY</code></pre>
+
+<p>When you sample a combined behavior, it samples each input and combines the results. This
+gives you a consistent snapshot—both values are from the same instant in time.</p>
+
+<h3>Monad Instance</h3>
+
+<p>Behavior is also a <code>Monad</code>, enabling dynamic behavior selection:</p>
+
+<pre><code class="language-lean">-- Select which behavior to sample based on another behavior's value
+let currentPage := Behavior.bind pageIndex fun i => pages[i]!
+-- Samples pageIndex, then samples the behavior at that index
+
+-- Monadic syntax
+let currentTheme := do
+  let isDark ← darkModeBehavior
+  if isDark then darkTheme else lightTheme</code></pre>
+
+<p>The monadic bind samples the outer behavior first, then uses its value to determine which
+inner behavior to sample. This is powerful for dynamic switching patterns where the "shape"
+of your behavior network depends on runtime values.</p>
+
+<h3>Boolean Operations</h3>
+
+<p>For behaviors carrying boolean values, convenient combinators are available:</p>
+
+<pre><code class="language-lean">-- Logical operations
+let notDragging := Behavior.not isDragging
+let canClick := Behavior.and isEnabled notDragging
+let shouldHighlight := Behavior.or isHovered isSelected
+
+-- All/any for lists of boolean behaviors
+let allValid := Behavior.allTrue [field1Valid, field2Valid, field3Valid]
+let anyChanged := Behavior.anyTrue [nameChanged, emailChanged, phoneChanged]</code></pre>
+
+<p>These are straightforward compositions using <code>map</code> and <code>zipWith</code>,
+but they improve code readability significantly.</p>
+
+<h3>Higher-Order Behaviors</h3>
+
+<p>When you have a <code>Behavior (Behavior a)</code>—a behavior whose value is itself a
+behavior—you can flatten it with <code>switch</code>:</p>
+
+<pre><code class="language-lean">-- Dynamic behavior selection
+let behaviors : Array (Behavior Spider Int) := #[fast, medium, slow]
+let speedIndex : Behavior Spider Nat := ...
+
+let selectedBehavior := speedIndex.map fun i => behaviors[i]!
+-- selectedBehavior : Behavior Spider (Behavior Spider Int)
+
+let current := Behavior.switch selectedBehavior
+-- current : Behavior Spider Int
+-- Samples speedIndex, then samples the behavior at that index</code></pre>
+
+<p>The <code>switch</code> combinator (also available as <code>join</code>) dynamically
+switches which inner behavior is sampled based on the outer behavior's current value.
+Each time you sample <code>current</code>, it first samples which behavior to use,
+then samples that behavior.</p>
+
+<h3>Sampling</h3>
+
+<p>The fundamental operation on behaviors is sampling—reading the current value:</p>
+
+<pre><code class="language-lean">-- In SpiderM context
+let pos ← sample mousePosition
+IO.println s!"Mouse at: {pos}"
+
+-- Direct IO access (outside SpiderM)
+let pos ← mousePosition.sample
+IO.println s!"Mouse at: {pos}"</code></pre>
+
+<p>Sampling is synchronous and returns immediately with the current value. When sampling
+derived behaviors, all upstream behaviors are sampled in turn to compute the final result.</p>
+
+<p>The <code>MonadSample</code> typeclass provides the <code>sample</code> method, which
+is available in <code>SpiderM</code> and any other monad that implements sampling.</p>
+
+<h3>Behaviors vs Dynamics</h3>
+
+<p>A common question is when to use <code>Behavior</code> versus <code>Dynamic</code>. The key
+difference is that Dynamic provides change notifications while Behavior does not:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Feature</th><th>Behavior</th><th>Dynamic</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Can sample current value</td><td>Yes</td><td>Yes (via <code>.current</code>)</td></tr>
+    <tr><td>Change notifications</td><td>No</td><td>Yes (via <code>.updated</code>)</td></tr>
+    <tr><td>Memory overhead</td><td>Minimal</td><td>Stores value + event machinery</td></tr>
+    <tr><td>Derived values recompute</td><td>On each sample</td><td>On source change (cached)</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Use Behavior when:</strong></p>
+<ul>
+  <li>You only need to read the value at specific moments (e.g., when an event fires)</li>
+  <li>The value is computed from other values and doesn't need caching</li>
+  <li>Change notifications aren't needed (no subscribers watching for updates)</li>
+  <li>You're working with truly continuous values like mouse position or time</li>
+</ul>
+
+<p><strong>Use Dynamic when:</strong></p>
+<ul>
+  <li>You need both the current value AND notifications when it changes</li>
+  <li>Derived computations are expensive and should be cached</li>
+  <li>You're building UI that needs to re-render on changes</li>
+  <li>The value represents discrete application state</li>
+</ul>
+
+<h3>Performance Characteristics</h3>
+
+<p>Behaviors are lightweight by design:</p>
+
+<ul>
+  <li><strong>No subscriptions</strong> — Creating a behavior doesn't subscribe to anything.
+  There's no overhead for behaviors you create but never sample.</li>
+
+  <li><strong>Lazy computation</strong> — Derived behaviors only compute when sampled. If you
+  never sample a derived behavior, its computation never runs.</li>
+
+  <li><strong>No caching</strong> — Each sample recomputes from scratch. For frequently-sampled
+  expensive computations, consider using <code>Dynamic</code> with <code>mapUniqM</code> for
+  automatic caching with deduplication.</li>
+
+  <li><strong>Composition is free</strong> — <code>map</code>, <code>zipWith</code>, and
+  <code>bind</code> just wrap the sampling action. There's no cost until you actually sample.</li>
+</ul>
+
+<h3>Common Patterns</h3>
+
+<p><strong>Sampling behaviors in event handlers:</strong></p>
+
+<pre><code class="language-lean">-- Get current state when event fires
+let clickWithState ← Event.attachM currentState clickEvent
+-- Each click carries the state at that moment</code></pre>
+
+<p><strong>Gating events by boolean behaviors:</strong></p>
+
+<pre><code class="language-lean">-- Only allow events when condition is true
+let enabled ← Event.gateM isEnabled inputEvent</code></pre>
+
+<p><strong>Computing derived values:</strong></p>
+
+<pre><code class="language-lean">-- Derive computed value from multiple sources
+let canSubmit := Behavior.zipWith (· && ·)
+  (Behavior.not isLoading)
+  (Behavior.map (·.isValid) formState)</code></pre>
+
+<p><strong>Bridging to Dynamic when needed:</strong></p>
+
+<pre><code class="language-lean">-- When you realize you need change notifications
+let counter ← foldDyn (fun _ n => n + 1) 0 clicks
+-- counter.current is a Behavior
+-- counter.updated is an Event</code></pre>
+
+<h3>Type Safety with Timeline Phantom Types</h3>
+
+<p>Like Events and Dynamics, Behaviors carry a phantom type parameter <code>t</code> representing
+their timeline. This ensures type safety at compile time—you cannot accidentally mix behaviors
+from different reactive networks.</p>
+
+<pre><code class="language-lean">-- After open Reactive.Host
+-- Beh a = Behavior Spider a
+
+let mousePos : Beh (Float × Float) := ...</code></pre>
+
+<p>The <code>Spider</code> timeline is the concrete IO-based implementation used in practice.
+When working within <code>SpiderM</code>, all your behaviors share the same <code>Spider</code>
+timeline type.</p>

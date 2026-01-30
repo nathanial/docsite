@@ -1,0 +1,152 @@
+<p>Property testing takes a different approach than example-based tests. Instead of specifying
+individual test cases, you describe properties that should always be true, and the framework
+generates hundreds of random inputs to verify them.</p>
+
+<h3>Overview</h3>
+
+<pre><code class="language-lean">proptest "addition is commutative" :=
+  forAll' fun (a, b) : (Int × Int) =>
+    a + b == b + a</code></pre>
+
+<p>This property says that for any pair of integers, swapping the order of addition doesn't
+change the result. Crucible generates 100 random pairs and checks each one.</p>
+
+<h3>Basic Usage</h3>
+
+<p>Define property tests with <code>proptest</code>:</p>
+
+<pre><code class="language-lean">proptest "list reverse twice is identity" :=
+  forAll' fun (xs : List Int) =>
+    xs.reverse.reverse == xs</code></pre>
+
+<p>Use <code>forAll</code> with explicit generators:</p>
+
+<pre><code class="language-lean">proptest "absolute value is non-negative" :=
+  forAll (Gen.chooseInt (-1000) 1000) fun n =>
+    n.natAbs >= 0</code></pre>
+
+<p>Use <code>forAll'</code> with <code>Arbitrary</code> instances for automatic generation:</p>
+
+<pre><code class="language-lean">proptest "string length is non-negative" :=
+  forAll' fun (s : String) =>
+    s.length >= 0</code></pre>
+
+<h3>Built-in Generators</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Generator</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Gen.choose lo hi</code></td><td>Random Nat in range [lo, hi]</td></tr>
+    <tr><td><code>Gen.chooseInt lo hi</code></td><td>Random Int in range [lo, hi]</td></tr>
+    <tr><td><code>Gen.bool</code></td><td>Random Bool</td></tr>
+    <tr><td><code>Gen.float01</code></td><td>Random Float in [0, 1)</td></tr>
+    <tr><td><code>Gen.elements xs</code></td><td>Random element from list</td></tr>
+    <tr><td><code>Gen.oneOf gs</code></td><td>Random generator from list</td></tr>
+    <tr><td><code>Gen.listOf g</code></td><td>Random-length list</td></tr>
+    <tr><td><code>Gen.listOfN n g</code></td><td>Fixed-length list</td></tr>
+    <tr><td><code>Gen.optionOf g</code></td><td>Random Option</td></tr>
+    <tr><td><code>Gen.pair ga gb</code></td><td>Pair of values</td></tr>
+  </tbody>
+</table>
+
+<h3>The Arbitrary Typeclass</h3>
+
+<p>Types with <code>Arbitrary</code> instances can be generated automatically. Built-in instances
+include: <code>Nat</code>, <code>Int</code>, <code>Bool</code>, <code>Char</code>, <code>Float</code>,
+<code>String</code>, <code>Option α</code>, <code>List α</code>, <code>Array α</code>, <code>(α × β)</code>.</p>
+
+<p>For structures, derive <code>Arbitrary</code> automatically:</p>
+
+<pre><code class="language-lean">structure Point where
+  x : Int
+  y : Int
+  deriving Arbitrary
+
+proptest "point origin distance" :=
+  forAll' fun (p : Point) =>
+    (p.x * p.x + p.y * p.y) >= 0</code></pre>
+
+<h3>Shrinking</h3>
+
+<p>When property testing finds a failing input, shrinking automatically finds the minimal
+counterexample. Instead of staring at a 47-element list, you see a 2-element list that
+makes the bug obvious.</p>
+
+<pre><code>FAILED on test 42 (after 5 shrinks)
+  Counterexample: Point { x := 0, y := -1 }
+  Original: Point { x := 483, y := -72 }
+  Seed: 12345</code></pre>
+
+<p>Derive <code>Shrinkable</code> for structures:</p>
+
+<pre><code class="language-lean">structure Point where
+  x : Int
+  y : Int
+  deriving Arbitrary, Shrinkable</code></pre>
+
+<h3>Configuration</h3>
+
+<pre><code class="language-lean">-- Run more tests
+proptest "thorough check" (tests := 1000) :=
+  forAll' fun (n : Nat) => ...
+
+-- Use a specific seed for reproducibility
+proptest "reproducible" (seed := 42) :=
+  forAll' fun (n : Nat) => ...</code></pre>
+
+<h3>Writing Good Properties</h3>
+
+<p><strong>Commutativity:</strong></p>
+
+<pre><code class="language-lean">proptest "addition commutes" :=
+  forAll' fun (a, b) : (Int × Int) =>
+    a + b == b + a</code></pre>
+
+<p><strong>Associativity:</strong></p>
+
+<pre><code class="language-lean">proptest "append is associative" :=
+  forAll' fun (a, b, c) : (List Int × List Int × List Int) =>
+    (a ++ b) ++ c == a ++ (b ++ c)</code></pre>
+
+<p><strong>Identity:</strong></p>
+
+<pre><code class="language-lean">proptest "empty list is identity for append" :=
+  forAll' fun (xs : List Int) =>
+    xs ++ [] == xs && [] ++ xs == xs</code></pre>
+
+<p><strong>Round-trip:</strong></p>
+
+<pre><code class="language-lean">proptest "reverse is self-inverse" :=
+  forAll' fun (xs : List Int) =>
+    xs.reverse.reverse == xs</code></pre>
+
+<h3>Integration with Test Suites</h3>
+
+<p>Property tests integrate with <code>testSuite</code> and <code>#generate_tests</code>:</p>
+
+<pre><code class="language-lean">namespace MathTests
+open Crucible
+open Crucible.Property
+
+testSuite "Math Properties"
+
+proptest "addition is commutative" :=
+  forAll' fun (a, b) : (Int × Int) =>
+    a + b == b + a
+
+#generate_tests
+
+end MathTests</code></pre>
+
+<h3>Best Practices</h3>
+
+<ul>
+  <li>Start with simple properties to validate generators</li>
+  <li>Use descriptive names that explain what should be true</li>
+  <li>Ensure generators cover edge cases (0, empty list, empty string)</li>
+  <li>Keep properties pure—no side effects</li>
+  <li>Bump test count for critical code</li>
+  <li>Save the seed when a test fails for reproducibility</li>
+</ul>

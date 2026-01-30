@@ -1,0 +1,114 @@
+<p>Normal assertions stop test execution on first failure. Soft assertions continue
+and report all failures at the end.</p>
+
+<h3>Overview</h3>
+
+<p>Normal assertions stop at the first failure:</p>
+
+<pre><code class="language-lean">test "normal assertions" := do
+  user.name ≡ "Alice"  -- If this fails...
+  user.age ≡ 25        -- ...this never runs
+  user.email ≡ "alice@example.com"</code></pre>
+
+<p>Soft assertions continue and report all failures:</p>
+
+<pre><code class="language-lean">test "soft assertions" := withSoftAsserts fun soft => do
+  soft.shouldBe user.name "Alice"      -- Checked
+  soft.shouldBe user.age 25            -- Checked even if above failed
+  soft.shouldBe user.email "alice@ex"  -- Checked even if above failed
+  -- All failures reported at end</code></pre>
+
+<h3>Basic Usage</h3>
+
+<p>Use <code>withSoftAsserts</code> to create a soft assertion context:</p>
+
+<pre><code class="language-lean">test "multiple checks" := withSoftAsserts fun soft => do
+  soft.shouldBe actual1 expected1
+  soft.shouldBe actual2 expected2
+  soft.ensure condition "message"</code></pre>
+
+<h3>Available Soft Assertions</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Standard</th><th>Soft Version</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>shouldBe</code></td><td><code>soft.shouldBe</code></td></tr>
+    <tr><td><code>shouldBeSome</code></td><td><code>soft.shouldBeSome</code></td></tr>
+    <tr><td><code>shouldBeNone</code></td><td><code>soft.shouldBeNone</code></td></tr>
+    <tr><td><code>shouldBeNear</code></td><td><code>soft.shouldBeNear</code></td></tr>
+    <tr><td><code>ensure</code></td><td><code>soft.ensure</code></td></tr>
+    <tr><td><code>shouldSatisfy</code></td><td><code>soft.shouldSatisfy</code></td></tr>
+    <tr><td><code>shouldMatch</code></td><td><code>soft.shouldMatch</code></td></tr>
+    <tr><td><code>shouldHaveLength</code></td><td><code>soft.shouldHaveLength</code></td></tr>
+    <tr><td><code>shouldContain</code></td><td><code>soft.shouldContain</code></td></tr>
+    <tr><td><code>shouldContainAll</code></td><td><code>soft.shouldContainAll</code></td></tr>
+    <tr><td><code>shouldStartWith</code></td><td><code>soft.shouldStartWith</code></td></tr>
+    <tr><td><code>shouldEndWith</code></td><td><code>soft.shouldEndWith</code></td></tr>
+    <tr><td><code>shouldContainSubstr</code></td><td><code>soft.shouldContainSubstr</code></td></tr>
+    <tr><td><code>shouldBeBetween</code></td><td><code>soft.shouldBeBetween</code></td></tr>
+    <tr><td><code>shouldBeEmpty</code></td><td><code>soft.shouldBeEmpty</code></td></tr>
+    <tr><td><code>shouldNotBeEmpty</code></td><td><code>soft.shouldNotBeEmpty</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Output Format</h3>
+
+<p>When soft assertions fail, all failures are listed:</p>
+
+<pre><code>[1/1]  user validation... ✗ (3ms)
+    Soft assertion failures (3 total):
+      1. Expected "Alice", got "Bob"
+      2. Expected 25, got 30
+      3. Expected "alice@example.com", got "bob@example.com"</code></pre>
+
+<h3>Examples</h3>
+
+<p><strong>Validating Complex Objects:</strong></p>
+
+<pre><code class="language-lean">test "user record" := withSoftAsserts fun soft => do
+  let user ← fetchUser 123
+
+  soft.shouldBe user.name "Alice"
+  soft.shouldBe user.age 25
+  soft.shouldBe user.email "alice@example.com"
+  soft.shouldBe user.role "admin"
+  soft.ensure user.isActive "user should be active"</code></pre>
+
+<p><strong>Testing Collections:</strong></p>
+
+<pre><code class="language-lean">test "list properties" := withSoftAsserts fun soft => do
+  let items ← fetchItems
+
+  soft.shouldNotBeEmpty items
+  soft.shouldHaveLength items 5
+  soft.shouldContain items "required-item"
+  soft.shouldContainAll items ["a", "b", "c"]</code></pre>
+
+<h3>Mixing Hard and Soft Assertions</h3>
+
+<pre><code class="language-lean">test "mixed assertions" := withSoftAsserts fun soft => do
+  -- Hard assertion: stops if this fails
+  let user ← fetchUser userId
+
+  -- Soft assertions: collect all failures
+  soft.shouldBe user.name expected.name
+  soft.shouldBe user.email expected.email</code></pre>
+
+<p>This is useful when setup must succeed (hard assertion) but multiple properties
+should be checked (soft assertions).</p>
+
+<h3>When to Use</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Use Soft Assertions</th><th>Use Hard Assertions</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Checking multiple independent fields</td><td>Setup that must succeed</td></tr>
+    <tr><td>Seeing all failures at once matters</td><td>Failures are dependent</td></tr>
+    <tr><td>Validating complex objects</td><td>Sequential operations</td></tr>
+    <tr><td>Comparing entire records</td><td>Early exit on failure is helpful</td></tr>
+  </tbody>
+</table>

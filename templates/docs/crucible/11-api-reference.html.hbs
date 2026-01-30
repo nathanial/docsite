@@ -1,0 +1,141 @@
+<p>Complete reference for Crucible's public API.</p>
+
+<h3>Core Types</h3>
+
+<p><strong>TestCase</strong> - A single test with metadata:</p>
+
+<pre><code class="language-lean">structure TestCase where
+  name : String
+  run : IO Unit
+  timeoutMs : Option Nat := none
+  retryCount : Option Nat := none
+  skip : Option SkipReason := none
+  xfail : Bool := false
+  xfailReason : Option String := none</code></pre>
+
+<p><strong>TestResults</strong> - Results from running test suites:</p>
+
+<pre><code class="language-lean">structure TestResults where
+  suites : Array SuiteResult := #[]
+  totalElapsedMs : Nat := 0</code></pre>
+
+<p>Properties: <code>suiteCount</code>, <code>passed</code>, <code>failed</code>, <code>skipped</code>,
+<code>xfailed</code>, <code>xpassed</code>, <code>total</code>, <code>allPassed</code>, <code>toExitCode</code></p>
+
+<p><strong>Fixture</strong> - Setup/teardown hooks:</p>
+
+<pre><code class="language-lean">structure Fixture where
+  beforeAll : Option (IO Unit) := none
+  afterAll : Option (IO Unit) := none
+  beforeEach : Option (IO Unit) := none
+  afterEach : Option (IO Unit) := none</code></pre>
+
+<h3>Test Definition</h3>
+
+<pre><code class="language-lean">test "name" := do ...
+test "name" (timeout := ms) := do ...
+test "name" (retry := count) := do ...
+test "name" (skip := "reason") := do ...
+test "name" (skip) := do ...
+test "name" (xfail := "reason") := do ...</code></pre>
+
+<pre><code class="language-lean">testSuite "Suite Name"
+#generate_tests</code></pre>
+
+<h3>Test Runners</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>runAllSuites</code></td><td>Run all registered test suites</td></tr>
+    <tr><td><code>runAllSuitesWithResults</code></td><td>Run suites and return structured results</td></tr>
+    <tr><td><code>runAllSuitesFiltered args</code></td><td>Run suites with CLI filtering</td></tr>
+    <tr><td><code>runAllSuitesFilteredWithResults args</code></td><td>Run filtered suites with structured results</td></tr>
+  </tbody>
+</table>
+
+<h3>Assertions</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Category</th><th>Assertion</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Equality</td><td><code>a ≡ b</code>, <code>opt ≡? val</code>, <code>shouldBe a b</code></td></tr>
+    <tr><td>Options</td><td><code>shouldBeSome opt val</code>, <code>shouldBeNone opt</code></td></tr>
+    <tr><td>Boolean</td><td><code>ensure cond msg</code>, <code>shouldSatisfy cond msg</code>, <code>shouldMatch val pred desc</code></td></tr>
+    <tr><td>Numeric</td><td><code>shouldBeNear a b eps</code>, <code>shouldBeBetween val min max</code></td></tr>
+    <tr><td>Collections</td><td><code>shouldHaveLength list n</code>, <code>shouldContain list elem</code>, <code>shouldContainAll list elems</code>, <code>shouldBeEmpty list</code>, <code>shouldNotBeEmpty list</code></td></tr>
+    <tr><td>Strings</td><td><code>shouldStartWith str prefix</code>, <code>shouldEndWith str suffix</code>, <code>shouldContainSubstr str sub</code></td></tr>
+    <tr><td>Exceptions</td><td><code>shouldThrow action</code>, <code>shouldThrowWith action msg</code>, <code>shouldNotThrow action</code></td></tr>
+    <tr><td>Except</td><td><code>shouldBeOk result ctx</code>, <code>shouldBeErr result</code></td></tr>
+    <tr><td>Context</td><td><code>withContext assertion ctx</code>, <code>withMessage msg assertion</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Soft Assertions</h3>
+
+<pre><code class="language-lean">withSoftAsserts (block : SoftAssertContext → IO Unit) : IO Unit</code></pre>
+
+<p>Methods: <code>soft.ensure</code>, <code>soft.shouldBe</code>, <code>soft.shouldBeNear</code>,
+<code>soft.shouldBeSome</code>, <code>soft.shouldBeNone</code>, <code>soft.shouldHaveLength</code>,
+<code>soft.shouldContain</code>, <code>soft.shouldContainAll</code>, <code>soft.shouldStartWith</code>,
+<code>soft.shouldEndWith</code>, <code>soft.shouldContainSubstr</code>, <code>soft.shouldBeBetween</code>,
+<code>soft.shouldBeEmpty</code>, <code>soft.shouldNotBeEmpty</code></p>
+
+<h3>Property Testing</h3>
+
+<pre><code class="language-lean">proptest "description" := property
+proptest "description" (tests := count) := property
+proptest "description" (seed := n) := property
+
+forAll (gen : Gen α) (prop : α → Bool) : Property
+forAll' (prop : α → Bool) : Property</code></pre>
+
+<h3>Generators</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Generator</th><th>Type</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Gen.choose lo hi</code></td><td><code>Gen Nat</code></td></tr>
+    <tr><td><code>Gen.chooseInt lo hi</code></td><td><code>Gen Int</code></td></tr>
+    <tr><td><code>Gen.bool</code></td><td><code>Gen Bool</code></td></tr>
+    <tr><td><code>Gen.float01</code></td><td><code>Gen Float</code></td></tr>
+    <tr><td><code>Gen.elements xs</code></td><td><code>Gen α</code></td></tr>
+    <tr><td><code>Gen.oneOf gs</code></td><td><code>Gen α</code></td></tr>
+    <tr><td><code>Gen.frequency gs</code></td><td><code>Gen α</code></td></tr>
+    <tr><td><code>Gen.listOf g</code></td><td><code>Gen (List α)</code></td></tr>
+    <tr><td><code>Gen.listOfN n g</code></td><td><code>Gen (List α)</code></td></tr>
+    <tr><td><code>Gen.listOf1 g</code></td><td><code>Gen (List α)</code></td></tr>
+    <tr><td><code>Gen.arrayOf g</code></td><td><code>Gen (Array α)</code></td></tr>
+    <tr><td><code>Gen.optionOf g</code></td><td><code>Gen (Option α)</code></td></tr>
+    <tr><td><code>Gen.pair ga gb</code></td><td><code>Gen (α × β)</code></td></tr>
+    <tr><td><code>Gen.sized f</code></td><td><code>Gen α</code></td></tr>
+    <tr><td><code>Gen.suchThat g p</code></td><td><code>Gen α</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Typeclasses</h3>
+
+<pre><code class="language-lean">class Arbitrary (α : Type u) where
+  arbitrary : Gen α
+
+class Shrinkable (α : Type u) where
+  shrink : α → List α</code></pre>
+
+<p>Use <code>deriving Arbitrary</code> and <code>deriving Shrinkable</code> on structures.</p>
+
+<h3>CLI Module</h3>
+
+<pre><code class="language-lean">CLI.parseArgs (args : List String) : IO TestFilter
+CLI.helpRequested (args : List String) : Bool
+CLI.printHelp : IO Unit
+
+structure TestFilter where
+  testPatterns : List String := []
+  suitePatterns : List String := []
+  exactMatch : Bool := false</code></pre>

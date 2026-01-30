@@ -1,0 +1,104 @@
+<p>This guide walks you through writing your first test suite with Crucible.</p>
+
+<h3>Your First Test</h3>
+
+<p>Create a test file <code>Tests/MyTests.lean</code>:</p>
+
+<pre><code class="language-lean">import Crucible
+
+namespace MyTests
+open Crucible
+
+testSuite "My First Suite"
+
+test "addition works" := do
+  (1 + 1) ≡ 2
+
+test "strings can be compared" := do
+  "hello".length ≡ 5
+
+#generate_tests
+
+end MyTests</code></pre>
+
+<p>The structure follows a consistent pattern: import Crucible, open a namespace, declare a suite
+with <code>testSuite</code>, write tests, and call <code>#generate_tests</code> to collect them.</p>
+
+<h3>The Test Runner</h3>
+
+<p>Create <code>Tests/Main.lean</code> to serve as the entry point:</p>
+
+<pre><code class="language-lean">import Crucible
+import Tests.MyTests
+
+open Crucible
+
+def main : IO UInt32 := do
+  runAllSuites</code></pre>
+
+<p>Importing a test file causes its <code>#generate_tests</code> command to register the suite.
+When you call <code>runAllSuites</code>, it runs every registered suite.</p>
+
+<h3>Running Tests</h3>
+
+<pre><code class="language-bash">lake test</code></pre>
+
+<p>You'll see output like:</p>
+
+<pre><code>My First Suite
+──────────────
+[1/2]  addition works... ✓ (1ms)
+[2/2]  strings can be compared... ✓ (0ms)
+
+Results: 2 passed
+
+────────────────────────────────────────
+Summary: 2 passed, 0 failed (100.0%)
+         1 suites, 2 tests run
+────────────────────────────────────────</code></pre>
+
+<h3>Multiple Test Suites</h3>
+
+<p>Each suite lives in its own namespace:</p>
+
+<pre><code class="language-lean">namespace ArithmeticTests
+open Crucible
+
+testSuite "Arithmetic"
+
+test "addition" := do (1 + 1) ≡ 2
+test "subtraction" := do (5 - 3) ≡ 2
+
+#generate_tests
+
+end ArithmeticTests
+
+namespace StringTests
+open Crucible
+
+testSuite "Strings"
+
+test "length" := do "hello".length ≡ 5
+test "append" := do ("a" ++ "b") ≡ "ab"
+
+#generate_tests
+
+end StringTests</code></pre>
+
+<h3>Using Assertions</h3>
+
+<p>Crucible provides several assertion styles:</p>
+
+<pre><code class="language-lean">-- Equality (recommended)
+(actual) ≡ expected
+
+-- Option unwrapping
+String.toNat? "42" ≡? 42
+
+-- Boolean conditions
+ensure (value > 0) "value should be positive"
+
+-- Named assertions
+shouldBe actual expected
+shouldBeSome option expected
+shouldBeNone option</code></pre>

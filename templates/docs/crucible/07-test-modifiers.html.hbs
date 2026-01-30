@@ -1,0 +1,112 @@
+<p>Control test execution with timeouts, retries, skip markers, and expected failures.</p>
+
+<h3>Timeouts</h3>
+
+<p>Set a per-test timeout in milliseconds:</p>
+
+<pre><code class="language-lean">test "network call" (timeout := 5000) := do
+  let response ← httpGet url
+  response.status ≡ 200</code></pre>
+
+<p>If the test exceeds the timeout, it fails with a timeout error:</p>
+
+<pre><code>[1/3]  network call... ✗ (5001ms)
+    Test timed out after 5000ms</code></pre>
+
+<p>Set a suite-wide default:</p>
+
+<pre><code class="language-lean">def main : IO UInt32 := do
+  runAllSuites (timeout := 10000)  -- 10 seconds</code></pre>
+
+<h3>Retries</h3>
+
+<p>Automatically retry failing tests:</p>
+
+<pre><code class="language-lean">test "flaky operation" (retry := 3) := do
+  let result ← unreliableService
+  result.success ≡ true</code></pre>
+
+<p>This runs the test up to 3 additional times if it fails. Set a suite-wide default:</p>
+
+<pre><code class="language-lean">def main : IO UInt32 := do
+  runAllSuites (retry := 2)</code></pre>
+
+<h3>Combining Timeout and Retry</h3>
+
+<pre><code class="language-lean">test "unreliable network" (timeout := 5000) (retry := 2) := do
+  let response ← fetchData
+  response.valid ≡ true</code></pre>
+
+<p>Each retry attempt has the same timeout. Parameters can be in any order.</p>
+
+<h3>Skipping Tests</h3>
+
+<p>Skip a test unconditionally:</p>
+
+<pre><code class="language-lean">test "work in progress" (skip) := do
+  unimplementedFeature</code></pre>
+
+<p>Skip with a reason:</p>
+
+<pre><code class="language-lean">test "requires GPU" (skip := "GPU not available in CI") := do
+  runGpuComputation</code></pre>
+
+<p>Output:</p>
+
+<pre><code>[1/3]  requires GPU... ○ (skipped: GPU not available in CI)</code></pre>
+
+<h3>Expected Failures (xfail)</h3>
+
+<p>Mark a test as expected to fail:</p>
+
+<pre><code class="language-lean">test "known bug" (xfail := "issue #123") := do
+  buggyFunction ≡ expected</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Test Result</th><th>xfail Outcome</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Test fails</td><td>XFAIL (good)</td><td>Expected behavior</td></tr>
+    <tr><td>Test passes</td><td>XPASS (bad)</td><td>Bug was fixed, remove xfail!</td></tr>
+  </tbody>
+</table>
+
+<p>Output:</p>
+
+<pre><code>[1/2]  known bug... ⊘ (xfail: issue #123) (2ms)
+[2/2]  accidentally fixed... ⊕ (XPASS - expected to fail) (1ms)</code></pre>
+
+<p>An XPASS counts as a failure because it indicates the test needs updating.</p>
+
+<h3>Choosing Between Skip and xfail</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Use Skip</th><th>Use xfail</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Test can't run (missing dependencies)</td><td>Test runs but fails due to known bug</td></tr>
+    <tr><td>Platform-specific tests</td><td>Documenting expected behavior</td></tr>
+    <tr><td>Work in progress</td><td>Tracking known issues</td></tr>
+    <tr><td>Resource not available</td><td>Bug being worked on</td></tr>
+  </tbody>
+</table>
+
+<h3>Results Summary</h3>
+
+<p>Skip and xfail tests are tracked separately:</p>
+
+<pre><code>────────────────────────────────────────
+Summary: 5 passed, 0 failed, 2 skipped, 1 xfailed (100.0%)
+         1 suites, 8 tests run
+────────────────────────────────────────</code></pre>
+
+<h3>Best Practices</h3>
+
+<ul>
+  <li><strong>Timeouts:</strong> Set reasonable defaults; be generous for CI environments</li>
+  <li><strong>Retries:</strong> Use sparingly—they're a workaround, not a solution</li>
+  <li><strong>Skip:</strong> Always provide a reason; remove when addressed</li>
+  <li><strong>xfail:</strong> Link to issues; pay attention to XPASS</li>
+</ul>

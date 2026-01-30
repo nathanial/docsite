@@ -1,0 +1,49 @@
+<p>Crucible is a <strong>lightweight test framework</strong> for Lean 4 with declarative syntax,
+automatic test discovery, and property-based testing. Write tests where they make sense,
+and Crucible finds them automatically.</p>
+
+<h3>Key Features</h3>
+<ul>
+  <li><strong>Declarative Syntax</strong> - Define tests with <code>test "name" := do</code></li>
+  <li><strong>Automatic Discovery</strong> - <code>#generate_tests</code> collects all tests in a namespace</li>
+  <li><strong>30+ Assertions</strong> - Equality, Options, collections, strings, exceptions, and more</li>
+  <li><strong>Fixtures</strong> - beforeAll/afterAll/beforeEach/afterEach hooks for setup and teardown</li>
+  <li><strong>Property Testing</strong> - QuickCheck-style testing with shrinking via <code>proptest</code></li>
+  <li><strong>CLI Filtering</strong> - Run specific tests or suites with <code>--test</code> and <code>--suite</code> patterns</li>
+</ul>
+
+<h3>Quick Example</h3>
+
+<pre><code class="language-lean">import Crucible
+
+namespace MyTests
+open Crucible
+
+testSuite "Basics"
+
+test "addition works" := do
+  (1 + 1) ≡ 2
+
+test "list length" := do
+  shouldHaveLength [1, 2, 3] 3
+
+#generate_tests
+end MyTests</code></pre>
+
+<p>Run with <code>lake test</code> and get clean, informative output:</p>
+
+<pre><code>Basics
+──────
+[1/2]  addition works... ✓ (1ms)
+[2/2]  list length... ✓ (0ms)
+
+Summary: 2 passed, 0 failed (100.0%)</code></pre>
+
+<h3>Design Philosophy</h3>
+
+<p>Testing should be easy enough that you actually do it. Crucible removes barriers:
+you don't register tests manually or maintain lists of test functions. Write tests
+where they make sense, call <code>#generate_tests</code>, and Crucible handles the rest.</p>
+
+<p>The framework has zero external dependencies beyond Lean's standard library. No version
+conflicts, no transitive dependency headaches.</p>

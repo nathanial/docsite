@@ -1,0 +1,93 @@
+<p>This page covers the fundamentals of writing tests with Crucible.</p>
+
+<h3>Test Syntax</h3>
+
+<p>The basic test syntax is:</p>
+
+<pre><code class="language-lean">test "description" := do
+  -- test body</code></pre>
+
+<p>Tests run in <code>IO</code>, so you can use any IO operations:</p>
+
+<pre><code class="language-lean">test "can read environment" := do
+  let path ← IO.getEnv "PATH"
+  shouldBeSome path "PATH"</code></pre>
+
+<h3>Test Names</h3>
+
+<p>Test names are strings that describe what the test verifies:</p>
+
+<pre><code class="language-lean">test "addition of positive numbers" := do
+  (1 + 2) ≡ 3
+
+test "empty list has length zero" := do
+  [].length ≡ 0</code></pre>
+
+<p>Good test names describe the expected behavior, are readable as sentences,
+and help identify failures quickly.</p>
+
+<h3>The <code>#generate_tests</code> Command</h3>
+
+<p>The <code>#generate_tests</code> command collects all tests defined in the current namespace:</p>
+
+<pre><code class="language-lean">namespace MyTests
+open Crucible
+
+testSuite "My Suite"
+
+test "first" := do ...
+test "second" := do ...
+
+#generate_tests  -- Collects "first" and "second"
+
+end MyTests</code></pre>
+
+<p>This must be called after all tests in the namespace are defined.</p>
+
+<h3>Multiple Assertions Per Test</h3>
+
+<p>Tests can contain multiple assertions:</p>
+
+<pre><code class="language-lean">test "user validation" := do
+  let user := createUser "Alice" 25
+  user.name ≡ "Alice"
+  user.age ≡ 25
+  shouldSatisfy (user.age >= 18) "user should be adult"</code></pre>
+
+<p>If any assertion fails, the test stops at that point.</p>
+
+<h3>Testing Exceptions</h3>
+
+<p>Use <code>shouldThrow</code> and related assertions for exception testing:</p>
+
+<pre><code class="language-lean">test "division by zero throws" := do
+  shouldThrow (IO.ofExcept (divide 1 0))
+
+test "invalid input error message" := do
+  shouldThrowWith (parseNumber "abc") "invalid"</code></pre>
+
+<h3>Helper Functions</h3>
+
+<p>Extract common logic into helper functions:</p>
+
+<pre><code class="language-lean">def createTestUser (name : String) (age : Nat) : IO User := do
+  let user := User.mk name age
+  user.validate
+  pure user
+
+test "valid user creation" := do
+  let user ← createTestUser "Bob" 30
+  user.name ≡ "Bob"</code></pre>
+
+<h3>Test Isolation</h3>
+
+<p>Each test runs independently. Don't rely on state from other tests:</p>
+
+<pre><code class="language-lean">-- Bad: relies on shared mutable state
+test "first" := do
+  globalCounter.set 1
+
+test "second" := do
+  -- Don't assume globalCounter is 1!</code></pre>
+
+<p>Use fixtures for shared setup/teardown logic.</p>

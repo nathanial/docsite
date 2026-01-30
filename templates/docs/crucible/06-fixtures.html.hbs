@@ -1,0 +1,118 @@
+<p>Tests often need shared setup: a database connection, a temporary file, or some initial state.
+Fixtures let you define setup once and have Crucible run it at the right time. They also
+handle teardown—cleaning up resources after tests complete.</p>
+
+<h3>Fixture Hooks</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Hook</th><th>When it runs</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>beforeAll</code></td><td>Once before all tests in the suite</td></tr>
+    <tr><td><code>afterAll</code></td><td>Once after all tests (even if tests fail)</td></tr>
+    <tr><td><code>beforeEach</code></td><td>Before each individual test</td></tr>
+    <tr><td><code>afterEach</code></td><td>After each individual test (even if test fails)</td></tr>
+  </tbody>
+</table>
+
+<h3>Defining Fixtures</h3>
+
+<p>Define fixtures as <code>IO Unit</code> functions in your test namespace:</p>
+
+<pre><code class="language-lean">namespace DatabaseTests
+open Crucible
+
+testSuite "Database"
+
+def beforeAll : IO Unit := do
+  IO.println "Setting up database connection..."
+  Database.connect
+
+def afterAll : IO Unit := do
+  IO.println "Closing database connection..."
+  Database.disconnect
+
+def beforeEach : IO Unit := do
+  Database.beginTransaction
+
+def afterEach : IO Unit := do
+  Database.rollback
+
+test "can insert record" := do
+  let id ← Database.insert { name := "Alice" }
+  id > 0 |> ensure "should return valid id"
+
+#generate_tests
+
+end DatabaseTests</code></pre>
+
+<h3>Execution Order</h3>
+
+<p>For a suite with two tests, the execution order is:</p>
+
+<pre><code>beforeAll
+  beforeEach
+    test 1
+  afterEach
+  beforeEach
+    test 2
+  afterEach
+afterAll</code></pre>
+
+<h3>Error Handling</h3>
+
+<p>If <code>beforeAll</code> fails, all tests in the suite are marked as failed.
+<code>afterAll</code> runs even if tests fail, ensuring cleanup happens.
+<code>afterEach</code> runs even if the test fails.</p>
+
+<h3>Common Patterns</h3>
+
+<p><strong>Temporary Files:</strong></p>
+
+<pre><code class="language-lean">def tempPath : System.FilePath := "/tmp/test-file.txt"
+
+def beforeEach : IO Unit := do
+  IO.FS.writeFile tempPath "test content"
+
+def afterEach : IO Unit := do
+  if ← tempPath.pathExists then
+    IO.FS.removeFile tempPath
+
+test "can read file" := do
+  let content ← IO.FS.readFile tempPath
+  content ≡ "test content"</code></pre>
+
+<p><strong>Database Transactions:</strong></p>
+
+<pre><code class="language-lean">def beforeEach : IO Unit := do
+  Database.beginTransaction
+
+def afterEach : IO Unit := do
+  Database.rollback  -- Ensures test isolation</code></pre>
+
+<p><strong>Environment Setup:</strong></p>
+
+<pre><code class="language-lean">def beforeAll : IO Unit := do
+  IO.setEnv "TEST_MODE" "true"
+  TestServer.start
+
+def afterAll : IO Unit := do
+  TestServer.stop</code></pre>
+
+<h3>Fixtures with Filtering</h3>
+
+<p>When using CLI filtering, fixtures still run for filtered tests:</p>
+
+<pre><code class="language-bash">lake test -- --test "can insert"</code></pre>
+
+<p>This runs: beforeAll → beforeEach → "can insert record" test → afterEach → afterAll</p>
+
+<h3>Best Practices</h3>
+
+<ul>
+  <li>Keep fixtures simple and focused</li>
+  <li>Use <code>beforeEach</code> to reset state before each test for isolation</li>
+  <li>Put resource cleanup in teardown hooks, not in tests</li>
+  <li>Add logging to fixtures to help debug setup issues</li>
+</ul>

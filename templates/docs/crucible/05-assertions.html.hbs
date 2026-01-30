@@ -1,0 +1,122 @@
+<p>Assertions are the core of testing—they express what you expect to be true and fail
+loudly when reality disagrees. Crucible provides over 30 built-in assertions.</p>
+
+<h3>Equality Assertions</h3>
+
+<p>The <code>≡</code> operator (type <code>\equiv</code>) is the primary assertion you'll use:</p>
+
+<pre><code class="language-lean">test "equality" := do
+  (1 + 1) ≡ 2
+  "hello" ≡ "hello"
+  [1, 2, 3] ≡ [1, 2, 3]</code></pre>
+
+<p>Function form:</p>
+
+<pre><code class="language-lean">test "shouldBe" := do
+  shouldBe (1 + 1) 2
+  shouldBe actual expected</code></pre>
+
+<h3>Option Assertions</h3>
+
+<p>The <code>≡?</code> operator unwraps an Option and checks equality:</p>
+
+<pre><code class="language-lean">test "option equality" := do
+  String.toNat? "42" ≡? 42
+  [1, 2, 3].head? ≡? 1</code></pre>
+
+<pre><code class="language-lean">test "shouldBeSome" := do
+  shouldBeSome (some 42) 42
+
+test "shouldBeNone" := do
+  shouldBeNone (String.toNat? "abc")</code></pre>
+
+<h3>Boolean Assertions</h3>
+
+<pre><code class="language-lean">test "ensure" := do
+  ensure (value > 0) "value should be positive"
+
+test "shouldMatch" := do
+  shouldMatch 42 (· > 0) "should be positive"</code></pre>
+
+<h3>Numeric Assertions</h3>
+
+<pre><code class="language-lean">test "floating point" := do
+  shouldBeNear (0.1 + 0.2) 0.3  -- default epsilon: 0.0001
+  shouldBeNear result expected 0.001  -- custom epsilon
+
+test "range" := do
+  shouldBeBetween 5 1 10  -- 5 is between 1 and 10</code></pre>
+
+<h3>Collection Assertions</h3>
+
+<pre><code class="language-lean">test "length" := do
+  shouldHaveLength [1, 2, 3] 3
+
+test "contains" := do
+  shouldContain [1, 2, 3] 2
+  shouldContainAll [1, 2, 3, 4] [2, 4]
+
+test "empty" := do
+  shouldBeEmpty []
+  shouldNotBeEmpty [1, 2, 3]</code></pre>
+
+<h3>String Assertions</h3>
+
+<pre><code class="language-lean">test "string checks" := do
+  shouldStartWith "hello world" "hello"
+  shouldEndWith "hello.txt" ".txt"
+  shouldContainSubstr "hello world" "world"</code></pre>
+
+<h3>Exception Assertions</h3>
+
+<pre><code class="language-lean">test "throws" := do
+  shouldThrow (divide 1 0)
+  shouldThrowWith (validate "") "empty"
+  shouldNotThrow (safeOperation)</code></pre>
+
+<h3>Except Assertions</h3>
+
+<pre><code class="language-lean">test "ok" := do
+  let value ← shouldBeOk (parseConfig input) "parsing config"
+  value.setting ≡ expected
+
+test "error" := do
+  shouldBeErr (validate "")</code></pre>
+
+<h3>Context and Messages</h3>
+
+<pre><code class="language-lean">test "with context" := do
+  (user.age ≡ 25) |> withContext "checking user age"
+  (user.name ≡ "Alice") |> withContext "checking user name"</code></pre>
+
+<h3>Quick Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Assertion</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>a ≡ b</code></td><td>Assert equality</td></tr>
+    <tr><td><code>opt ≡? val</code></td><td>Assert Option contains value</td></tr>
+    <tr><td><code>shouldBe a b</code></td><td>Assert equality (function)</td></tr>
+    <tr><td><code>shouldBeSome opt val</code></td><td>Assert Option contains value</td></tr>
+    <tr><td><code>shouldBeNone opt</code></td><td>Assert Option is none</td></tr>
+    <tr><td><code>ensure cond msg</code></td><td>Assert condition is true</td></tr>
+    <tr><td><code>shouldMatch val pred</code></td><td>Assert value matches predicate</td></tr>
+    <tr><td><code>shouldBeNear a b eps</code></td><td>Assert floats approximately equal</td></tr>
+    <tr><td><code>shouldBeBetween val min max</code></td><td>Assert value in range</td></tr>
+    <tr><td><code>shouldHaveLength list n</code></td><td>Assert list length</td></tr>
+    <tr><td><code>shouldContain list elem</code></td><td>Assert list contains element</td></tr>
+    <tr><td><code>shouldContainAll list elems</code></td><td>Assert list contains all</td></tr>
+    <tr><td><code>shouldBeEmpty list</code></td><td>Assert list is empty</td></tr>
+    <tr><td><code>shouldNotBeEmpty list</code></td><td>Assert list is not empty</td></tr>
+    <tr><td><code>shouldStartWith str prefix</code></td><td>Assert string prefix</td></tr>
+    <tr><td><code>shouldEndWith str suffix</code></td><td>Assert string suffix</td></tr>
+    <tr><td><code>shouldContainSubstr str sub</code></td><td>Assert substring</td></tr>
+    <tr><td><code>shouldThrow action</code></td><td>Assert action throws</td></tr>
+    <tr><td><code>shouldThrowWith action msg</code></td><td>Assert exception contains message</td></tr>
+    <tr><td><code>shouldNotThrow action</code></td><td>Assert action doesn't throw</td></tr>
+    <tr><td><code>shouldBeOk result ctx</code></td><td>Assert Except is Ok</td></tr>
+    <tr><td><code>shouldBeErr result</code></td><td>Assert Except is error</td></tr>
+  </tbody>
+</table>

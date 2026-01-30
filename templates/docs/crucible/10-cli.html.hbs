@@ -1,0 +1,133 @@
+<p>Run and filter tests from the command line.</p>
+
+<h3>Basic Usage</h3>
+
+<p>Run all tests:</p>
+
+<pre><code class="language-bash">lake test</code></pre>
+
+<p>Run with arguments (note the <code>--</code> separator):</p>
+
+<pre><code class="language-bash">lake test -- [options]</code></pre>
+
+<h3>Options</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Option</th><th>Short</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--test PATTERN</code></td><td><code>-t</code></td><td>Run tests matching PATTERN</td></tr>
+    <tr><td><code>--suite PATTERN</code></td><td><code>-s</code></td><td>Run suites matching PATTERN</td></tr>
+    <tr><td><code>--exact</code></td><td><code>-e</code></td><td>Use exact match (not substring)</td></tr>
+    <tr><td><code>--help</code></td><td><code>-h</code></td><td>Show help message</td></tr>
+  </tbody>
+</table>
+
+<h3>Filtering Tests</h3>
+
+<p><strong>By Test Name:</strong></p>
+
+<pre><code class="language-bash">lake test -- --test parse
+lake test -- -t parse</code></pre>
+
+<p>This matches tests like "parse header", "can parse JSON", "parser handles empty input".</p>
+
+<p><strong>By Suite Name:</strong></p>
+
+<pre><code class="language-bash">lake test -- --suite HTTP
+lake test -- -s HTTP</code></pre>
+
+<p><strong>Combining Filters:</strong></p>
+
+<pre><code class="language-bash">lake test -- --suite Parser --test header</code></pre>
+
+<p>Runs tests containing "header" in suites containing "Parser".</p>
+
+<p><strong>Multiple Patterns (OR Logic):</strong></p>
+
+<pre><code class="language-bash">lake test -- -t parse -t validate</code></pre>
+
+<p>Runs tests matching "parse" OR "validate".</p>
+
+<p><strong>Exact Match:</strong></p>
+
+<pre><code class="language-bash">lake test -- --exact -t "parse header"</code></pre>
+
+<p>Only runs tests named exactly "parse header".</p>
+
+<h3>Setup</h3>
+
+<p>To enable CLI filtering, use <code>runAllSuitesFiltered</code> in your test runner:</p>
+
+<pre><code class="language-lean">import Crucible
+
+def main (args : List String) : IO UInt32 := do
+  runAllSuitesFiltered args</code></pre>
+
+<h3>Examples</h3>
+
+<pre><code class="language-bash"># Tests containing "authentication"
+lake test -- -t authentication
+
+# Tests in "User" suites
+lake test -- -s User
+
+# Exact match for a specific test
+lake test -- --exact -t "validates email format"
+
+# Development: run only the test you're working on
+lake test -- -t "my new feature"
+
+# CI: run integration tests only
+lake test -- -s Integration</code></pre>
+
+<h3>Output</h3>
+
+<pre><code>Database
+────────
+[1/3]  can connect... ✓ (5ms)
+[2/3]  can query... ✓ (10ms)
+[3/3]  can insert... ✓ (8ms)
+
+Results: 3 passed
+
+────────────────────────────────────────
+Summary: 3 passed, 0 failed (100.0%)
+         1 suites, 3 tests run
+────────────────────────────────────────</code></pre>
+
+<p>When filters are applied, they're shown in the summary:</p>
+
+<pre><code>────────────────────────────────────────
+Summary: 2 passed, 0 failed (100.0%)
+         1 suites, 2 tests run
+────────────────────────────────────────
+
+  Test filter: ["query"]</code></pre>
+
+<h3>Advanced Usage</h3>
+
+<p>Combine filtering with suite-wide settings:</p>
+
+<pre><code class="language-lean">def main (args : List String) : IO UInt32 := do
+  runAllSuitesFiltered args (timeout := 5000)
+
+def main (args : List String) : IO UInt32 := do
+  runAllSuitesFiltered args (retry := 2)</code></pre>
+
+<p>Get structured results:</p>
+
+<pre><code class="language-lean">def main (args : List String) : IO UInt32 := do
+  let results ← runAllSuitesFilteredWithResults args
+  for suite in results.suites do
+    IO.println s!"{suite.name}: {suite.passed}/{suite.total}"
+  return results.toExitCode</code></pre>
+
+<h3>Tips</h3>
+
+<ul>
+  <li>Use quotes for patterns with spaces: <code>lake test -- -t "my test"</code></li>
+  <li>Start broad, narrow down: Start with a suite filter, then add test filters</li>
+  <li>Check output for applied filters: The summary shows what filters were used</li>
+</ul>

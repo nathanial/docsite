@@ -1,0 +1,100 @@
+<p>Test suites group related tests together and provide organization for your test output.</p>
+
+<h3>Declaring a Suite</h3>
+
+<p>Use <code>testSuite</code> to declare a named suite:</p>
+
+<pre><code class="language-lean">namespace MyTests
+open Crucible
+
+testSuite "HTTP Client"
+
+test "sends GET request" := do ...
+test "sends POST request" := do ...
+
+#generate_tests
+
+end MyTests</code></pre>
+
+<h3>Suite Names</h3>
+
+<p>Suite names appear in test output and can be used for filtering:</p>
+
+<pre><code>HTTP Client
+───────────
+[1/2]  sends GET request... ✓ (5ms)
+[2/2]  sends POST request... ✓ (3ms)</code></pre>
+
+<h3>Multiple Suites</h3>
+
+<p>Define multiple suites in different namespaces:</p>
+
+<pre><code class="language-lean">namespace Unit.Parser
+open Crucible
+testSuite "Parser Unit Tests"
+-- tests...
+#generate_tests
+end Unit.Parser
+
+namespace Integration.API
+open Crucible
+testSuite "API Integration Tests"
+-- tests...
+#generate_tests
+end Integration.API</code></pre>
+
+<h3>Suite Organization Patterns</h3>
+
+<p><strong>By Component:</strong></p>
+
+<pre><code class="language-lean">namespace Auth.Tests
+testSuite "Authentication"
+end Auth.Tests
+
+namespace Database.Tests
+testSuite "Database"
+end Database.Tests</code></pre>
+
+<p><strong>By Test Type:</strong></p>
+
+<pre><code class="language-lean">namespace Unit
+testSuite "Unit Tests"
+end Unit
+
+namespace Integration
+testSuite "Integration Tests"
+end Integration</code></pre>
+
+<h3>Running Specific Suites</h3>
+
+<p>Use CLI filtering to run specific suites:</p>
+
+<pre><code class="language-bash"># Run suites containing "Parser"
+lake test -- --suite Parser
+
+# Run suites matching exactly
+lake test -- --suite "HTTP Client" --exact</code></pre>
+
+<h3>Test Discovery</h3>
+
+<p>The <code>runAllSuites</code> macro automatically discovers all registered suites:</p>
+
+<pre><code class="language-lean">def main : IO UInt32 := do
+  runAllSuites  -- Finds and runs all suites</code></pre>
+
+<p>Suites are registered when <code>testSuite "name"</code> is called in a namespace
+and <code>#generate_tests</code> is called to collect tests.</p>
+
+<h3>Importing Test Modules</h3>
+
+<p>Ensure all test modules are imported in your test runner:</p>
+
+<pre><code class="language-lean">import Crucible
+import Tests.ParserTests
+import Tests.DatabaseTests
+import Tests.APITests
+
+def main : IO UInt32 := do
+  runAllSuites</code></pre>
+
+<p>If a suite isn't running, check that its module is imported.</p>

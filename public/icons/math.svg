@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Sigma symbol -->
+  <path d="M12 8h18M12 8l12 16-12 16h18"/>
+  <!-- Plus sign -->
+  <line x1="36" y1="14" x2="36" y2="22"/>
+  <line x1="32" y1="18" x2="40" y2="18"/>
+  <!-- Integral-like curve -->
+  <path d="M38 28c0-2 2-3 4-3M38 28v12c0 2-2 3-4 3"/>
+  <!-- Pi symbol hint -->
+  <line x1="30" y1="36" x2="30" y2="44"/>
+  <line x1="34" y1="36" x2="34" y2="44"/>
+  <line x1="28" y1="36" x2="36" y2="36"/>
+</svg>

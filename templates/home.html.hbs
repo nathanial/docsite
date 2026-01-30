@@ -6,7 +6,10 @@
 <div class="categories-grid">
   {{#each categories}}
   <a href="/category/{{slug}}" class="category-card">
-    <div class="category-card-header">
+    <div class="category-card-icon">
+      <img src="/icons/{{slug}}.svg" alt="">
+    </div>
+    <div class="category-card-content">
       <h2 class="category-card-title">{{name}}</h2>
       <span class="category-card-count">{{count}} projects</span>
     </div>

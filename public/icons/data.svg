@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#1e293b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- 3D cubes/database visualization -->
+  <!-- Back cube -->
+  <path d="M14 8l10 5v10l-10-5V8z"/>
+  <path d="M14 8l10-4 10 4-10 5-10-5z"/>
+  <path d="M34 8v10l-10 5V13"/>
+  <!-- Front left cube -->
+  <path d="M6 22l10 5v10l-10-5V22z"/>
+  <path d="M6 22l10-4 10 4-10 5-10-5z"/>
+  <path d="M26 22v10l-10 5V27"/>
+  <!-- Front right cube -->
+  <path d="M22 22l10 5v10l-10-5V22z"/>
+  <path d="M22 22l10-4 10 4-10 5-10-5z"/>
+  <path d="M42 22v10l-10 5V27"/>
+</svg>

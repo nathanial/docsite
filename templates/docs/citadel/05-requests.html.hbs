@@ -1,0 +1,173 @@
+<p>The <code>ServerRequest</code> type provides access to all parts of an HTTP request:
+method, path, headers, body, path parameters, query parameters, cookies, and form data.</p>
+
+<h3>ServerRequest Structure</h3>
+
+<pre><code class="language-lean">structure ServerRequest where
+  /-- The underlying HTTP request -/
+  request : Request
+  /-- Path parameters from route matching -/
+  params : Params := []</code></pre>
+
+<h3>Basic Request Properties</h3>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  -- HTTP method
+  let method := req.method        -- Method.GET, Method.POST, etc.
+
+  -- Full path including query string
+  let fullPath := req.fullPath    -- "/search?q=lean"
+
+  -- Path without query string
+  let path := req.path            -- "/search"
+
+  -- Request body as bytes
+  let body := req.body            -- ByteArray
+
+  -- Request body as string
+  let bodyStr := req.bodyString   -- String
+
+  pure (Response.ok "OK")</code></pre>
+
+<h3>Path Parameters</h3>
+
+<p>Extract parameters captured from route patterns:</p>
+
+<pre><code class="language-lean">-- Route: /users/:id/posts/:postId
+def handler (req : ServerRequest) : IO Response := do
+  -- Get single parameter (returns Option String)
+  let userId := req.param "id"
+  let postId := req.param "postId"
+
+  match userId, postId with
+  | some uid, some pid =>
+    pure (Response.ok s!"User {uid}, Post {pid}")
+  | _, _ =>
+    pure (Response.badRequest "Missing parameters")</code></pre>
+
+<p>Use <code>getD</code> for default values:</p>
+
+<pre><code class="language-lean">let id := req.param "id" |>.getD "0"</code></pre>
+
+<h3>Query Parameters</h3>
+
+<p>Parse and access query string parameters:</p>
+
+<pre><code class="language-lean">-- URL: /search?q=lean&limit=10&tag=web&tag=api
+
+def handler (req : ServerRequest) : IO Response := do
+  -- Raw query string (without leading '?')
+  let rawQuery := req.query       -- "q=lean&limit=10&tag=web&tag=api"
+
+  -- All parameters as key-value pairs
+  let allParams := req.queryParams  -- [("q", "lean"), ("limit", "10"), ...]
+
+  -- Single parameter value
+  let searchTerm := req.queryParam "q"        -- some "lean"
+  let limit := req.queryParam "limit"         -- some "10"
+  let missing := req.queryParam "missing"     -- none
+
+  -- All values for repeated parameters
+  let tags := req.queryParamAll "tag"         -- ["web", "api"]
+
+  pure (Response.ok s!"Searching: {searchTerm.getD \"\"}")</code></pre>
+
+<h3>Headers</h3>
+
+<p>Access HTTP headers (case-insensitive names):</p>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  -- Get all headers
+  let headers := req.headers
+
+  -- Get specific header
+  let contentType := req.header "Content-Type"
+  let auth := req.header "Authorization"
+  let userAgent := req.header "User-Agent"
+
+  match auth with
+  | some token => pure (Response.ok "Authenticated")
+  | none => pure (Response.unauthorized)</code></pre>
+
+<h3>Request Body</h3>
+
+<p>Access the raw request body:</p>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  -- As raw bytes
+  let bytes : ByteArray := req.body
+
+  -- As UTF-8 string
+  let text : String := req.bodyString
+
+  -- Check Content-Type for proper parsing
+  match req.header "Content-Type" with
+  | some ct =>
+    if ct.startsWith "application/json" then
+      -- Parse as JSON
+      pure (Response.ok s!"JSON: {text}")
+    else
+      pure (Response.ok s!"Body: {text}")
+  | none =>
+    pure (Response.ok s!"Body: {text}")</code></pre>
+
+<h3>Cookies</h3>
+
+<p>Parse cookies from the Cookie header:</p>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  -- Get all cookies as key-value pairs
+  let allCookies := req.cookies    -- [("session", "abc123"), ("theme", "dark")]
+
+  -- Get specific cookie value
+  let sessionId := req.cookie "session"
+  let theme := req.cookie "theme"
+
+  match sessionId with
+  | some sid => pure (Response.ok s!"Session: {sid}")
+  | none => pure (Response.unauthorized "No session")</code></pre>
+
+<h3>Content-Type Helper</h3>
+
+<p>Check the request's Content-Type:</p>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  let ct := req.contentType   -- Option String
+
+  match ct with
+  | some "application/json" =>
+    pure (Response.ok "Processing JSON")
+  | some "text/plain" =>
+    pure (Response.ok "Processing text")
+  | _ =>
+    pure (Response.badRequest "Unsupported content type")</code></pre>
+
+<h3>URL Decoding</h3>
+
+<p>Query parameters and form data are automatically URL-decoded. The <code>urlDecode</code>
+function is also available for manual use:</p>
+
+<pre><code class="language-lean">-- Decodes %XX sequences and + for space
+let decoded := ServerRequest.urlDecode "hello%20world"  -- "hello world"
+let decoded := ServerRequest.urlDecode "a+b"            -- "a b"</code></pre>
+
+<h3>Complete Example</h3>
+
+<pre><code class="language-lean">def searchHandler (req : ServerRequest) : IO Response := do
+  -- Validate method
+  if req.method != Method.GET then
+    return Response.methodNotAllowed ["GET"]
+
+  -- Get query parameters with defaults
+  let query := req.queryParam "q" |>.getD ""
+  let page := req.queryParam "page" |>.getD "1"
+  let limit := req.queryParam "limit" |>.getD "20"
+
+  -- Check for authentication
+  let isAuthenticated := req.header "Authorization" |>.isSome
+
+  -- Log the request
+  IO.println s!"Search: q={query}, page={page}, limit={limit}, auth={isAuthenticated}"
+
+  -- Return results
+  pure (Response.json s!"&#123;&#123;\"query\": \"{query}\", \"page\": {page}&#125;&#125;")</code></pre>

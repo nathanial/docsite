@@ -1,0 +1,214 @@
+<p>Citadel parses both URL-encoded and multipart form data, including file uploads,
+automatically based on the Content-Type header.</p>
+
+<h3>URL-Encoded Forms</h3>
+
+<p>Standard HTML forms submit data as <code>application/x-www-form-urlencoded</code>:</p>
+
+<pre><code class="language-lean">-- HTML form:
+-- &lt;form method="POST" action="/login"&gt;
+--   &lt;input name="username" /&gt;
+--   &lt;input type="password" name="password" /&gt;
+--   &lt;button&gt;Login&lt;/button&gt;
+-- &lt;/form&gt;
+
+def loginHandler (req : ServerRequest) : IO Response := do
+  -- Get individual form fields
+  let username := req.formField "username"
+  let password := req.formField "password"
+
+  match username, password with
+  | some user, some pass =>
+    IO.println s!"Login attempt: {user}"
+    pure (Response.ok "Logged in!")
+  | _, _ =>
+    pure (Response.badRequest "Missing credentials")</code></pre>
+
+<h3>Form Data Structure</h3>
+
+<p>Parsed form data is returned as a <code>FormData</code> structure:</p>
+
+<pre><code class="language-lean">structure FormData where
+  /-- Text fields (name → value) -/
+  fields : List (String × String) := []
+  /-- Uploaded files (name → file) -/
+  files : List (String × FormFile) := []</code></pre>
+
+<h3>FormData Methods</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Method</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>formData.field name</code></td><td>Get single field value</td></tr>
+    <tr><td><code>formData.fieldAll name</code></td><td>Get all values for repeated field</td></tr>
+    <tr><td><code>formData.file name</code></td><td>Get single uploaded file</td></tr>
+    <tr><td><code>formData.fileAll name</code></td><td>Get all files for a field</td></tr>
+  </tbody>
+</table>
+
+<h3>ServerRequest Form Methods</h3>
+
+<p>Convenience methods directly on ServerRequest:</p>
+
+<pre><code class="language-lean">-- Get all form data at once
+let data := req.formData
+
+-- Get individual fields
+let name := req.formField "name"           -- Option String
+let tags := req.formFieldAll "tag"         -- List String (for repeated fields)
+
+-- Get uploaded files
+let avatar := req.formFile "avatar"        -- Option FormFile
+let photos := req.formFileAll "photos"     -- List FormFile
+
+-- Check if request has form data
+let hasForm := req.hasFormData             -- Bool</code></pre>
+
+<h3>Multipart File Uploads</h3>
+
+<p>File uploads use <code>multipart/form-data</code>:</p>
+
+<pre><code class="language-lean">-- HTML form:
+-- &lt;form method="POST" action="/upload" enctype="multipart/form-data"&gt;
+--   &lt;input name="title" /&gt;
+--   &lt;input type="file" name="document" /&gt;
+--   &lt;button&gt;Upload&lt;/button&gt;
+-- &lt;/form&gt;
+
+def uploadHandler (req : ServerRequest) : IO Response := do
+  let title := req.formField "title" |>.getD "Untitled"
+
+  match req.formFile "document" with
+  | some file =>
+    IO.println s!"Uploaded: {file.filename} ({file.data.size} bytes)"
+    IO.println s!"Content-Type: {file.contentType}"
+
+    -- Save the file
+    IO.FS.writeBinFile s!"./uploads/{file.filename}" file.data
+
+    pure (Response.ok s!"Uploaded {file.filename}")
+  | none =>
+    pure (Response.badRequest "No file uploaded")</code></pre>
+
+<h3>FormFile Structure</h3>
+
+<pre><code class="language-lean">structure FormFile where
+  /-- Original filename from the client -/
+  filename : String
+  /-- Content-Type of the file -/
+  contentType : String
+  /-- Raw file data -/
+  data : ByteArray</code></pre>
+
+<h3>Multiple File Uploads</h3>
+
+<p>Handle multiple files with the same field name:</p>
+
+<pre><code class="language-lean">-- HTML form:
+-- &lt;input type="file" name="photos" multiple /&gt;
+
+def multiUploadHandler (req : ServerRequest) : IO Response := do
+  let photos := req.formFileAll "photos"
+
+  if photos.isEmpty then
+    return Response.badRequest "No files uploaded"
+
+  for file in photos do
+    IO.println s!"Processing: {file.filename}"
+    IO.FS.writeBinFile s!"./uploads/{file.filename}" file.data
+
+  pure (Response.ok s!"Uploaded {photos.length} files")</code></pre>
+
+<h3>Mixed Form Data</h3>
+
+<p>Handle forms with both text fields and files:</p>
+
+<pre><code class="language-lean">def profileHandler (req : ServerRequest) : IO Response := do
+  -- Get all form data
+  let formData := req.formData
+
+  -- Text fields
+  let name := formData.field "name" |>.getD ""
+  let bio := formData.field "bio" |>.getD ""
+  let interests := formData.fieldAll "interest"
+
+  -- Profile picture (optional)
+  let avatar := formData.file "avatar"
+
+  IO.println s!"Name: {name}"
+  IO.println s!"Bio: {bio}"
+  IO.println s!"Interests: {interests}"
+
+  match avatar with
+  | some file =>
+    IO.println s!"Avatar: {file.filename}"
+    -- Save avatar
+  | none =>
+    IO.println "No avatar uploaded"
+
+  pure (Response.ok "Profile updated")</code></pre>
+
+<h3>Repeated Form Fields</h3>
+
+<p>Handle forms with multiple values for the same field:</p>
+
+<pre><code class="language-lean">-- HTML form:
+-- &lt;select name="tags" multiple&gt;
+--   &lt;option value="lean"&gt;Lean&lt;/option&gt;
+--   &lt;option value="fp"&gt;FP&lt;/option&gt;
+--   &lt;option value="web"&gt;Web&lt;/option&gt;
+-- &lt;/select&gt;
+
+def tagsHandler (req : ServerRequest) : IO Response := do
+  let tags := req.formFieldAll "tags"
+  IO.println s!"Selected tags: {tags}"
+  pure (Response.ok s!"Tags: {String.intercalate ", " tags}")</code></pre>
+
+<h3>Content-Type Detection</h3>
+
+<p>Citadel automatically detects form encoding:</p>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  match req.contentType with
+  | some ct =>
+    if ct.startsWith "application/x-www-form-urlencoded" then
+      -- URL-encoded form
+      let data := req.formData
+      pure (Response.ok "URL-encoded form received")
+    else if ct.startsWith "multipart/form-data" then
+      -- Multipart form (may have files)
+      let data := req.formData
+      pure (Response.ok "Multipart form received")
+    else
+      pure (Response.badRequest "Unsupported content type")
+  | none =>
+    pure (Response.badRequest "Missing Content-Type")</code></pre>
+
+<h3>File Upload Validation</h3>
+
+<p>Validate uploaded files before processing:</p>
+
+<pre><code class="language-lean">def imageUploadHandler (req : ServerRequest) : IO Response := do
+  match req.formFile "image" with
+  | some file =>
+    -- Validate content type
+    let allowedTypes := ["image/jpeg", "image/png", "image/gif"]
+    if !allowedTypes.contains file.contentType then
+      return Response.badRequest "Only JPEG, PNG, and GIF images allowed"
+
+    -- Validate file size (e.g., 5 MB max)
+    let maxSize := 5 * 1024 * 1024
+    if file.data.size > maxSize then
+      return Response.payloadTooLarge "Image must be under 5 MB"
+
+    -- Validate filename (basic sanitization)
+    let safeFilename := file.filename.replace "/" "_"
+
+    -- Save the file
+    IO.FS.writeBinFile s!"./uploads/{safeFilename}" file.data
+
+    pure (Response.ok s!"Uploaded: {safeFilename}")
+  | none =>
+    pure (Response.badRequest "No image uploaded")</code></pre>

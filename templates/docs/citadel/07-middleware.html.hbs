@@ -1,0 +1,211 @@
+<p>Middleware in Citadel wraps handlers to add cross-cutting concerns like logging,
+authentication, CORS, and request transformation.</p>
+
+<h3>Middleware Type</h3>
+
+<p>Middleware is a function that takes a handler and returns a new handler:</p>
+
+<pre><code class="language-lean">/-- Middleware function type -/
+def Middleware := Handler → Handler
+
+-- Where Handler is:
+def Handler := ServerRequest → IO Response</code></pre>
+
+<p>This means middleware can:</p>
+<ul>
+  <li>Inspect or modify the request before passing to the handler</li>
+  <li>Call the handler (or not) and get the response</li>
+  <li>Inspect or modify the response before returning</li>
+  <li>Short-circuit and return early without calling the handler</li>
+</ul>
+
+<h3>Writing Middleware</h3>
+
+<p>A simple logging middleware:</p>
+
+<pre><code class="language-lean">def loggingMiddleware : Middleware := fun handler req => do
+  let startTime ← IO.monoMsNow
+  IO.println s!"→ {req.method} {req.path}"
+
+  -- Call the wrapped handler
+  let resp ← handler req
+
+  let elapsed := (← IO.monoMsNow) - startTime
+  IO.println s!"← {resp.status.code} ({elapsed}ms)"
+
+  pure resp</code></pre>
+
+<h3>Adding Middleware</h3>
+
+<p>Use <code>.use</code> to add middleware to a server:</p>
+
+<pre><code class="language-lean">Server.create
+  |>.use loggingMiddleware
+  |>.use authMiddleware
+  |>.get "/" homeHandler
+  |>.run</code></pre>
+
+<p>Middleware is applied in the order added. The first middleware added is the
+outermost wrapper.</p>
+
+<h3>Request Modification</h3>
+
+<p>Modify requests before they reach handlers:</p>
+
+<pre><code class="language-lean">def normalizePathMiddleware : Middleware := fun handler req => do
+  -- Remove trailing slashes (except for root)
+  let path := req.path
+  let normalizedPath :=
+    if path.length > 1 && path.endsWith "/" then
+      path.dropRight 1
+    else
+      path
+
+  -- Create modified request (note: requires creating new underlying request)
+  -- For simple cases, this is usually done at the router level instead
+  handler req</code></pre>
+
+<h3>Response Modification</h3>
+
+<p>Add headers to all responses:</p>
+
+<pre><code class="language-lean">def securityHeadersMiddleware : Middleware := fun handler req => do
+  let resp ← handler req
+
+  -- Add security headers to response
+  let resp := { resp with
+    headers := resp.headers
+      |>.add "X-Content-Type-Options" "nosniff"
+      |>.add "X-Frame-Options" "DENY"
+      |>.add "X-XSS-Protection" "1; mode=block"
+  }
+
+  pure resp</code></pre>
+
+<h3>Authentication Middleware</h3>
+
+<p>Short-circuit unauthorized requests:</p>
+
+<pre><code class="language-lean">def authMiddleware : Middleware := fun handler req => do
+  match req.header "Authorization" with
+  | some auth =>
+    if auth.startsWith "Bearer " then
+      let token := auth.drop 7
+      if isValidToken token then
+        handler req
+      else
+        pure (Response.unauthorized "Invalid token")
+    else
+      pure (Response.unauthorized "Invalid authorization format")
+  | none =>
+    pure (Response.unauthorized "Missing Authorization header")
+
+def isValidToken (token : String) : Bool :=
+  -- Your token validation logic
+  token.length > 0</code></pre>
+
+<h3>CORS Middleware</h3>
+
+<p>Handle CORS preflight and add headers:</p>
+
+<pre><code class="language-lean">def corsMiddleware (allowedOrigins : List String) : Middleware := fun handler req => do
+  let origin := req.header "Origin" |>.getD ""
+
+  -- Check if origin is allowed
+  let isAllowed := allowedOrigins.contains origin || allowedOrigins.contains "*"
+
+  if req.method == Method.OPTIONS then
+    -- Handle preflight request
+    let resp := ResponseBuilder.withStatus StatusCode.noContent
+      |>.withHeader "Access-Control-Allow-Origin" (if isAllowed then origin else "")
+      |>.withHeader "Access-Control-Allow-Methods" "GET, POST, PUT, DELETE, OPTIONS"
+      |>.withHeader "Access-Control-Allow-Headers" "Content-Type, Authorization"
+      |>.withHeader "Access-Control-Max-Age" "86400"
+      |>.build
+    pure resp
+  else
+    -- Regular request - add CORS headers to response
+    let resp ← handler req
+    if isAllowed then
+      let resp := { resp with
+        headers := resp.headers.add "Access-Control-Allow-Origin" origin
+      }
+      pure resp
+    else
+      pure resp</code></pre>
+
+<h3>Composing Middleware</h3>
+
+<p>Combine multiple middleware into one:</p>
+
+<pre><code class="language-lean">namespace Middleware
+
+/-- Identity middleware that does nothing -/
+def identity : Middleware := id
+
+/-- Compose two middleware functions -/
+def compose (m1 m2 : Middleware) : Middleware :=
+  fun handler => m1 (m2 handler)
+
+/-- Chain a list of middleware -/
+def chain (middlewares : List Middleware) : Middleware :=
+  middlewares.foldr compose identity
+
+end Middleware</code></pre>
+
+<p>Example composition:</p>
+
+<pre><code class="language-lean">-- Combine multiple middleware
+let combinedMiddleware := Middleware.chain [
+  loggingMiddleware,
+  securityHeadersMiddleware,
+  corsMiddleware ["http://localhost:3000"]
+]
+
+Server.create
+  |>.use combinedMiddleware
+  |>.get "/" homeHandler
+  |>.run</code></pre>
+
+<h3>Conditional Middleware</h3>
+
+<p>Apply middleware only to certain paths:</p>
+
+<pre><code class="language-lean">def apiOnlyMiddleware (inner : Middleware) : Middleware := fun handler req => do
+  if req.path.startsWith "/api" then
+    inner handler req
+  else
+    handler req
+
+-- Usage
+Server.create
+  |>.use (apiOnlyMiddleware authMiddleware)  -- Auth only for /api/*
+  |>.use loggingMiddleware                    -- Logging for all routes
+  |>.get "/" publicHandler
+  |>.get "/api/data" protectedHandler
+  |>.run</code></pre>
+
+<h3>Error Handling Middleware</h3>
+
+<p>Catch exceptions and return error responses:</p>
+
+<pre><code class="language-lean">def errorHandlerMiddleware : Middleware := fun handler req => do
+  try
+    handler req
+  catch e =>
+    IO.eprintln s!"Error handling {req.path}: {e}"
+    pure (Response.internalError "Something went wrong")</code></pre>
+
+<h3>Timing Middleware</h3>
+
+<p>Add server timing headers:</p>
+
+<pre><code class="language-lean">def timingMiddleware : Middleware := fun handler req => do
+  let startTime ← IO.monoMsNow
+  let resp ← handler req
+  let elapsed := (← IO.monoMsNow) - startTime
+
+  let resp := { resp with
+    headers := resp.headers.add "Server-Timing" s!"total;dur={elapsed}"
+  }
+  pure resp</code></pre>

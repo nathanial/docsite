@@ -1,0 +1,241 @@
+<p>Complete reference for Citadel's public API.</p>
+
+<h3>Core Types</h3>
+
+<p><strong>ServerConfig</strong> - Server configuration:</p>
+
+<pre><code class="language-lean">structure ServerConfig where
+  port : UInt16 := 8080
+  host : String := "127.0.0.1"
+  maxBodySize : Nat := 10 * 1024 * 1024
+  keepAliveTimeout : Nat := 60
+  requestTimeout : Nat := 30
+  tls : Option TlsConfig := none
+  maxUriLength : Nat := 8192
+  maxHeaderCount : Nat := 100
+  maxHeaderSize : Nat := 8192
+  maxTotalHeaderSize : Nat := 65536</code></pre>
+
+<p><strong>TlsConfig</strong> - TLS/SSL configuration:</p>
+
+<pre><code class="language-lean">structure TlsConfig where
+  certFile : String
+  keyFile : String</code></pre>
+
+<p><strong>Handler</strong> - Request handler function:</p>
+
+<pre><code class="language-lean">def Handler := ServerRequest → IO Response</code></pre>
+
+<p><strong>Middleware</strong> - Handler wrapper:</p>
+
+<pre><code class="language-lean">def Middleware := Handler → Handler</code></pre>
+
+<h3>Server</h3>
+
+<pre><code class="language-lean">structure Server where
+  config : ServerConfig
+  router : Router
+  middleware : List Middleware := []
+  sseManager : Option SSE.ConnectionManager := none
+  sseRoutes : List (String × String) := []</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Method</th><th>Signature</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>create</code></td><td><code>(config : ServerConfig := {}) : Server</code></td></tr>
+    <tr><td><code>new</code></td><td><code>: Server</code></td></tr>
+    <tr><td><code>route</code></td><td><code>(method : Method) (pattern : String) (handler : Handler) : Server</code></td></tr>
+    <tr><td><code>get</code></td><td><code>(pattern : String) (handler : Handler) : Server</code></td></tr>
+    <tr><td><code>post</code></td><td><code>(pattern : String) (handler : Handler) : Server</code></td></tr>
+    <tr><td><code>put</code></td><td><code>(pattern : String) (handler : Handler) : Server</code></td></tr>
+    <tr><td><code>delete</code></td><td><code>(pattern : String) (handler : Handler) : Server</code></td></tr>
+    <tr><td><code>patch</code></td><td><code>(pattern : String) (handler : Handler) : Server</code></td></tr>
+    <tr><td><code>head</code></td><td><code>(pattern : String) (handler : Handler) : Server</code></td></tr>
+    <tr><td><code>options</code></td><td><code>(pattern : String) (handler : Handler) : Server</code></td></tr>
+    <tr><td><code>use</code></td><td><code>(mw : Middleware) : Server</code></td></tr>
+    <tr><td><code>withSSE</code></td><td><code>(manager : SSE.ConnectionManager) : Server</code></td></tr>
+    <tr><td><code>sseRoute</code></td><td><code>(pattern : String) (topic : String := "default") : Server</code></td></tr>
+    <tr><td><code>run</code></td><td><code>: IO Unit</code></td></tr>
+  </tbody>
+</table>
+
+<h3>ServerRequest</h3>
+
+<pre><code class="language-lean">structure ServerRequest where
+  request : Request
+  params : Params := []</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Method</th><th>Return Type</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>method</code></td><td><code>Method</code></td></tr>
+    <tr><td><code>path</code></td><td><code>String</code> (without query string)</td></tr>
+    <tr><td><code>fullPath</code></td><td><code>String</code> (with query string)</td></tr>
+    <tr><td><code>headers</code></td><td><code>Headers</code></td></tr>
+    <tr><td><code>body</code></td><td><code>ByteArray</code></td></tr>
+    <tr><td><code>bodyString</code></td><td><code>String</code></td></tr>
+    <tr><td><code>param name</code></td><td><code>Option String</code></td></tr>
+    <tr><td><code>header name</code></td><td><code>Option String</code></td></tr>
+    <tr><td><code>query</code></td><td><code>String</code></td></tr>
+    <tr><td><code>queryParams</code></td><td><code>List (String × String)</code></td></tr>
+    <tr><td><code>queryParam name</code></td><td><code>Option String</code></td></tr>
+    <tr><td><code>queryParamAll name</code></td><td><code>List String</code></td></tr>
+    <tr><td><code>contentType</code></td><td><code>Option String</code></td></tr>
+    <tr><td><code>cookies</code></td><td><code>List (String × String)</code></td></tr>
+    <tr><td><code>cookie name</code></td><td><code>Option String</code></td></tr>
+    <tr><td><code>hasFormData</code></td><td><code>Bool</code></td></tr>
+    <tr><td><code>formData</code></td><td><code>FormData</code></td></tr>
+    <tr><td><code>formField name</code></td><td><code>Option String</code></td></tr>
+    <tr><td><code>formFieldAll name</code></td><td><code>List String</code></td></tr>
+    <tr><td><code>formFile name</code></td><td><code>Option FormFile</code></td></tr>
+    <tr><td><code>formFileAll name</code></td><td><code>List FormFile</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Response Helpers</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Signature</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Response.ok</code></td><td><code>(body : String) : Response</code></td></tr>
+    <tr><td><code>Response.html</code></td><td><code>(body : String) : Response</code></td></tr>
+    <tr><td><code>Response.json</code></td><td><code>(body : String) : Response</code></td></tr>
+    <tr><td><code>Response.created</code></td><td><code>(body : String := "") : Response</code></td></tr>
+    <tr><td><code>Response.noContent</code></td><td><code>: Response</code></td></tr>
+    <tr><td><code>Response.redirect</code></td><td><code>(location : String) (permanent : Bool := false) : Response</code></td></tr>
+    <tr><td><code>Response.seeOther</code></td><td><code>(location : String) : Response</code></td></tr>
+    <tr><td><code>Response.badRequest</code></td><td><code>(message : String := "Bad Request") : Response</code></td></tr>
+    <tr><td><code>Response.unauthorized</code></td><td><code>(message : String := "Unauthorized") : Response</code></td></tr>
+    <tr><td><code>Response.forbidden</code></td><td><code>(message : String := "Forbidden") : Response</code></td></tr>
+    <tr><td><code>Response.notFound</code></td><td><code>(message : String := "Not Found") : Response</code></td></tr>
+    <tr><td><code>Response.methodNotAllowed</code></td><td><code>(allowed : List String := []) : Response</code></td></tr>
+    <tr><td><code>Response.conflict</code></td><td><code>(message : String := "Conflict") : Response</code></td></tr>
+    <tr><td><code>Response.payloadTooLarge</code></td><td><code>(message : String := "Payload Too Large") : Response</code></td></tr>
+    <tr><td><code>Response.uriTooLong</code></td><td><code>(message : String := "URI Too Long") : Response</code></td></tr>
+    <tr><td><code>Response.unprocessableEntity</code></td><td><code>(message : String := "Unprocessable Entity") : Response</code></td></tr>
+    <tr><td><code>Response.tooManyRequests</code></td><td><code>(retryAfter : Option Nat := none) : Response</code></td></tr>
+    <tr><td><code>Response.headerFieldsTooLarge</code></td><td><code>(message : String := "...") : Response</code></td></tr>
+    <tr><td><code>Response.requestTimeout</code></td><td><code>(message : String := "Request Timeout") : Response</code></td></tr>
+    <tr><td><code>Response.internalError</code></td><td><code>(message : String := "Internal Server Error") : Response</code></td></tr>
+    <tr><td><code>Response.serviceUnavailable</code></td><td><code>(retryAfter : Option Nat := none) : Response</code></td></tr>
+  </tbody>
+</table>
+
+<h3>ResponseBuilder</h3>
+
+<pre><code class="language-lean">structure ResponseBuilder where
+  status : StatusCode := StatusCode.ok
+  headers : Headers := Headers.empty
+  body : ByteArray := ByteArray.empty</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Method</th><th>Signature</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>withStatus</code></td><td><code>(code : StatusCode) : ResponseBuilder</code></td></tr>
+    <tr><td><code>withBody</code></td><td><code>(data : ByteArray) : ResponseBuilder</code></td></tr>
+    <tr><td><code>withText</code></td><td><code>(text : String) : ResponseBuilder</code></td></tr>
+    <tr><td><code>withHeader</code></td><td><code>(name value : String) : ResponseBuilder</code></td></tr>
+    <tr><td><code>withContentType</code></td><td><code>(ct : String) : ResponseBuilder</code></td></tr>
+    <tr><td><code>setCookie</code></td><td><code>(name value : String) (opts : CookieOptions := {}) : ResponseBuilder</code></td></tr>
+    <tr><td><code>clearCookie</code></td><td><code>(name : String) (path : Option String := some "/") : ResponseBuilder</code></td></tr>
+    <tr><td><code>build</code></td><td><code>: Response</code></td></tr>
+  </tbody>
+</table>
+
+<h3>CookieOptions</h3>
+
+<pre><code class="language-lean">structure CookieOptions where
+  maxAge : Option Nat := none
+  domain : Option String := none
+  path : Option String := some "/"
+  secure : Bool := false
+  httpOnly : Bool := true
+  sameSite : Option SameSite := some .lax
+
+inductive SameSite where
+  | strict | lax | none</code></pre>
+
+<h3>FormData</h3>
+
+<pre><code class="language-lean">structure FormData where
+  fields : List (String × String) := []
+  files : List (String × FormFile) := []
+
+structure FormFile where
+  filename : String
+  contentType : String
+  data : ByteArray</code></pre>
+
+<h3>Router</h3>
+
+<pre><code class="language-lean">structure Router where
+  routes : List Route := []
+
+inductive PathSegment where
+  | literal (s : String)
+  | param (name : String)
+  | wildcard</code></pre>
+
+<h3>Middleware</h3>
+
+<pre><code class="language-lean">namespace Middleware
+  def identity : Middleware
+  def compose (m1 m2 : Middleware) : Middleware
+  def chain (middlewares : List Middleware) : Middleware
+end Middleware</code></pre>
+
+<h3>SSE Types</h3>
+
+<pre><code class="language-lean">structure SSE.Event where
+  event : String := "message"
+  data : String
+  id : Option String := none
+  retry : Option Nat := none
+
+namespace SSE.Event
+  def message (data : String) : Event
+  def named (eventType : String) (data : String) : Event
+  def withId (e : Event) (id : String) : Event
+  def withRetry (e : Event) (ms : Nat) : Event
+end SSE.Event
+
+structure SSE.ConnectionManager where
+  nextId : IO.Ref Nat
+  clients : IO.Ref (HashMap Nat Client)
+
+namespace SSE.ConnectionManager
+  def create : IO ConnectionManager
+  def addClient (socket : Socket) (topic : String) : IO Nat
+  def removeClient (clientId : Nat) : IO Unit
+  def getClientsForTopic (topic : String) : IO (List Client)
+  def getAllClients : IO (List Client)
+  def clientCount : IO Nat
+  def broadcast (topic : String) (event : Event) : IO Unit
+  def broadcastAll (event : Event) : IO Unit
+  def sendTo (clientId : Nat) (event : Event) : IO Bool
+end SSE.ConnectionManager</code></pre>
+
+<h3>Error Types</h3>
+
+<pre><code class="language-lean">inductive ServerError where
+  | bindFailed (msg : String)
+  | acceptFailed (msg : String)
+  | parseError (msg : String)
+  | handlerError (msg : String)
+  | timeout
+  | connectionClosed
+
+inductive ValidationError where
+  | uriTooLong (length : Nat) (limit : Nat)
+  | tooManyHeaders (count : Nat) (limit : Nat)
+  | headerTooLarge (name : String) (size : Nat) (limit : Nat)
+  | totalHeadersTooLarge (size : Nat) (limit : Nat)
+  | invalidUriCharacter (char : Char)</code></pre>

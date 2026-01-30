@@ -1,0 +1,155 @@
+<p>Citadel's router maps HTTP methods and URL patterns to handler functions,
+supporting path parameters, wildcards, and method-specific routes.</p>
+
+<h3>Basic Routing</h3>
+
+<p>Add routes using method-specific builders on the Server:</p>
+
+<pre><code class="language-lean">Server.create
+  |>.get "/" homeHandler
+  |>.post "/users" createUserHandler
+  |>.put "/users/:id" updateUserHandler
+  |>.delete "/users/:id" deleteUserHandler
+  |>.patch "/users/:id" patchUserHandler
+  |>.head "/health" healthCheckHandler
+  |>.options "/api" corsHandler
+  |>.run</code></pre>
+
+<h3>Supported HTTP Methods</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Method</th><th>Builder</th><th>Typical Use</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>GET</td><td><code>.get path handler</code></td><td>Retrieve resources</td></tr>
+    <tr><td>POST</td><td><code>.post path handler</code></td><td>Create resources</td></tr>
+    <tr><td>PUT</td><td><code>.put path handler</code></td><td>Replace resources</td></tr>
+    <tr><td>DELETE</td><td><code>.delete path handler</code></td><td>Remove resources</td></tr>
+    <tr><td>PATCH</td><td><code>.patch path handler</code></td><td>Partial updates</td></tr>
+    <tr><td>HEAD</td><td><code>.head path handler</code></td><td>Headers only (no body)</td></tr>
+    <tr><td>OPTIONS</td><td><code>.options path handler</code></td><td>CORS preflight</td></tr>
+  </tbody>
+</table>
+
+<p>For custom methods, use the generic <code>.route</code> method:</p>
+
+<pre><code class="language-lean">Server.create
+  |>.route Method.GET "/custom" customHandler
+  |>.run</code></pre>
+
+<h3>Path Parameters</h3>
+
+<p>Capture URL segments using <code>:param</code> syntax:</p>
+
+<pre><code class="language-lean">-- Matches: /users/123, /users/abc
+Server.create
+  |>.get "/users/:id" (fun req => do
+      let id := req.param "id" |>.getD "unknown"
+      pure (Response.ok s!"User: {id}"))
+  |>.run</code></pre>
+
+<p>Multiple parameters work the same way:</p>
+
+<pre><code class="language-lean">-- Matches: /posts/5/comments/42
+Server.create
+  |>.get "/posts/:postId/comments/:commentId" (fun req => do
+      let postId := req.param "postId" |>.getD "0"
+      let commentId := req.param "commentId" |>.getD "0"
+      pure (Response.ok s!"Post {postId}, Comment {commentId}"))
+  |>.run</code></pre>
+
+<h3>Wildcard Routes</h3>
+
+<p>Use <code>*</code> to match any remaining path segments:</p>
+
+<pre><code class="language-lean">-- Matches: /static/css/app.css, /static/js/main.js, etc.
+Server.create
+  |>.get "/static/*" (fun req => do
+      let path := req.path
+      -- Serve static files based on path
+      pure (Response.ok s!"Serving: {path}"))
+  |>.run</code></pre>
+
+<p>Wildcards match everything after the prefix, making them useful for static file
+serving or catch-all routes.</p>
+
+<h3>Route Pattern Types</h3>
+
+<p>Routes are composed of three segment types:</p>
+
+<pre><code class="language-lean">inductive PathSegment where
+  | literal (s : String)   -- Exact match: "/users"
+  | param (name : String)  -- Capture: "/:id"
+  | wildcard               -- Match rest: "/*"</code></pre>
+
+<h3>Route Matching Order</h3>
+
+<p>Routes are matched in the order they're added. The first matching route handles
+the request:</p>
+
+<pre><code class="language-lean">Server.create
+  -- More specific routes first
+  |>.get "/users/me" currentUserHandler      -- Matches /users/me
+  |>.get "/users/:id" getUserHandler         -- Matches /users/123
+  |>.get "/users/*" catchAllHandler          -- Matches /users/foo/bar
+  |>.run</code></pre>
+
+<h3>Method Not Allowed</h3>
+
+<p>When a path matches but the method doesn't, Citadel returns 405 Method Not Allowed
+with an <code>Allow</code> header listing valid methods:</p>
+
+<pre><code class="language-bash"># If only GET is defined for /users
+curl -X POST http://localhost:8080/users
+
+# Response:
+# HTTP/1.1 405 Method Not Allowed
+# Allow: GET</code></pre>
+
+<h3>Not Found</h3>
+
+<p>Requests that don't match any route receive a 404 Not Found response. You can
+add a catch-all handler to customize this:</p>
+
+<pre><code class="language-lean">Server.create
+  |>.get "/" homeHandler
+  |>.get "/api/*" apiHandler
+  -- Catch-all for unmatched routes (add last)
+  |>.get "/*" (fun _ => pure (Response.notFound "Page not found"))
+  |>.run</code></pre>
+
+<h3>Router API</h3>
+
+<p>The <code>Router</code> type can be used directly for advanced scenarios:</p>
+
+<pre><code class="language-lean">namespace Router
+
+/-- Create an empty router -/
+def empty : Router
+
+/-- Add a route -/
+def add (r : Router) (method : Method) (pattern : String) (handler : Handler) : Router
+
+/-- Add a GET route -/
+def get (r : Router) (pattern : String) (handler : Handler) : Router
+
+-- Similar for post, put, delete, patch, head, options
+
+/-- Find a matching route for a request -/
+def findRoute (r : Router) (req : Request) : Option (Route × Params)
+
+/-- Find all methods that match a path -/
+def findMethodsForPath (r : Router) (path : String) : List Method
+
+/-- Handle a request, returning a response -/
+def handle (r : Router) (req : Request) : IO Response</code></pre>
+
+<h3>Route Patterns Best Practices</h3>
+
+<ul>
+  <li>Order routes from most specific to least specific</li>
+  <li>Use path parameters for resource IDs: <code>/users/:id</code></li>
+  <li>Use wildcards sparingly, typically for static files or catch-all handlers</li>
+  <li>Keep routes RESTful: use HTTP methods for actions, paths for resources</li>
+</ul>

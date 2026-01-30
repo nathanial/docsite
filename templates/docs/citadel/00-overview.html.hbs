@@ -1,0 +1,61 @@
+<p>Citadel is an <strong>HTTP server library</strong> for Lean 4 with built-in TLS support,
+middleware architecture, Server-Sent Events (SSE), and expressive routing. Build
+production-ready web services with type-safe handlers and fluent response builders.</p>
+
+<h3>Key Features</h3>
+<ul>
+  <li><strong>TLS/HTTPS Support</strong> - Native OpenSSL integration for secure connections</li>
+  <li><strong>Expressive Routing</strong> - Path parameters, wildcards, and method-specific routes</li>
+  <li><strong>Middleware Stack</strong> - Composable request/response transformations</li>
+  <li><strong>Server-Sent Events</strong> - Real-time streaming with topic-based broadcasting</li>
+  <li><strong>Response Helpers</strong> - Built-in responses for common HTTP status codes</li>
+  <li><strong>Form Handling</strong> - URL-encoded and multipart form parsing with file uploads</li>
+  <li><strong>Cookie Support</strong> - Secure cookie handling with SameSite and HttpOnly options</li>
+  <li><strong>Request Validation</strong> - Configurable limits for URI length, headers, and body size</li>
+</ul>
+
+<h3>Quick Example</h3>
+
+<pre><code class="language-lean">import Citadel
+
+open Citadel
+
+def main : IO Unit := do
+  Server.create { port := 8080 }
+    |>.get "/" (fun _ => pure (Response.ok "Hello, World!"))
+    |>.get "/users/:id" (fun req => do
+        let id := req.param "id" |>.getD "unknown"
+        pure (Response.json s!"&#123;&#123;\"id\": \"{id}\"&#125;&#125;"))
+    |>.post "/api/data" (fun req => do
+        IO.println s!"Received: {req.bodyString}"
+        pure (Response.created))
+    |>.run</code></pre>
+
+<p>Start the server and test with curl:</p>
+
+<pre><code class="language-bash">curl http://localhost:8080/
+# Hello, World!
+
+curl http://localhost:8080/users/42
+# {"id": "42"}</code></pre>
+
+<h3>Architecture</h3>
+
+<p>Citadel builds on two core dependencies:</p>
+<ul>
+  <li><strong>Herald</strong> - HTTP message parsing (Method, StatusCode, Headers, Request, Response)</li>
+  <li><strong>Jack</strong> - TCP socket FFI bindings</li>
+</ul>
+
+<p>For HTTPS, Citadel links against OpenSSL 3 (libssl, libcrypto) to provide TLS termination
+directly in Lean without external proxies.</p>
+
+<h3>Design Philosophy</h3>
+
+<p>Citadel follows a builder pattern where server configuration flows naturally through
+method chaining. Routes are added with type-safe handlers that receive a <code>ServerRequest</code>
+and return an <code>IO Response</code>. Middleware wraps handlers to add cross-cutting concerns
+like logging, authentication, or CORS headers.</p>
+
+<p>The library handles connection management, keep-alive, timeouts, and graceful error
+responses automatically. You focus on request handling; Citadel handles the HTTP protocol.</p>

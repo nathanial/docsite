@@ -1,0 +1,143 @@
+<p>Configure Citadel servers with <code>ServerConfig</code> to control ports, timeouts,
+request limits, and TLS settings.</p>
+
+<h3>ServerConfig Structure</h3>
+
+<pre><code class="language-lean">structure ServerConfig where
+  /-- Port to listen on -/
+  port : UInt16 := 8080
+  /-- Host to bind to -/
+  host : String := "127.0.0.1"
+  /-- Maximum request body size in bytes -/
+  maxBodySize : Nat := 10 * 1024 * 1024  -- 10 MB
+  /-- Keep-alive timeout in seconds -/
+  keepAliveTimeout : Nat := 60
+  /-- Request timeout in seconds -/
+  requestTimeout : Nat := 30
+  /-- TLS configuration (None = HTTP, Some = HTTPS) -/
+  tls : Option TlsConfig := none
+  /-- Maximum URI length in bytes -/
+  maxUriLength : Nat := 8192  -- 8 KB
+  /-- Maximum number of headers -/
+  maxHeaderCount : Nat := 100
+  /-- Maximum size of a single header (name + value) in bytes -/
+  maxHeaderSize : Nat := 8192  -- 8 KB
+  /-- Maximum total size of all headers in bytes -/
+  maxTotalHeaderSize : Nat := 65536  -- 64 KB</code></pre>
+
+<h3>Basic Configuration</h3>
+
+<p>Pass a <code>ServerConfig</code> to <code>Server.create</code>:</p>
+
+<pre><code class="language-lean">def main : IO Unit := do
+  let config : ServerConfig := {
+    port := 3000
+    host := "0.0.0.0"  -- Listen on all interfaces
+  }
+  Server.create config
+    |>.get "/" (fun _ => pure (Response.ok "Hello!"))
+    |>.run</code></pre>
+
+<h3>Timeout Configuration</h3>
+
+<p>Control how long the server waits for requests and idle connections:</p>
+
+<pre><code class="language-lean">let config : ServerConfig := {
+  requestTimeout := 60      -- 60 seconds to complete a request
+  keepAliveTimeout := 120   -- 120 seconds before closing idle connections
+}</code></pre>
+
+<p>When a request exceeds <code>requestTimeout</code>, Citadel returns a 408 Request Timeout response.
+Idle keep-alive connections are closed after <code>keepAliveTimeout</code> seconds.</p>
+
+<h3>Request Size Limits</h3>
+
+<p>Protect against oversized requests with body and header limits:</p>
+
+<pre><code class="language-lean">let config : ServerConfig := {
+  maxBodySize := 1 * 1024 * 1024       -- 1 MB max body
+  maxUriLength := 4096                  -- 4 KB max URI
+  maxHeaderCount := 50                  -- Max 50 headers
+  maxHeaderSize := 4096                 -- 4 KB per header
+  maxTotalHeaderSize := 32768           -- 32 KB total headers
+}</code></pre>
+
+<p>Requests exceeding these limits receive appropriate error responses:</p>
+<ul>
+  <li>Body too large: 413 Payload Too Large</li>
+  <li>URI too long: 414 URI Too Long</li>
+  <li>Headers too large: 431 Request Header Fields Too Large</li>
+</ul>
+
+<h3>TLS Configuration</h3>
+
+<p>Enable HTTPS by providing a <code>TlsConfig</code> with certificate and key paths:</p>
+
+<pre><code class="language-lean">structure TlsConfig where
+  /-- Path to server certificate (PEM format) -/
+  certFile : String
+  /-- Path to private key (PEM format) -/
+  keyFile : String</code></pre>
+
+<p>Example with TLS:</p>
+
+<pre><code class="language-lean">def main : IO Unit := do
+  let tlsConfig : TlsConfig := {
+    certFile := "/etc/ssl/certs/server.crt"
+    keyFile := "/etc/ssl/private/server.key"
+  }
+  let config : ServerConfig := {
+    port := 443
+    host := "0.0.0.0"
+    tls := some tlsConfig
+  }
+  Server.create config
+    |>.get "/" (fun _ => pure (Response.ok "Secure!"))
+    |>.run</code></pre>
+
+<p>The server automatically detects TLS configuration and starts in HTTPS mode.</p>
+
+<h3>Development vs Production</h3>
+
+<p>Development configuration (localhost, relaxed limits):</p>
+
+<pre><code class="language-lean">def devConfig : ServerConfig := {
+  port := 8080
+  host := "127.0.0.1"
+  requestTimeout := 120  -- Longer timeout for debugging
+}</code></pre>
+
+<p>Production configuration (all interfaces, strict limits, TLS):</p>
+
+<pre><code class="language-lean">def prodConfig (tlsConfig : TlsConfig) : ServerConfig := {
+  port := 443
+  host := "0.0.0.0"
+  maxBodySize := 5 * 1024 * 1024  -- 5 MB
+  requestTimeout := 30
+  keepAliveTimeout := 60
+  tls := some tlsConfig
+}</code></pre>
+
+<h3>Generating Self-Signed Certificates</h3>
+
+<p>For development, generate self-signed certificates with OpenSSL:</p>
+
+<pre><code class="language-bash"># Generate private key
+openssl genrsa -out server.key 2048
+
+# Generate self-signed certificate (valid for 365 days)
+openssl req -new -x509 -key server.key -out server.crt -days 365 \
+  -subj "/CN=localhost"
+
+# Or generate both in one command
+openssl req -x509 -newkey rsa:2048 -keyout server.key -out server.crt \
+  -days 365 -nodes -subj "/CN=localhost"</code></pre>
+
+<p>Use with Citadel:</p>
+
+<pre><code class="language-lean">let tlsConfig : TlsConfig := {
+  certFile := "./server.crt"
+  keyFile := "./server.key"
+}</code></pre>
+
+<p>For production, use certificates from a trusted CA like Let's Encrypt.</p>

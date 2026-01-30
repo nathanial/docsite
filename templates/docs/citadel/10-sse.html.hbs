@@ -1,0 +1,212 @@
+<p>Citadel supports Server-Sent Events (SSE) for pushing real-time updates from
+server to client over HTTP. Perfect for live dashboards, notifications, and
+streaming data.</p>
+
+<h3>What is SSE?</h3>
+
+<p>Server-Sent Events is a standard for servers to push data to browsers over HTTP.
+Unlike WebSockets, SSE is unidirectional (server to client) and works over
+standard HTTP connections. Browsers automatically reconnect if the connection drops.</p>
+
+<h3>Quick Start</h3>
+
+<p>Enable SSE on your server and register an endpoint:</p>
+
+<pre><code class="language-lean">import Citadel
+
+open Citadel
+
+def main : IO Unit := do
+  -- Create connection manager
+  let sseManager ← SSE.ConnectionManager.create
+
+  Server.create { port := 8080 }
+    |>.withSSE sseManager
+    |>.sseRoute "/events" "notifications"
+    |>.get "/" (fun _ => pure (Response.html eventPage))
+    |>.run
+
+def eventPage : String := "&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;body&gt;
+  &lt;div id=\"messages\"&gt;&lt;/div&gt;
+  &lt;script&gt;
+    const events = new EventSource('/events');
+    events.onmessage = (e) =&gt; {
+      document.getElementById('messages').innerHTML += e.data + '&lt;br&gt;';
+    };
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;"</code></pre>
+
+<h3>ConnectionManager</h3>
+
+<p>The <code>ConnectionManager</code> tracks connected clients and handles broadcasting:</p>
+
+<pre><code class="language-lean">structure ConnectionManager where
+  nextId : IO.Ref Nat
+  clients : IO.Ref (Std.HashMap Nat Client)</code></pre>
+
+<p>Create a manager:</p>
+
+<pre><code class="language-lean">let manager ← SSE.ConnectionManager.create</code></pre>
+
+<h3>ConnectionManager Methods</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Method</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>create</code></td><td>Create a new connection manager</td></tr>
+    <tr><td><code>addClient socket topic</code></td><td>Register a client (called automatically)</td></tr>
+    <tr><td><code>removeClient clientId</code></td><td>Remove a client (called automatically)</td></tr>
+    <tr><td><code>getClientsForTopic topic</code></td><td>Get all clients subscribed to a topic</td></tr>
+    <tr><td><code>getAllClients</code></td><td>Get all connected clients</td></tr>
+    <tr><td><code>clientCount</code></td><td>Get number of connected clients</td></tr>
+    <tr><td><code>broadcast topic event</code></td><td>Send event to all clients on a topic</td></tr>
+    <tr><td><code>broadcastAll event</code></td><td>Send event to all clients</td></tr>
+    <tr><td><code>sendTo clientId event</code></td><td>Send event to a specific client</td></tr>
+  </tbody>
+</table>
+
+<h3>SSE Events</h3>
+
+<p>Create events to send to clients:</p>
+
+<pre><code class="language-lean">structure Event where
+  event : String := "message"   -- Event type
+  data : String                 -- Event payload
+  id : Option String := none    -- Optional event ID
+  retry : Option Nat := none    -- Reconnection interval (ms)</code></pre>
+
+<h3>Creating Events</h3>
+
+<pre><code class="language-lean">-- Simple message event
+let evt := SSE.Event.message "Hello, World!"
+
+-- Named event type
+let evt := SSE.Event.named "notification" "&#123;&#123;\"type\": \"alert\"&#125;&#125;"
+
+-- Event with ID (for reconnection)
+let evt := SSE.Event.message "Update"
+  |>.withId "msg-123"
+
+-- Event with retry hint
+let evt := SSE.Event.message "Hello"
+  |>.withRetry 5000  -- Reconnect after 5 seconds</code></pre>
+
+<h3>Broadcasting Events</h3>
+
+<p>Send events to connected clients:</p>
+
+<pre><code class="language-lean">def notifyHandler (req : ServerRequest) : IO Response := do
+  let message := req.queryParam "msg" |>.getD "Hello"
+
+  -- Get the SSE manager from somewhere (global, passed in, etc.)
+  -- For this example, assume we have access to it
+  manager.broadcast "notifications" (SSE.Event.message message)
+
+  pure (Response.ok "Notification sent")</code></pre>
+
+<h3>Topics</h3>
+
+<p>Topics let you create separate channels for different types of events:</p>
+
+<pre><code class="language-lean">Server.create
+  |>.withSSE manager
+  |>.sseRoute "/events/chat" "chat"           -- Chat messages
+  |>.sseRoute "/events/notifications" "notif" -- System notifications
+  |>.sseRoute "/events/prices" "prices"       -- Price updates
+  |>.run
+
+-- Broadcast to specific topics
+manager.broadcast "chat" (SSE.Event.message "New message")
+manager.broadcast "prices" (SSE.Event.named "price" "&#123;&#123;\"BTC\": 50000&#125;&#125;")
+
+-- Broadcast to all topics
+manager.broadcastAll (SSE.Event.named "system" "Server maintenance in 5 minutes")</code></pre>
+
+<h3>Client-Side JavaScript</h3>
+
+<pre><code class="language-javascript">// Connect to SSE endpoint
+const events = new EventSource('/events');
+
+// Handle default "message" events
+events.onmessage = (event) =&gt; {
+  console.log('Message:', event.data);
+};
+
+// Handle named events
+events.addEventListener('notification', (event) =&gt; {
+  const data = JSON.parse(event.data);
+  showNotification(data);
+});
+
+events.addEventListener('price', (event) =&gt; {
+  updatePrice(JSON.parse(event.data));
+});
+
+// Handle connection events
+events.onopen = () =&gt; console.log('Connected');
+events.onerror = () =&gt; console.log('Connection error');</code></pre>
+
+<h3>Complete Chat Example</h3>
+
+<pre><code class="language-lean">import Citadel
+
+open Citadel
+
+-- Store manager globally (in practice, use proper state management)
+def main : IO Unit := do
+  let manager ← SSE.ConnectionManager.create
+
+  Server.create { port := 8080 }
+    |>.withSSE manager
+    |>.sseRoute "/chat/events" "chat"
+    |>.get "/" (fun _ => pure (Response.html chatPage))
+    |>.post "/chat/send" (sendMessage manager)
+    |>.run
+
+def sendMessage (manager : SSE.ConnectionManager)
+    (req : ServerRequest) : IO Response := do
+  let message := req.formField "message" |>.getD ""
+  let user := req.formField "user" |>.getD "Anonymous"
+
+  if message.isEmpty then
+    return Response.badRequest "Empty message"
+
+  -- Broadcast to all chat clients
+  let chatEvent := SSE.Event.named "chat"
+    s!"&#123;&#123;\"user\": \"{user}\", \"message\": \"{message}\"&#125;&#125;"
+  manager.broadcast "chat" chatEvent
+
+  pure (Response.ok "Message sent")
+
+def chatPage : String := "..."  -- HTML with EventSource client</code></pre>
+
+<h3>SSE Wire Format</h3>
+
+<p>Events are serialized according to the SSE specification:</p>
+
+<pre><code>event: notification
+id: msg-123
+retry: 5000
+data: {"type": "alert", "message": "Hello"}
+
+</code></pre>
+
+<p>Each event ends with two newlines. Multi-line data gets a <code>data:</code> prefix per line.</p>
+
+<h3>Keep-Alive</h3>
+
+<p>Citadel automatically sends comment lines (<code>: ping</code>) to keep connections alive
+and detect disconnected clients. No configuration needed.</p>
+
+<h3>Limitations</h3>
+
+<ul>
+  <li>SSE is currently not supported over TLS connections (plain HTTP only)</li>
+  <li>SSE is unidirectional - use POST endpoints for client-to-server messages</li>
+  <li>Some proxies may buffer SSE responses - configure proxy timeouts appropriately</li>
+</ul>

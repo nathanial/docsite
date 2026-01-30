@@ -1,0 +1,142 @@
+<p>This guide walks you through building a simple REST API with Citadel.</p>
+
+<h3>Creating a Server</h3>
+
+<p>Start with <code>Server.create</code> to create a server with default or custom configuration:</p>
+
+<pre><code class="language-lean">import Citadel
+
+open Citadel
+
+def main : IO Unit := do
+  -- Default configuration (port 8080, localhost)
+  Server.create
+    |>.get "/" (fun _ => pure (Response.ok "Hello!"))
+    |>.run</code></pre>
+
+<p>Or with custom configuration:</p>
+
+<pre><code class="language-lean">def main : IO Unit := do
+  let config : ServerConfig := {
+    port := 3000
+    host := "0.0.0.0"
+    maxBodySize := 5 * 1024 * 1024  -- 5 MB
+    requestTimeout := 60
+  }
+  Server.create config
+    |>.get "/" (fun _ => pure (Response.ok "Hello!"))
+    |>.run</code></pre>
+
+<h3>Adding Routes</h3>
+
+<p>Chain route methods to add handlers for different paths and HTTP methods:</p>
+
+<pre><code class="language-lean">Server.create
+  |>.get "/" homeHandler
+  |>.get "/about" aboutHandler
+  |>.post "/api/users" createUserHandler
+  |>.put "/api/users/:id" updateUserHandler
+  |>.delete "/api/users/:id" deleteUserHandler
+  |>.run</code></pre>
+
+<h3>Writing Handlers</h3>
+
+<p>A handler is a function <code>ServerRequest → IO Response</code>:</p>
+
+<pre><code class="language-lean">def homeHandler (req : ServerRequest) : IO Response := do
+  pure (Response.html "&lt;h1&gt;Welcome&lt;/h1&gt;")
+
+def getUserHandler (req : ServerRequest) : IO Response := do
+  -- Extract path parameter
+  let id := req.param "id" |>.getD "0"
+  -- Return JSON response
+  pure (Response.json s!"&#123;&#123;\"id\": {id}, \"name\": \"User {id}\"&#125;&#125;")
+
+def createUserHandler (req : ServerRequest) : IO Response := do
+  -- Read request body
+  let body := req.bodyString
+  IO.println s!"Creating user with data: {body}"
+  pure (Response.created "&#123;&#123;\"status\": \"created\"&#125;&#125;")</code></pre>
+
+<h3>Path Parameters</h3>
+
+<p>Use <code>:param</code> syntax in routes to capture path segments:</p>
+
+<pre><code class="language-lean">Server.create
+  |>.get "/users/:id" (fun req => do
+      let id := req.param "id" |>.getD "unknown"
+      pure (Response.ok s!"User ID: {id}"))
+  |>.get "/posts/:postId/comments/:commentId" (fun req => do
+      let postId := req.param "postId" |>.getD "0"
+      let commentId := req.param "commentId" |>.getD "0"
+      pure (Response.ok s!"Post {postId}, Comment {commentId}"))
+  |>.run</code></pre>
+
+<h3>Query Parameters</h3>
+
+<p>Access query string parameters with <code>queryParam</code>:</p>
+
+<pre><code class="language-lean">-- GET /search?q=lean&limit=10
+def searchHandler (req : ServerRequest) : IO Response := do
+  let query := req.queryParam "q" |>.getD ""
+  let limit := req.queryParam "limit" |>.getD "20"
+  pure (Response.ok s!"Searching for: {query} (limit: {limit})")</code></pre>
+
+<h3>Reading Headers</h3>
+
+<p>Access request headers with the <code>header</code> method:</p>
+
+<pre><code class="language-lean">def protectedHandler (req : ServerRequest) : IO Response := do
+  match req.header "Authorization" with
+  | some auth =>
+    pure (Response.ok "Access granted")
+  | none =>
+    pure (Response.unauthorized "Missing Authorization header")</code></pre>
+
+<h3>Complete Example</h3>
+
+<p>Here's a complete REST API for a simple todo list:</p>
+
+<pre><code class="language-lean">import Citadel
+
+open Citadel
+
+def listTodos (req : ServerRequest) : IO Response := do
+  pure (Response.json "[&#123;&#123;\"id\": 1, \"task\": \"Learn Lean\"&#125;&#125;]")
+
+def getTodo (req : ServerRequest) : IO Response := do
+  let id := req.param "id" |>.getD "0"
+  pure (Response.json s!"&#123;&#123;\"id\": {id}, \"task\": \"Task {id}\"&#125;&#125;")
+
+def createTodo (req : ServerRequest) : IO Response := do
+  let body := req.bodyString
+  IO.println s!"Creating todo: {body}"
+  pure (Response.created "&#123;&#123;\"id\": 2, \"task\": \"New task\"&#125;&#125;")
+
+def deleteTodo (req : ServerRequest) : IO Response := do
+  let id := req.param "id" |>.getD "0"
+  IO.println s!"Deleting todo {id}"
+  pure Response.noContent
+
+def main : IO Unit := do
+  IO.println "Todo API running on http://localhost:8080"
+  Server.create { port := 8080 }
+    |>.get "/todos" listTodos
+    |>.get "/todos/:id" getTodo
+    |>.post "/todos" createTodo
+    |>.delete "/todos/:id" deleteTodo
+    |>.run</code></pre>
+
+<p>Test the API:</p>
+
+<pre><code class="language-bash"># List todos
+curl http://localhost:8080/todos
+
+# Get specific todo
+curl http://localhost:8080/todos/1
+
+# Create todo
+curl -X POST http://localhost:8080/todos -d '{"task": "Write docs"}'
+
+# Delete todo
+curl -X DELETE http://localhost:8080/todos/1</code></pre>

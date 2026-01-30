@@ -1,0 +1,85 @@
+<p>Add Citadel to your Lean 4 project by adding it as a dependency in your <code>lakefile.lean</code>.</p>
+
+<h3>Adding the Dependency</h3>
+
+<pre><code class="language-lean">require citadel from git "https://github.com/nathanial/citadel" @ "v0.1.0"</code></pre>
+
+<p>Then run:</p>
+
+<pre><code class="language-bash">lake update
+lake build</code></pre>
+
+<h3>OpenSSL Requirement</h3>
+
+<p>Citadel requires OpenSSL 3 for TLS support. The library links against <code>libssl</code> and
+<code>libcrypto</code>.</p>
+
+<p><strong>macOS (Homebrew):</strong></p>
+
+<pre><code class="language-bash">brew install openssl@3</code></pre>
+
+<p>Citadel's lakefile expects OpenSSL at <code>/opt/homebrew/opt/openssl@3</code> (the default
+Homebrew location on Apple Silicon). For Intel Macs, you may need to adjust the paths.</p>
+
+<p><strong>Linux (Debian/Ubuntu):</strong></p>
+
+<pre><code class="language-bash">sudo apt install libssl-dev</code></pre>
+
+<p><strong>Linux (Fedora/RHEL):</strong></p>
+
+<pre><code class="language-bash">sudo dnf install openssl-devel</code></pre>
+
+<h3>Lakefile Configuration</h3>
+
+<p>Your downstream project inherits Citadel's link arguments automatically. If you need
+custom OpenSSL paths, add them to your lakefile:</p>
+
+<pre><code class="language-lean">package myserver where
+  moreLinkArgs := #[
+    "-L/usr/local/opt/openssl@3/lib",
+    "-lssl",
+    "-lcrypto"
+  ]
+
+require citadel from git "https://github.com/nathanial/citadel" @ "v0.1.0"
+
+@[default_target]
+lean_exe server where
+  root := `Main</code></pre>
+
+<h3>Project Structure</h3>
+
+<p>A typical Citadel project structure:</p>
+
+<pre><code>my-server/
+├── lakefile.lean
+├── lean-toolchain
+├── Main.lean           # Server entry point
+└── Handlers/
+    ├── Api.lean        # API route handlers
+    └── Pages.lean      # HTML page handlers</code></pre>
+
+<h3>Verifying Installation</h3>
+
+<p>Create a minimal server to verify everything works:</p>
+
+<pre><code class="language-lean">-- Main.lean
+import Citadel
+
+open Citadel
+
+def main : IO Unit := do
+  IO.println "Starting server on port 8080..."
+  Server.create { port := 8080 }
+    |>.get "/" (fun _ => pure (Response.ok "Citadel is working!"))
+    |>.run</code></pre>
+
+<p>Build and run:</p>
+
+<pre><code class="language-bash">lake build
+lake exe server</code></pre>
+
+<p>Test with curl:</p>
+
+<pre><code class="language-bash">curl http://localhost:8080/
+# Citadel is working!</code></pre>

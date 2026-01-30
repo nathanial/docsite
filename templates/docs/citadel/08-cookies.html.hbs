@@ -1,0 +1,199 @@
+<p>Citadel provides comprehensive cookie support for reading cookies from requests
+and setting cookies on responses with full security options.</p>
+
+<h3>Reading Cookies</h3>
+
+<p>Access cookies from the request:</p>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  -- Get all cookies as key-value pairs
+  let allCookies := req.cookies
+
+  -- Get a specific cookie
+  let sessionId := req.cookie "session"
+  let theme := req.cookie "theme"
+
+  match sessionId with
+  | some sid =>
+    IO.println s!"Session: {sid}"
+    pure (Response.ok "Welcome back!")
+  | none =>
+    pure (Response.ok "New visitor")</code></pre>
+
+<h3>Setting Cookies</h3>
+
+<p>Set cookies using the <code>ResponseBuilder</code>:</p>
+
+<pre><code class="language-lean">def loginHandler (req : ServerRequest) : IO Response := do
+  let sessionId := "abc123"  -- Generate session ID
+
+  let resp := ResponseBuilder.withStatus StatusCode.ok
+    |>.withText "Logged in!"
+    |>.setCookie "session" sessionId
+    |>.build
+
+  pure resp</code></pre>
+
+<h3>CookieOptions</h3>
+
+<p>Control cookie behavior with <code>CookieOptions</code>:</p>
+
+<pre><code class="language-lean">structure CookieOptions where
+  /-- Max-Age in seconds (takes precedence over Expires) -/
+  maxAge : Option Nat := none
+  /-- Domain attribute -/
+  domain : Option String := none
+  /-- Path attribute (defaults to "/") -/
+  path : Option String := some "/"
+  /-- Secure flag (cookie only sent over HTTPS) -/
+  secure : Bool := false
+  /-- HttpOnly flag (cookie not accessible via JavaScript) -/
+  httpOnly : Bool := true
+  /-- SameSite attribute -/
+  sameSite : Option SameSite := some .lax</code></pre>
+
+<h3>SameSite Values</h3>
+
+<pre><code class="language-lean">inductive SameSite where
+  | strict  -- Cookie only sent with same-site requests
+  | lax     -- Cookie sent with same-site + top-level navigations
+  | none    -- Cookie sent with all requests (requires Secure)</code></pre>
+
+<h3>Cookie Options Presets</h3>
+
+<p>Citadel provides convenient presets:</p>
+
+<pre><code class="language-lean">-- Session cookie (expires when browser closes)
+CookieOptions.session
+
+-- Persistent cookie (lives for specified seconds)
+CookieOptions.persistent 86400  -- 24 hours
+
+-- Secure cookie (HTTPS only, strict same-site)
+CookieOptions.secureOnly</code></pre>
+
+<h3>Setting Cookies with Options</h3>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  -- Session cookie (default options)
+  let resp := ResponseBuilder.withStatus StatusCode.ok
+    |>.setCookie "session" "abc123"
+    |>.build
+
+  pure resp
+
+def persistentCookieHandler (req : ServerRequest) : IO Response := do
+  -- Cookie that lasts 7 days
+  let opts := CookieOptions.persistent (7 * 24 * 60 * 60)
+
+  let resp := ResponseBuilder.withStatus StatusCode.ok
+    |>.setCookie "remember_me" "token123" opts
+    |>.build
+
+  pure resp
+
+def secureCookieHandler (req : ServerRequest) : IO Response := do
+  -- Secure HTTPS-only cookie
+  let opts : CookieOptions := {
+    secure := true
+    httpOnly := true
+    sameSite := some .strict
+    maxAge := some 3600
+  }
+
+  let resp := ResponseBuilder.withStatus StatusCode.ok
+    |>.setCookie "auth_token" "secret" opts
+    |>.build
+
+  pure resp</code></pre>
+
+<h3>Clearing Cookies</h3>
+
+<p>Clear a cookie by setting it with an expired Max-Age:</p>
+
+<pre><code class="language-lean">def logoutHandler (req : ServerRequest) : IO Response := do
+  let resp := ResponseBuilder.withStatus StatusCode.ok
+    |>.withText "Logged out"
+    |>.clearCookie "session"
+    |>.clearCookie "remember_me"
+    |>.build
+
+  pure resp</code></pre>
+
+<p>Optionally specify the path:</p>
+
+<pre><code class="language-lean">-- Clear cookie at specific path
+|>.clearCookie "api_token" (path := some "/api")</code></pre>
+
+<h3>Multiple Cookies</h3>
+
+<p>Set multiple cookies on a single response:</p>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  let resp := ResponseBuilder.withStatus StatusCode.ok
+    |>.setCookie "session" "abc123"
+    |>.setCookie "theme" "dark" { httpOnly := false }  -- Allow JS access
+    |>.setCookie "lang" "en" { path := some "/" }
+    |>.withText "Preferences saved"
+    |>.build
+
+  pure resp</code></pre>
+
+<h3>Cookie Security Best Practices</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Option</th><th>Recommendation</th><th>Reason</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>httpOnly</code></td><td>true for auth cookies</td><td>Prevents XSS attacks from stealing tokens</td></tr>
+    <tr><td><code>secure</code></td><td>true in production</td><td>Ensures cookies only sent over HTTPS</td></tr>
+    <tr><td><code>sameSite</code></td><td>Strict or Lax</td><td>Prevents CSRF attacks</td></tr>
+    <tr><td><code>maxAge</code></td><td>Set appropriately</td><td>Limits exposure if cookie is compromised</td></tr>
+    <tr><td><code>path</code></td><td>Most restrictive</td><td>Limits where cookie is sent</td></tr>
+  </tbody>
+</table>
+
+<h3>Complete Authentication Example</h3>
+
+<pre><code class="language-lean">def loginHandler (req : ServerRequest) : IO Response := do
+  -- Parse login credentials
+  let username := req.formField "username" |>.getD ""
+  let password := req.formField "password" |>.getD ""
+
+  -- Validate credentials (simplified)
+  if username == "admin" && password == "secret" then
+    let sessionId := "generated-session-id"  -- Use secure random generator
+
+    let opts : CookieOptions := {
+      httpOnly := true
+      secure := true  -- Enable in production
+      sameSite := some .strict
+      maxAge := some (24 * 60 * 60)  -- 24 hours
+      path := some "/"
+    }
+
+    let resp := ResponseBuilder.withStatus StatusCode.ok
+      |>.setCookie "session" sessionId opts
+      |>.withText "Login successful"
+      |>.build
+
+    pure resp
+  else
+    pure (Response.unauthorized "Invalid credentials")
+
+def logoutHandler (req : ServerRequest) : IO Response := do
+  let resp := ResponseBuilder.withStatus StatusCode.ok
+    |>.clearCookie "session"
+    |>.withText "Logged out"
+    |>.build
+
+  pure resp
+
+def protectedHandler (req : ServerRequest) : IO Response := do
+  match req.cookie "session" with
+  | some sessionId =>
+    -- Validate session (check database, etc.)
+    pure (Response.ok s!"Welcome! Session: {sessionId}")
+  | none =>
+    pure (Response.unauthorized "Please login")</code></pre>

@@ -1,0 +1,170 @@
+<p>Build HTTP responses using Citadel's fluent <code>ResponseBuilder</code> API or
+convenient static helpers for common response types.</p>
+
+<h3>Response Helpers</h3>
+
+<p>Citadel provides helpers for common HTTP responses:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Helper</th><th>Status</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Response.ok body</code></td><td>200</td><td>Plain text response</td></tr>
+    <tr><td><code>Response.html body</code></td><td>200</td><td>HTML response</td></tr>
+    <tr><td><code>Response.json body</code></td><td>200</td><td>JSON response</td></tr>
+    <tr><td><code>Response.created body?</code></td><td>201</td><td>Resource created</td></tr>
+    <tr><td><code>Response.noContent</code></td><td>204</td><td>No body</td></tr>
+    <tr><td><code>Response.redirect url</code></td><td>302</td><td>Temporary redirect</td></tr>
+    <tr><td><code>Response.redirect url true</code></td><td>301</td><td>Permanent redirect</td></tr>
+    <tr><td><code>Response.seeOther url</code></td><td>303</td><td>See Other (after POST)</td></tr>
+    <tr><td><code>Response.badRequest msg?</code></td><td>400</td><td>Client error</td></tr>
+    <tr><td><code>Response.unauthorized msg?</code></td><td>401</td><td>Auth required</td></tr>
+    <tr><td><code>Response.forbidden msg?</code></td><td>403</td><td>Access denied</td></tr>
+    <tr><td><code>Response.notFound msg?</code></td><td>404</td><td>Resource not found</td></tr>
+    <tr><td><code>Response.methodNotAllowed methods?</code></td><td>405</td><td>Wrong HTTP method</td></tr>
+    <tr><td><code>Response.conflict msg?</code></td><td>409</td><td>Resource conflict</td></tr>
+    <tr><td><code>Response.payloadTooLarge msg?</code></td><td>413</td><td>Body too large</td></tr>
+    <tr><td><code>Response.uriTooLong msg?</code></td><td>414</td><td>URI too long</td></tr>
+    <tr><td><code>Response.unprocessableEntity msg?</code></td><td>422</td><td>Validation failed</td></tr>
+    <tr><td><code>Response.tooManyRequests retryAfter?</code></td><td>429</td><td>Rate limited</td></tr>
+    <tr><td><code>Response.headerFieldsTooLarge msg?</code></td><td>431</td><td>Headers too large</td></tr>
+    <tr><td><code>Response.internalError msg?</code></td><td>500</td><td>Server error</td></tr>
+    <tr><td><code>Response.serviceUnavailable retryAfter?</code></td><td>503</td><td>Service down</td></tr>
+  </tbody>
+</table>
+
+<h3>Basic Usage</h3>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  -- Plain text
+  pure (Response.ok "Hello, World!")
+
+def htmlHandler (req : ServerRequest) : IO Response := do
+  -- HTML with proper Content-Type
+  pure (Response.html "&lt;h1&gt;Welcome&lt;/h1&gt;&lt;p&gt;Hello!&lt;/p&gt;")
+
+def apiHandler (req : ServerRequest) : IO Response := do
+  -- JSON with proper Content-Type
+  pure (Response.json "&#123;&#123;\"status\": \"ok\", \"count\": 42&#125;&#125;")</code></pre>
+
+<h3>Redirects</h3>
+
+<p>Redirect users to different URLs:</p>
+
+<pre><code class="language-lean">-- Temporary redirect (302 Found)
+pure (Response.redirect "/new-location")
+
+-- Permanent redirect (301 Moved Permanently)
+pure (Response.redirect "/new-location" (permanent := true))
+
+-- See Other (303) - use after POST to redirect to GET
+pure (Response.seeOther "/success")</code></pre>
+
+<h3>Error Responses</h3>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  match req.param "id" with
+  | none =>
+    pure (Response.badRequest "Missing id parameter")
+  | some id =>
+    if id == "secret" then
+      pure (Response.forbidden "Access denied")
+    else
+      -- Simulate lookup
+      let found := id != "999"
+      if found then
+        pure (Response.ok s!"Found: {id}")
+      else
+        pure (Response.notFound s!"No resource with id {id}")</code></pre>
+
+<h3>ResponseBuilder</h3>
+
+<p>For full control, use the fluent builder API:</p>
+
+<pre><code class="language-lean">structure ResponseBuilder where
+  status : StatusCode := StatusCode.ok
+  headers : Headers := Headers.empty
+  body : ByteArray := ByteArray.empty</code></pre>
+
+<p>Builder methods:</p>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  let resp := ResponseBuilder.withStatus StatusCode.ok
+    |>.withText "Hello, World!"
+    |>.withContentType "text/plain; charset=utf-8"
+    |>.withHeader "X-Custom-Header" "value"
+    |>.withHeader "Cache-Control" "no-cache"
+    |>.build
+
+  pure resp</code></pre>
+
+<h3>Builder API Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Method</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>withStatus code</code></td><td>Set HTTP status code</td></tr>
+    <tr><td><code>withBody bytes</code></td><td>Set body as ByteArray</td></tr>
+    <tr><td><code>withText str</code></td><td>Set body as UTF-8 string</td></tr>
+    <tr><td><code>withHeader name value</code></td><td>Add a header</td></tr>
+    <tr><td><code>withContentType ct</code></td><td>Set Content-Type header</td></tr>
+    <tr><td><code>setCookie name value opts?</code></td><td>Set a cookie</td></tr>
+    <tr><td><code>clearCookie name path?</code></td><td>Clear a cookie</td></tr>
+    <tr><td><code>build</code></td><td>Build final Response</td></tr>
+  </tbody>
+</table>
+
+<h3>Custom Status Codes</h3>
+
+<p>Use any HTTP status code:</p>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  -- Custom status code
+  let resp := ResponseBuilder.withStatus { code := 418 }  -- I'm a teapot
+    |>.withText "I'm a teapot"
+    |>.build
+  pure resp</code></pre>
+
+<h3>Binary Responses</h3>
+
+<p>Return binary data with <code>withBody</code>:</p>
+
+<pre><code class="language-lean">def imageHandler (req : ServerRequest) : IO Response := do
+  -- Read image file
+  let imageData ← IO.FS.readBinFile "image.png"
+
+  let resp := ResponseBuilder.withStatus StatusCode.ok
+    |>.withBody imageData
+    |>.withContentType "image/png"
+    |>.withHeader "Cache-Control" "max-age=86400"
+    |>.build
+
+  pure resp</code></pre>
+
+<h3>CORS Headers</h3>
+
+<p>Add CORS headers for cross-origin requests:</p>
+
+<pre><code class="language-lean">def corsHandler (req : ServerRequest) : IO Response := do
+  let resp := ResponseBuilder.withStatus StatusCode.ok
+    |>.withHeader "Access-Control-Allow-Origin" "*"
+    |>.withHeader "Access-Control-Allow-Methods" "GET, POST, PUT, DELETE"
+    |>.withHeader "Access-Control-Allow-Headers" "Content-Type, Authorization"
+    |>.withHeader "Access-Control-Max-Age" "86400"
+    |>.build
+  pure resp</code></pre>
+
+<h3>Rate Limiting</h3>
+
+<p>Return rate limit responses with retry hints:</p>
+
+<pre><code class="language-lean">def handler (req : ServerRequest) : IO Response := do
+  let isRateLimited := true  -- Check your rate limiter
+  if isRateLimited then
+    -- Tell client to retry after 60 seconds
+    pure (Response.tooManyRequests (retryAfter := some 60))
+  else
+    pure (Response.ok "OK")</code></pre>

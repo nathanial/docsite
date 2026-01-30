@@ -1,0 +1,88 @@
+<p>Physical constants are provided with their correct dimensions, enabling type-safe physics
+calculations.</p>
+
+<h3>Fundamental Constants</h3>
+
+<pre><code class="language-lean">open Measures.Constants
+open Measures.Units.SI
+
+-- Speed of light
+c  -- 299,792,458 m/s (exact)
+
+-- Planck constant
+h  -- 6.626e-34 J·s
+ℏ  -- h / (2π), reduced Planck constant
+
+-- Gravitational constant
+G  -- 6.674e-11 m³/(kg·s²)</code></pre>
+
+<h3>Mass-Energy Equivalence</h3>
+
+<pre><code class="language-lean">-- E = mc²
+def restMass := 1.0 *: kilogram
+def energy := restMass *. c *. c
+
+#eval energy.asUnit joule  -- ~8.99e16 J</code></pre>
+
+<h3>Electromagnetic Constants</h3>
+
+<pre><code class="language-lean">-- Elementary charge
+e_charge  -- 1.602e-19 C
+
+-- Vacuum permittivity
+ε₀  -- 8.854e-12 F/m
+
+-- Vacuum permeability
+μ₀  -- 1.257e-6 H/m</code></pre>
+
+<h3>Thermodynamic Constants</h3>
+
+<pre><code class="language-lean">-- Boltzmann constant
+k_B  -- 1.381e-23 J/K
+
+-- Stefan-Boltzmann constant
+σ    -- 5.670e-8 W/(m²·K⁴)
+
+-- Gas constant
+R    -- 8.314 J/(mol·K)</code></pre>
+
+<h3>Atomic and Nuclear Constants</h3>
+
+<pre><code class="language-lean">-- Avogadro constant
+N_A  -- 6.022e23 /mol
+
+-- Particle masses
+m_e  -- 9.109e-31 kg (electron)
+m_p  -- 1.673e-27 kg (proton)
+m_n  -- 1.675e-27 kg (neutron)</code></pre>
+
+<h3>Derived Constants</h3>
+
+<pre><code class="language-lean">-- Fine-structure constant (dimensionless)
+α    -- ~1/137
+
+-- Bohr radius
+a_0  -- 5.292e-11 m
+
+-- Standard gravity
+g_n  -- 9.80665 m/s²
+
+-- Standard atmosphere
+atm  -- 101,325 Pa</code></pre>
+
+<h3>Constants Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Constant</th><th>Description</th><th>Value</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>c</code></td><td>Speed of light</td><td>299,792,458 m/s</td></tr>
+    <tr><td><code>h</code></td><td>Planck constant</td><td>6.626×10⁻³⁴ J·s</td></tr>
+    <tr><td><code>G</code></td><td>Gravitational constant</td><td>6.674×10⁻¹¹ m³/(kg·s²)</td></tr>
+    <tr><td><code>e_charge</code></td><td>Elementary charge</td><td>1.602×10⁻¹⁹ C</td></tr>
+    <tr><td><code>k_B</code></td><td>Boltzmann constant</td><td>1.381×10⁻²³ J/K</td></tr>
+    <tr><td><code>N_A</code></td><td>Avogadro constant</td><td>6.022×10²³ /mol</td></tr>
+    <tr><td><code>g_n</code></td><td>Standard gravity</td><td>9.80665 m/s²</td></tr>
+  </tbody>
+</table>

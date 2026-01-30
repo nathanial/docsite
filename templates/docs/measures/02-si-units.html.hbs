@@ -1,0 +1,57 @@
+<p>SI (International System of Units) provides the foundation for scientific measurement. Measures
+includes all seven SI base units and common derived units.</p>
+
+<h3>Base Units</h3>
+
+<pre><code class="language-lean">open Measures.Units.SI
+
+def length := 5.0 *: meter      -- Length
+def mass := 70.0 *: kilogram    -- Mass
+def duration := 60.0 *: second  -- Time
+def current := 1.5 *: ampere    -- Electric current
+def temp := 300.0 *: kelvin     -- Temperature
+def amount := 2.0 *: mole       -- Amount of substance
+def intensity := 100.0 *: candela  -- Luminous intensity</code></pre>
+
+<h3>Derived Units</h3>
+
+<pre><code class="language-lean">-- Energy and power
+def energy := 1000.0 *: joule   -- J = kg·m²/s²
+def power := 100.0 *: watt      -- W = J/s
+
+-- Force
+def force := 9.8 *: newton      -- N = kg·m/s²
+
+-- Velocity and acceleration
+def velocity := 25.0 *: meterPerSecond         -- m/s
+def accel := 9.8 *: meterPerSecondSquared      -- m/s²</code></pre>
+
+<h3>SI Prefixes</h3>
+
+<p>Standard SI prefixes are available for scaling units:</p>
+
+<pre><code class="language-lean">-- Large scales
+def marathon := 42.195 *: kilometer    -- 10³ meters
+def gigabyte := 8.0 *: gigajoule       -- 10⁹ joules
+
+-- Small scales
+def wavelength := 550.0 *: nanometer   -- 10⁻⁹ meters
+def microseconds := 100.0 *: microsecond
+def milligrams := 250.0 *: milligram</code></pre>
+
+<h3>Available Prefixes</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Prefix</th><th>Symbol</th><th>Factor</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>giga</td><td>G</td><td>10<sup>9</sup></td></tr>
+    <tr><td>mega</td><td>M</td><td>10<sup>6</sup></td></tr>
+    <tr><td>kilo</td><td>k</td><td>10<sup>3</sup></td></tr>
+    <tr><td>centi</td><td>c</td><td>10<sup>-2</sup></td></tr>
+    <tr><td>milli</td><td>m</td><td>10<sup>-3</sup></td></tr>
+    <tr><td>micro</td><td>μ</td><td>10<sup>-6</sup></td></tr>
+    <tr><td>nano</td><td>n</td><td>10<sup>-9</sup></td></tr>
+  </tbody>
+</table>

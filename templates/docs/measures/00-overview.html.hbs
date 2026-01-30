@@ -1,0 +1,44 @@
+<p>Measures is a <strong>type-safe units of measure library</strong> for Lean 4, preventing unit mismatch bugs
+at compile time with zero runtime overhead.</p>
+
+<h3>Key Features</h3>
+<ul>
+  <li><strong>Compile-time dimension checking</strong> - Adding meters to seconds is a type error</li>
+  <li><strong>SI, Imperial, and custom units</strong> - Comprehensive unit support</li>
+  <li><strong>Zero runtime overhead</strong> - Dimensions are tracked at the type level</li>
+  <li><strong>Temperature offsets</strong> - Correct handling of Celsius/Fahrenheit conversions</li>
+</ul>
+
+<h3>Quick Example</h3>
+
+<pre><code class="language-lean">import Measures
+
+open Measures
+open Measures.Units.SI
+open Measures.Units.Imperial
+
+-- Create quantities
+def distance := 100.0 *: meter
+def time := 9.58 *: second
+
+-- Arithmetic with dimension tracking
+def speed := distance /. time  -- Quantity Dimension.Velocity
+
+-- Convert units
+#eval distance.asUnit foot  -- ~328.084
+
+-- This is a compile-time error:
+-- def bad := distance + time  -- Type mismatch!</code></pre>
+
+<h3>Design Decisions</h3>
+<table class="api-table">
+  <thead>
+    <tr><th>Decision</th><th>Choice</th><th>Rationale</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Dimension tracking</td><td>Type-level</td><td>Compile-time safety, zero runtime cost</td></tr>
+    <tr><td>Numeric type</td><td>Float</td><td>Practical scientific computing</td></tr>
+    <tr><td>Temperature</td><td>Offset-aware</td><td>Correct Celsius/Fahrenheit conversions</td></tr>
+    <tr><td>Unit composition</td><td>Operator-based</td><td>Natural syntax: <code>meter / second</code></td></tr>
+  </tbody>
+</table>

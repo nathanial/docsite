@@ -1,0 +1,73 @@
+<p>Define your own units by scaling existing ones. This is useful for domain-specific units
+or units not included in the standard library.</p>
+
+<h3>Creating Custom Units</h3>
+
+<p>Use <code>Unit.scale</code> to define a new unit as a multiple of an existing base unit:</p>
+
+<pre><code class="language-lean">open Measures.Units.SI
+
+-- Astronomical distances
+def lightYear : Unit Dimension.Length :=
+  Unit.scale "light-year" "ly" 9.461e15  -- meters
+
+def astronomicalUnit : Unit Dimension.Length :=
+  Unit.scale "astronomical unit" "AU" 1.496e11  -- meters
+
+def parsec : Unit Dimension.Length :=
+  Unit.scale "parsec" "pc" 3.086e16  -- meters</code></pre>
+
+<h3>Using Custom Units</h3>
+
+<pre><code class="language-lean">-- Distance to Proxima Centauri
+def proximaDistance := 4.24 *: lightYear
+
+-- Convert between units
+#eval proximaDistance.asUnit astronomicalUnit  -- ~268,000 AU
+#eval proximaDistance.asUnit parsec            -- ~1.30 pc
+#eval proximaDistance.asUnit meter             -- ~4.01e16 m</code></pre>
+
+<h3>Domain-Specific Units</h3>
+
+<pre><code class="language-lean">-- Nautical units
+def nauticalMile : Unit Dimension.Length :=
+  Unit.scale "nautical mile" "nmi" 1852.0
+
+def knot : Unit Dimension.Velocity :=
+  Unit.scale "knot" "kn" 0.5144  -- m/s
+
+-- Shipping distance
+def voyage := 500.0 *: nauticalMile
+def shipSpeed := 20.0 *: knot</code></pre>
+
+<h3>Energy Units</h3>
+
+<pre><code class="language-lean">-- Food energy
+def calorie : Unit Dimension.Energy :=
+  Unit.scale "calorie" "cal" 4.184  -- joules
+
+def kilocalorie : Unit Dimension.Energy :=
+  Unit.scale "kilocalorie" "kcal" 4184.0
+
+-- Electrical energy
+def kilowattHour : Unit Dimension.Energy :=
+  Unit.scale "kilowatt-hour" "kWh" 3.6e6
+
+def dailyIntake := 2000.0 *: kilocalorie
+#eval dailyIntake.asUnit joule  -- ~8.37e6 J</code></pre>
+
+<h3>Unit.scale Parameters</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Parameter</th><th>Description</th><th>Example</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Full name</td><td>Human-readable name</td><td><code>"light-year"</code></td></tr>
+    <tr><td>Symbol</td><td>Short abbreviation</td><td><code>"ly"</code></td></tr>
+    <tr><td>Factor</td><td>Conversion to SI base</td><td><code>9.461e15</code></td></tr>
+  </tbody>
+</table>
+
+<p>The factor represents how many SI base units equal one of your custom unit.
+For example, 1 light-year = 9.461×10<sup>15</sup> meters.</p>

@@ -1,0 +1,67 @@
+<p>Imperial units are commonly used in the United States and a few other countries. Measures
+provides seamless conversion between Imperial and SI units.</p>
+
+<h3>Length</h3>
+
+<pre><code class="language-lean">open Measures.Units.Imperial
+
+def height := 6.0 *: foot
+def width := 24.0 *: inch
+def road := 5.0 *: mile
+def fabric := 3.0 *: yard
+
+-- Convert to SI
+#eval height.asUnit meter  -- ~1.83 m
+#eval road.asUnit kilometer  -- ~8.05 km</code></pre>
+
+<h3>Mass</h3>
+
+<pre><code class="language-lean">def weight := 180.0 *: pound
+def package := 32.0 *: ounce
+
+-- Convert to SI
+#eval weight.asUnit kilogram  -- ~81.6 kg</code></pre>
+
+<h3>Velocity</h3>
+
+<pre><code class="language-lean">def carSpeed := 60.0 *: milePerHour
+def windSpeed := 25.0 *: milePerHour
+
+-- Convert to SI
+#eval carSpeed.asUnit meterPerSecond  -- ~26.8 m/s
+#eval carSpeed.asUnit kilometer / hour  -- ~96.6 km/h</code></pre>
+
+<h3>Cross-System Operations</h3>
+
+<p>Quantities from different unit systems work together seamlessly:</p>
+
+<pre><code class="language-lean">open Measures.Units.SI
+open Measures.Units.Imperial
+
+-- Mixed calculations
+def roomLength := 12.0 *: foot
+def roomWidth := 3.5 *: meter
+
+-- Both are Length dimension - can be combined
+def totalLength := roomLength + roomWidth.asUnit foot *: foot
+
+-- Format in preferred unit
+#eval roomLength.format meter  -- "3.66 m"
+#eval roomWidth.format foot    -- "11.48 ft"</code></pre>
+
+<h3>Available Imperial Units</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Unit</th><th>Symbol</th><th>SI Equivalent</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>inch</td><td>in</td><td>0.0254 m</td></tr>
+    <tr><td>foot</td><td>ft</td><td>0.3048 m</td></tr>
+    <tr><td>yard</td><td>yd</td><td>0.9144 m</td></tr>
+    <tr><td>mile</td><td>mi</td><td>1609.344 m</td></tr>
+    <tr><td>pound</td><td>lb</td><td>0.4536 kg</td></tr>
+    <tr><td>ounce</td><td>oz</td><td>0.0283 kg</td></tr>
+    <tr><td>milePerHour</td><td>mph</td><td>0.4470 m/s</td></tr>
+  </tbody>
+</table>

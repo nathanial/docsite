@@ -1,0 +1,75 @@
+<p>Dimensions track what kind of quantity you have. Adding meters to seconds is not just wrong
+at runtime - it's a compile-time type error in Measures.</p>
+
+<h3>The Dimension Type</h3>
+
+<p>Every quantity carries its dimension at the type level. Dimensions are represented as
+integer exponents of the seven SI base dimensions:</p>
+
+<pre><code class="language-lean">structure Dimension where
+  length      : Int  -- meter (L)
+  mass        : Int  -- kilogram (M)
+  time        : Int  -- second (T)
+  current     : Int  -- ampere (I)
+  temperature : Int  -- kelvin (Θ)
+  amount      : Int  -- mole (N)
+  luminosity  : Int  -- candela (J)</code></pre>
+
+<h3>Common Dimensions</h3>
+
+<pre><code class="language-lean">-- Named dimension constants
+Dimension.Length      -- { length := 1, ... }  (L)
+Dimension.Mass        -- { mass := 1, ... }    (M)
+Dimension.Time        -- { time := 1, ... }    (T)
+Dimension.Velocity    -- { length := 1, time := -1, ... }  (L·T⁻¹)
+Dimension.Acceleration -- { length := 1, time := -2, ... } (L·T⁻²)
+Dimension.Force       -- { mass := 1, length := 1, time := -2, ... } (M·L·T⁻²)
+Dimension.Energy      -- { mass := 1, length := 2, time := -2, ... } (M·L²·T⁻²)</code></pre>
+
+<h3>Dimension Arithmetic</h3>
+
+<p>When you multiply or divide quantities, dimensions combine correctly:</p>
+
+<pre><code class="language-lean">open Measures.Units.SI
+
+-- Velocity = Length / Time
+def velocity := (10.0 *: meter) /. (2.0 *: second)
+-- velocity : Quantity { length := 1, time := -1, ... }
+
+-- Force = Mass * Acceleration
+def force := (5.0 *: kilogram) *. (9.8 *: meterPerSecondSquared)
+-- force : Quantity { mass := 1, length := 1, time := -2, ... }
+
+-- Energy = Force * Distance
+def energy := force *. (10.0 *: meter)
+-- energy : Quantity { mass := 1, length := 2, time := -2, ... }</code></pre>
+
+<h3>Type Safety in Action</h3>
+
+<pre><code class="language-lean">def distance := 100.0 *: meter
+def time := 10.0 *: second
+
+-- This compiles: same dimensions
+def total := distance + (50.0 *: meter)
+
+-- This is a compile-time error!
+-- def bad := distance + time
+-- Error: type mismatch, Quantity Dimension.Length vs Quantity Dimension.Time</code></pre>
+
+<h3>Dimensional Analysis</h3>
+
+<p>The dimension algebra follows standard physics rules:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Operation</th><th>Dimension Result</th><th>Example</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>q1 + q2</td><td>Same (required)</td><td>10m + 5m = 15m</td></tr>
+    <tr><td>q1 - q2</td><td>Same (required)</td><td>10m - 3m = 7m</td></tr>
+    <tr><td>q1 *. q2</td><td>Exponents add</td><td>m × m = m²</td></tr>
+    <tr><td>q1 /. q2</td><td>Exponents subtract</td><td>m / s = m·s⁻¹</td></tr>
+    <tr><td>q.sq</td><td>Exponents × 2</td><td>(m/s)² = m²/s²</td></tr>
+    <tr><td>q.sqrt</td><td>Exponents ÷ 2</td><td>√(m²) = m</td></tr>
+  </tbody>
+</table>

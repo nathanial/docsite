@@ -1,0 +1,74 @@
+<p>Build complex units from simpler ones using arithmetic operators. This allows you to express
+any derived unit naturally.</p>
+
+<h3>Unit Multiplication and Division</h3>
+
+<pre><code class="language-lean">open Measures.Units.SI
+
+-- Create velocity unit from meter and second
+def velocity := meter / second
+def speed := 25.0 *: velocity  -- 25 m/s
+
+-- Create derived units
+def energyUnit := newton * meter  -- N·m = J
+def work := 100.0 *: energyUnit
+
+-- Force unit from base units
+def forceUnit := kilogram * meter / (second * second)  -- kg·m/s² = N</code></pre>
+
+<h3>Unit Powers</h3>
+
+<pre><code class="language-lean">-- Square and cube
+def area := meter.sq       -- m²
+def volume := meter.cube   -- m³
+
+-- Area calculation
+def roomArea := 25.0 *: meter.sq
+
+-- Volume calculation
+def tankVolume := 1000.0 *: meter.cube  -- 1000 m³</code></pre>
+
+<h3>Reciprocal Units</h3>
+
+<pre><code class="language-lean">-- Frequency is reciprocal of time
+def freq := second.recip  -- 1/s = Hz
+def frequency := 60.0 *: freq  -- 60 Hz
+
+-- Wave number
+def waveNumber := meter.recip  -- 1/m</code></pre>
+
+<h3>General Powers</h3>
+
+<pre><code class="language-lean">-- Arbitrary integer powers
+def m4 := meter.pow 4   -- m⁴ (moment of inertia per density)
+def invSq := meter.pow (-2)  -- m⁻²
+
+-- Higher-order units
+def specificEnergy := joule / kilogram  -- J/kg = m²/s²</code></pre>
+
+<h3>Complex Expressions</h3>
+
+<pre><code class="language-lean">-- Gravitational constant unit: m³/(kg·s²)
+def gravUnit := meter.cube / (kilogram * second.sq)
+
+-- Pressure: N/m² = kg/(m·s²)
+def pressureUnit := newton / meter.sq
+
+-- Viscosity: Pa·s = kg/(m·s)
+def viscosityUnit := kilogram / (meter * second)</code></pre>
+
+<h3>Unit Composition Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Operation</th><th>Result</th><th>Example</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>u1 * u2</code></td><td>Multiply units</td><td><code>newton * meter</code> → J</td></tr>
+    <tr><td><code>u1 / u2</code></td><td>Divide units</td><td><code>meter / second</code> → m/s</td></tr>
+    <tr><td><code>u.sq</code></td><td>Square</td><td><code>meter.sq</code> → m²</td></tr>
+    <tr><td><code>u.cube</code></td><td>Cube</td><td><code>meter.cube</code> → m³</td></tr>
+    <tr><td><code>u.recip</code></td><td>Reciprocal</td><td><code>second.recip</code> → Hz</td></tr>
+    <tr><td><code>u.pow n</code></td><td>Integer power</td><td><code>meter.pow 4</code> → m⁴</td></tr>
+  </tbody>
+</table>

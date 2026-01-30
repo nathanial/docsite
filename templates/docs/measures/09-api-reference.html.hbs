@@ -1,0 +1,89 @@
+<p>Complete reference for all Measures operations, organized by category.</p>
+
+<h3>Creating Quantities</h3>
+
+<pre><code class="language-lean">-- Create quantity in a unit
+let distance := 100.0 *: meter
+
+-- Direct conversion between units
+Unit.convert 100.0 celsius fahrenheit  -- 212.0
+Unit.convert 1.0 mile kilometer        -- 1.609344</code></pre>
+
+<h3>Quantity Operations</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Operation</th><th>Signature</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>q1 + q2</code></td><td>Same dimension</td><td>Addition</td></tr>
+    <tr><td><code>q1 - q2</code></td><td>Same dimension</td><td>Subtraction</td></tr>
+    <tr><td><code>q1 *. q2</code></td><td>Dimensions combine</td><td>Multiplication</td></tr>
+    <tr><td><code>q1 /. q2</code></td><td>Dimensions combine</td><td>Division</td></tr>
+    <tr><td><code>q.sq</code></td><td>Dimension squared</td><td>Square</td></tr>
+    <tr><td><code>q.cube</code></td><td>Dimension cubed</td><td>Cube</td></tr>
+    <tr><td><code>q.sqrt</code></td><td>Dimension halved</td><td>Square root</td></tr>
+    <tr><td><code>q.recip</code></td><td>Dimension inverted</td><td>Reciprocal (1/q)</td></tr>
+    <tr><td><code>q * s</code></td><td>Same dimension</td><td>Scalar multiplication</td></tr>
+    <tr><td><code>s * q</code></td><td>Same dimension</td><td>Scalar multiplication</td></tr>
+    <tr><td><code>q / s</code></td><td>Same dimension</td><td>Scalar division</td></tr>
+  </tbody>
+</table>
+
+<h3>Unit Conversions</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th><th>Example</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>value *: unit</code></td><td>Create quantity</td><td><code>100.0 *: meter</code></td></tr>
+    <tr><td><code>q.asUnit unit</code></td><td>Get value in unit</td><td><code>dist.asUnit foot</code></td></tr>
+    <tr><td><code>Unit.convert v u1 u2</code></td><td>Direct conversion</td><td><code>Unit.convert 1.0 mile km</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Formatting</h3>
+
+<pre><code class="language-lean">let distance := 1609.344 *: meter
+
+distance.format kilometer      -- "1.61 km"
+distance.format meter 0        -- "1609 m"
+distance.formatLong kilometer  -- "1.61 kilometer"</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th><th>Output</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>q.format unit</code></td><td>Format with symbol</td><td><code>"100 m"</code></td></tr>
+    <tr><td><code>q.format unit n</code></td><td>Format with n decimals</td><td><code>"100.00 m"</code></td></tr>
+    <tr><td><code>q.formatLong unit</code></td><td>Format with full name</td><td><code>"100 meter"</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Unit Operations</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Operation</th><th>Description</th><th>Example</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>u1 * u2</code></td><td>Multiply units</td><td><code>newton * meter</code></td></tr>
+    <tr><td><code>u1 / u2</code></td><td>Divide units</td><td><code>meter / second</code></td></tr>
+    <tr><td><code>u.sq</code></td><td>Square unit</td><td><code>meter.sq</code></td></tr>
+    <tr><td><code>u.cube</code></td><td>Cube unit</td><td><code>meter.cube</code></td></tr>
+    <tr><td><code>u.recip</code></td><td>Reciprocal unit</td><td><code>second.recip</code></td></tr>
+    <tr><td><code>u.pow n</code></td><td>Integer power</td><td><code>meter.pow 4</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Angle Units</h3>
+
+<pre><code class="language-lean">open Measures.Units.Angle
+
+def rightAngle := 90.0 *: degree
+#eval rightAngle.asUnit radian  -- ~1.5708
+
+def halfTurn := Float.pi *: radian
+#eval halfTurn.asUnit degree  -- 180.0</code></pre>

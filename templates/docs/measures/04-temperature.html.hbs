@@ -1,0 +1,63 @@
+<p>Temperature scales require special handling because Celsius and Fahrenheit have offsets relative
+to Kelvin. Measures handles these conversions correctly.</p>
+
+<h3>Temperature Scales</h3>
+
+<pre><code class="language-lean">open Measures.Units.Temperature
+
+def freezing := 0.0 *: celsius
+def boiling := 100.0 *: celsius
+def body := 98.6 *: fahrenheit
+def absolute := 0.0 *: kelvin</code></pre>
+
+<h3>Conversions</h3>
+
+<p>Temperature conversions account for both scale factor and offset:</p>
+
+<pre><code class="language-lean">-- Celsius to Fahrenheit
+#eval freezing.asUnit fahrenheit  -- 32.0
+#eval boiling.asUnit fahrenheit   -- 212.0
+
+-- Fahrenheit to Celsius
+#eval body.asUnit celsius  -- 37.0
+
+-- To/from Kelvin (absolute scale)
+#eval freezing.asUnit kelvin  -- 273.15
+#eval boiling.asUnit kelvin   -- 373.15</code></pre>
+
+<h3>Why Offsets Matter</h3>
+
+<p>Unlike length or mass where doubling a value doubles the measurement, temperature scales
+have arbitrary zero points. Water freezes at 0°C = 32°F = 273.15K. Measures handles this
+correctly:</p>
+
+<pre><code class="language-lean">-- Direct conversion function
+Unit.convert 100.0 celsius fahrenheit  -- 212.0
+Unit.convert 32.0 fahrenheit celsius   -- 0.0
+Unit.convert 0.0 kelvin celsius        -- -273.15</code></pre>
+
+<h3>Temperature Differences</h3>
+
+<p>When subtracting temperatures (to get a temperature difference), the offsets cancel out
+and you get a pure temperature interval:</p>
+
+<pre><code class="language-lean">-- Temperature change
+def start := 20.0 *: celsius
+def finish := 30.0 *: celsius
+def change := finish - start  -- 10 K temperature difference
+
+-- A 10°C change equals a 10 K change (scale factors match)
+-- But a 10°C change is an 18°F change (different scale)</code></pre>
+
+<h3>Temperature Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Scale</th><th>Symbol</th><th>Absolute Zero</th><th>Water Freezing</th><th>Water Boiling</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Kelvin</td><td>K</td><td>0</td><td>273.15</td><td>373.15</td></tr>
+    <tr><td>Celsius</td><td>°C</td><td>-273.15</td><td>0</td><td>100</td></tr>
+    <tr><td>Fahrenheit</td><td>°F</td><td>-459.67</td><td>32</td><td>212</td></tr>
+  </tbody>
+</table>

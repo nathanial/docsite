@@ -1,0 +1,36 @@
+<p>Add Measures to your Lean 4 project by including it as a dependency in your lakefile.</p>
+
+<h3>Lakefile Configuration</h3>
+
+<p>Add the following to your <code>lakefile.lean</code>:</p>
+
+<pre><code class="language-lean">require measures from git "https://github.com/nathanial/measures" @ "v0.0.1"</code></pre>
+
+<h3>Import and Open</h3>
+
+<p>In your Lean files, import the library and open the namespaces you need:</p>
+
+<pre><code class="language-lean">import Measures
+
+-- Core types
+open Measures
+
+-- SI units (meter, kilogram, second, etc.)
+open Measures.Units.SI
+
+-- Imperial units (foot, pound, mile, etc.)
+open Measures.Units.Imperial
+
+-- Temperature (celsius, fahrenheit, kelvin)
+open Measures.Units.Temperature
+
+-- Angle units (degree, radian)
+open Measures.Units.Angle
+
+-- Physical constants (c, h, G, etc.)
+open Measures.Constants</code></pre>
+
+<h3>Building</h3>
+
+<pre><code class="language-bash">lake build
+lake test</code></pre>

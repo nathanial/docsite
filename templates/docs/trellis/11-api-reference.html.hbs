@@ -1,0 +1,192 @@
+<p>Complete reference for all Trellis types and functions.</p>
+
+<h3>Core Types</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>LayoutNode</code></td><td>Node in the layout tree (leaf, flexBox, or gridBox)</td></tr>
+    <tr><td><code>LayoutResult</code></td><td>Collection of computed layouts keyed by node ID</td></tr>
+    <tr><td><code>ComputedLayout</code></td><td>Final position and size for a single node</td></tr>
+    <tr><td><code>LayoutRect</code></td><td>Rectangle with x, y, width, height</td></tr>
+    <tr><td><code>ContentSize</code></td><td>Intrinsic content dimensions (width × height)</td></tr>
+  </tbody>
+</table>
+
+<h3>Dimension Types</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Dimension</code></td><td>CSS dimension value (auto, length, percent, min/max-content)</td></tr>
+    <tr><td><code>EdgeInsets</code></td><td>Spacing on four sides (top, right, bottom, left)</td></tr>
+    <tr><td><code>BoxConstraints</code></td><td>Size constraints with margin and padding</td></tr>
+    <tr><td><code>Position</code></td><td>Positioning mode (static or absolute)</td></tr>
+  </tbody>
+</table>
+
+<h3>Flex Types</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>FlexContainer</code></td><td>Flex container configuration</td></tr>
+    <tr><td><code>FlexItem</code></td><td>Flex item properties (grow, shrink, basis)</td></tr>
+    <tr><td><code>FlexDirection</code></td><td>row, rowReverse, column, columnReverse</td></tr>
+    <tr><td><code>FlexWrap</code></td><td>nowrap, wrap, wrapReverse</td></tr>
+    <tr><td><code>JustifyContent</code></td><td>Main axis alignment</td></tr>
+    <tr><td><code>AlignItems</code></td><td>Cross axis alignment</td></tr>
+    <tr><td><code>AlignContent</code></td><td>Multi-line alignment</td></tr>
+  </tbody>
+</table>
+
+<h3>Grid Types</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GridContainer</code></td><td>Grid container configuration</td></tr>
+    <tr><td><code>GridItem</code></td><td>Grid item placement and alignment</td></tr>
+    <tr><td><code>GridPlacement</code></td><td>Row and column position</td></tr>
+    <tr><td><code>GridSpan</code></td><td>Track spanning specification</td></tr>
+    <tr><td><code>TrackSize</code></td><td>Track sizing (px, fr, percent, minmax, etc.)</td></tr>
+    <tr><td><code>TrackEntry</code></td><td>Single track or repeat pattern</td></tr>
+    <tr><td><code>RepeatValue</code></td><td>Repeat count or auto-fill/fit</td></tr>
+    <tr><td><code>GridAutoFlow</code></td><td>Auto-placement algorithm</td></tr>
+    <tr><td><code>JustifyItems</code></td><td>Default horizontal cell alignment</td></tr>
+  </tbody>
+</table>
+
+<h3>LayoutNode Constructors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>LayoutNode.leaf id size</code></td><td>Leaf node with content size</td></tr>
+    <tr><td><code>LayoutNode.leaf' id w h constraints role</code></td><td>Leaf with full options</td></tr>
+    <tr><td><code>LayoutNode.row id children (gap)</code></td><td>Horizontal flex container</td></tr>
+    <tr><td><code>LayoutNode.column id children (gap)</code></td><td>Vertical flex container</td></tr>
+    <tr><td><code>LayoutNode.flexBox id container children</code></td><td>Custom flex container</td></tr>
+    <tr><td><code>LayoutNode.grid id cols children (gap)</code></td><td>Simple N-column grid</td></tr>
+    <tr><td><code>LayoutNode.gridBox id container children</code></td><td>Custom grid container</td></tr>
+  </tbody>
+</table>
+
+<h3>FlexContainer Constructors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>FlexContainer.row (gap)</code></td><td>Horizontal, no wrap</td></tr>
+    <tr><td><code>FlexContainer.column (gap)</code></td><td>Vertical, no wrap</td></tr>
+    <tr><td><code>FlexContainer.rowWrap (gap) (rowGap)</code></td><td>Horizontal with wrapping</td></tr>
+    <tr><td><code>FlexContainer.columnWrap (gap) (rowGap)</code></td><td>Vertical with wrapping</td></tr>
+  </tbody>
+</table>
+
+<h3>FlexItem Constructors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>FlexItem.default</code></td><td>No grow, shrink=1, auto basis</td></tr>
+    <tr><td><code>FlexItem.growing n</code></td><td>Grow factor n, shrink=1</td></tr>
+    <tr><td><code>FlexItem.flexing grow shrink</code></td><td>Specific grow and shrink</td></tr>
+    <tr><td><code>FlexItem.fixed basis</code></td><td>Fixed size, no flex</td></tr>
+  </tbody>
+</table>
+
+<h3>GridContainer Constructors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GridContainer.columns n (gap)</code></td><td>N equal columns</td></tr>
+    <tr><td><code>GridContainer.withColumns tracks (gap)</code></td><td>Custom column sizes</td></tr>
+    <tr><td><code>GridContainer.withTemplate rows cols (gap)</code></td><td>Custom rows and columns</td></tr>
+  </tbody>
+</table>
+
+<h3>GridItem Constructors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GridItem.default</code></td><td>Auto-placed item</td></tr>
+    <tr><td><code>GridItem.atPosition row col</code></td><td>Place at specific cell</td></tr>
+    <tr><td><code>GridItem.span rows cols</code></td><td>Span multiple cells</td></tr>
+  </tbody>
+</table>
+
+<h3>EdgeInsets Constructors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>EdgeInsets.zero</code></td><td>All sides 0</td></tr>
+    <tr><td><code>EdgeInsets.uniform n</code></td><td>All sides same value</td></tr>
+    <tr><td><code>EdgeInsets.symmetric v h</code></td><td>Vertical and horizontal</td></tr>
+    <tr><td><code>EdgeInsets.only (top) (right) (bottom) (left)</code></td><td>Specific sides</td></tr>
+    <tr><td><code>EdgeInsets.horizontal n</code></td><td>Left and right only</td></tr>
+    <tr><td><code>EdgeInsets.vertical n</code></td><td>Top and bottom only</td></tr>
+  </tbody>
+</table>
+
+<h3>BoxConstraints Constructors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>BoxConstraints.empty</code></td><td>All defaults</td></tr>
+    <tr><td><code>BoxConstraints.fixed w h</code></td><td>Fixed width and height</td></tr>
+    <tr><td><code>BoxConstraints.fixedWidth w</code></td><td>Fixed width, auto height</td></tr>
+    <tr><td><code>BoxConstraints.fixedHeight h</code></td><td>Fixed height, auto width</td></tr>
+  </tbody>
+</table>
+
+<h3>Layout Function</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>layout node width height</code></td><td>Compute layout, returns LayoutResult</td></tr>
+  </tbody>
+</table>
+
+<h3>LayoutResult Methods</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Method</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>result.get? id</code></td><td>Get layout by ID (Option)</td></tr>
+    <tr><td><code>result.get! id</code></td><td>Get layout by ID (panics if missing)</td></tr>
+    <tr><td><code>result.contains id</code></td><td>Check if ID exists</td></tr>
+  </tbody>
+</table>
+

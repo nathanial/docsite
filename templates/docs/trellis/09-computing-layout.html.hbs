@@ -1,0 +1,116 @@
+<p>Once you've built a layout tree with <code>LayoutNode</code>, use the <code>layout</code> function to compute the final positions and sizes of all elements.</p>
+
+<h3>The Layout Function</h3>
+
+<pre><code class="language-lean">def layout (node : LayoutNode) (width height : Float) : LayoutResult</code></pre>
+
+<p>The <code>layout</code> function takes:</p>
+<ul>
+  <li><strong>node</strong> - The root of your layout tree</li>
+  <li><strong>width</strong> - Available width in pixels</li>
+  <li><strong>height</strong> - Available height in pixels</li>
+</ul>
+
+<p>It returns a <code>LayoutResult</code> containing computed layouts for all nodes.</p>
+
+<h3>Basic Usage</h3>
+
+<pre><code class="language-lean">import Trellis
+
+open Trellis
+
+-- Build a layout tree
+def myLayout : LayoutNode :=
+  LayoutNode.row 0 #[
+    LayoutNode.leaf 1 ⟨100, 50⟩,
+    LayoutNode.leaf 2 ⟨150, 50⟩,
+    LayoutNode.leaf 3 ⟨120, 50⟩
+  ] (gap := 10)
+
+-- Compute layout in a 500x200 container
+def result : LayoutResult := layout myLayout 500 200
+
+-- Get computed position/size for node 2
+def node2Layout : ComputedLayout := result.get! 2
+-- node2Layout.x = 110 (100 + 10 gap)
+-- node2Layout.width = 150</code></pre>
+
+<h3>LayoutResult</h3>
+
+<p>The <code>LayoutResult</code> is a collection (HashMap) of computed layouts keyed by node ID:</p>
+
+<pre><code class="language-lean">-- Get layout by ID (returns Option)
+result.get? 2        -- Option ComputedLayout
+
+-- Get layout by ID (panics if missing)
+result.get! 2        -- ComputedLayout
+
+-- Check if ID exists
+result.contains 2    -- Bool
+
+-- Iterate all layouts
+result.forM fun id computed => ...</code></pre>
+
+<h3>ComputedLayout</h3>
+
+<p>Each <code>ComputedLayout</code> contains the final geometry for a node:</p>
+
+<pre><code class="language-lean">structure ComputedLayout where
+  x : Float           -- X position relative to container
+  y : Float           -- Y position relative to container
+  width : Float       -- Final computed width
+  height : Float      -- Final computed height
+  borderRect : LayoutRect   -- Rect including margin
+  contentRect : LayoutRect  -- Rect inside padding</code></pre>
+
+<h3>LayoutRect</h3>
+
+<p>A simple rectangle structure:</p>
+
+<pre><code class="language-lean">structure LayoutRect where
+  x : Float
+  y : Float
+  width : Float
+  height : Float</code></pre>
+
+<h3>Accessing Results</h3>
+
+<pre><code class="language-lean">let result := layout myLayout 800 600
+
+-- Get position
+let node := result.get! 1
+let x := node.x
+let y := node.y
+
+-- Get size
+let w := node.width
+let h := node.height
+
+-- Get content area (inside padding)
+let content := node.contentRect
+let contentX := content.x
+let contentW := content.width
+
+-- Get border area (including margin)
+let border := node.borderRect</code></pre>
+
+<h3>Example: Rendering with Results</h3>
+
+<pre><code class="language-lean">-- Compute layout
+let result := layout rootNode windowWidth windowHeight
+
+-- Render each widget
+for (id, widget) in widgets do
+  if let some computed := result.get? id then
+    renderWidget widget computed.x computed.y computed.width computed.height</code></pre>
+
+<h3>Node IDs</h3>
+
+<p>Every node needs a unique ID to retrieve its computed layout. IDs are assigned when creating nodes:</p>
+
+<pre><code class="language-lean">LayoutNode.leaf 1 ...       -- ID 1
+LayoutNode.row 2 ...        -- ID 2
+LayoutNode.gridBox 3 ...    -- ID 3</code></pre>
+
+<p>Use meaningful IDs or a counter to ensure uniqueness. The layout algorithm uses these IDs as keys in the result HashMap.</p>
+

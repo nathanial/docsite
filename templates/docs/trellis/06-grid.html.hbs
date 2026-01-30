@@ -1,0 +1,94 @@
+<p>CSS Grid is a two-dimensional layout system for arranging items in rows and columns. Trellis implements Grid with template definitions, fractional units, auto-placement, and explicit positioning.</p>
+
+<h3>GridContainer</h3>
+
+<p>The <code>GridContainer</code> type configures the grid structure:</p>
+
+<pre><code class="language-lean">structure GridContainer where
+  columns : Array TrackEntry := #[]
+  rows : Array TrackEntry := #[]
+  autoColumns : TrackSize := .auto
+  autoRows : TrackSize := .auto
+  autoFlow : GridAutoFlow := .row
+  justifyItems : JustifyItems := .stretch
+  alignItems : AlignItems := .stretch
+  gap : Float := 0
+  rowGap : Float := 0</code></pre>
+
+<h3>Simple Column Grids</h3>
+
+<p>The easiest way to create a grid is with equal columns:</p>
+
+<pre><code class="language-lean">-- 3-column grid with equal widths
+let grid := LayoutNode.grid 0 3 children (gap := 10)
+
+-- Using GridContainer.columns
+let grid := LayoutNode.gridBox 0
+  (GridContainer.columns 4 (gap := 8))  -- 4 equal columns
+  children</code></pre>
+
+<h3>Custom Column Sizes</h3>
+
+<p>For grids with different column widths, use <code>withColumns</code>:</p>
+
+<pre><code class="language-lean">-- Fixed + flexible columns
+let grid := LayoutNode.gridBox 0
+  (GridContainer.withColumns #[.px 100, .fr 1, .fr 2])
+  children
+-- First column: 100px fixed
+-- Second column: 1fr (1/3 of remaining)
+-- Third column: 2fr (2/3 of remaining)</code></pre>
+
+<h3>Full Template Definition</h3>
+
+<p>For complete control over both rows and columns:</p>
+
+<pre><code class="language-lean">let fullGrid := LayoutNode.gridBox 0
+  (GridContainer.withTemplate
+    #[.px 50, .fr 1]           -- rows: 50px fixed, then flexible
+    #[.fr 1, .fr 1, .fr 1]     -- 3 equal columns
+    (gap := 8))
+  children</code></pre>
+
+<h3>GridAutoFlow</h3>
+
+<p>Controls how auto-placed items fill the grid:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Value</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.row</code></td><td>Fill rows first, add rows as needed (default)</td></tr>
+    <tr><td><code>.column</code></td><td>Fill columns first, add columns as needed</td></tr>
+    <tr><td><code>.rowDense</code></td><td>Fill rows, backfill gaps with smaller items</td></tr>
+    <tr><td><code>.columnDense</code></td><td>Fill columns, backfill gaps</td></tr>
+  </tbody>
+</table>
+
+<h3>Grid Alignment</h3>
+
+<p>Control how items align within their grid cells:</p>
+
+<pre><code class="language-lean">{ GridContainer.columns 3 with
+  justifyItems := .center   -- Horizontal alignment in cells
+  alignItems := .center     -- Vertical alignment in cells
+}</code></pre>
+
+<h3>Example: Dashboard Layout</h3>
+
+<pre><code class="language-lean">-- Header spanning full width, sidebar + content below
+let dashboard := LayoutNode.gridBox 0
+  (GridContainer.withTemplate
+    #[.px 60, .fr 1]              -- 60px header, flexible content
+    #[.px 200, .fr 1]             -- 200px sidebar, flexible main
+    (gap := 16))
+  #[
+    -- Header spans 2 columns
+    LayoutNode.leaf' 1 0 0 {} (.gridChild (GridItem.span 1 2)),
+    -- Sidebar
+    LayoutNode.leaf 2 ⟨0, 0⟩,
+    -- Main content
+    LayoutNode.leaf 3 ⟨0, 0⟩
+  ]</code></pre>
+

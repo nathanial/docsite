@@ -1,0 +1,108 @@
+<p>Flexbox is a one-dimensional layout system for arranging items in rows or columns. Trellis implements the CSS Flexbox specification with full support for direction, wrapping, and alignment.</p>
+
+<h3>FlexContainer</h3>
+
+<p>The <code>FlexContainer</code> type configures how children are arranged:</p>
+
+<pre><code class="language-lean">structure FlexContainer where
+  direction : FlexDirection := .row
+  wrap : FlexWrap := .nowrap
+  justifyContent : JustifyContent := .flexStart
+  alignItems : AlignItems := .stretch
+  alignContent : AlignContent := .stretch
+  gap : Float := 0
+  rowGap : Float := 0</code></pre>
+
+<h3>FlexDirection</h3>
+
+<p>Controls the main axis along which items are placed:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Value</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.row</code></td><td>Items flow left to right (default)</td></tr>
+    <tr><td><code>.rowReverse</code></td><td>Items flow right to left</td></tr>
+    <tr><td><code>.column</code></td><td>Items flow top to bottom</td></tr>
+    <tr><td><code>.columnReverse</code></td><td>Items flow bottom to top</td></tr>
+  </tbody>
+</table>
+
+<h3>FlexWrap</h3>
+
+<p>Controls whether items wrap to new lines:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Value</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.nowrap</code></td><td>All items on one line (may overflow)</td></tr>
+    <tr><td><code>.wrap</code></td><td>Items wrap to additional lines as needed</td></tr>
+    <tr><td><code>.wrapReverse</code></td><td>Items wrap in reverse direction</td></tr>
+  </tbody>
+</table>
+
+<h3>Preset Containers</h3>
+
+<p>Trellis provides preset configurations for common layouts:</p>
+
+<pre><code class="language-lean">-- Basic presets
+FlexContainer.row           -- Horizontal, no wrap
+FlexContainer.column        -- Vertical, no wrap
+FlexContainer.rowWrap       -- Horizontal with wrapping
+FlexContainer.columnWrap    -- Vertical with wrapping
+
+-- With gap
+FlexContainer.row (gap := 16)
+FlexContainer.rowWrap (gap := 8) (rowGap := 8)</code></pre>
+
+<h3>FlexItem</h3>
+
+<p>The <code>FlexItem</code> type controls how individual items behave within a flex container:</p>
+
+<pre><code class="language-lean">structure FlexItem where
+  grow : Float := 0        -- How much to grow relative to siblings
+  shrink : Float := 1      -- How much to shrink relative to siblings
+  basis : Dimension := .auto   -- Initial size before grow/shrink
+  alignSelf : Option AlignItems := none  -- Override container's alignItems</code></pre>
+
+<h3>FlexItem Constructors</h3>
+
+<pre><code class="language-lean">-- Item that grows to fill available space
+FlexItem.growing 1          -- grow=1, shrink=1
+
+-- Item with specific grow/shrink factors
+FlexItem.flexing 2 0.5      -- grow=2, shrink=0.5
+
+-- Fixed size item that doesn't flex
+FlexItem.fixed 200          -- basis=200px, grow=0, shrink=0
+
+-- Full control
+{ grow := 1
+  shrink := 0
+  basis := .length 100
+  alignSelf := some .center }</code></pre>
+
+<h3>Example: Row with Centered Items</h3>
+
+<pre><code class="language-lean">let container := LayoutNode.flexBox 0
+  { FlexContainer.row with
+    justifyContent := .center
+    alignItems := .center
+    gap := 16 }
+  #[
+    LayoutNode.leaf 1 ⟨80, 40⟩,
+    LayoutNode.leaf 2 ⟨80, 40⟩
+  ]</code></pre>
+
+<h3>Example: Growing Column</h3>
+
+<pre><code class="language-lean">-- Items grow proportionally to fill vertical space
+let growingColumn := LayoutNode.flexBox 0 FlexContainer.column #[
+  LayoutNode.leaf' 1 0 0 {} (.flexChild (FlexItem.growing 1)),
+  LayoutNode.leaf' 2 0 0 {} (.flexChild (FlexItem.growing 2))
+]
+-- In a 300px tall container: item 1 gets 100px, item 2 gets 200px</code></pre>
+

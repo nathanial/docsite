@@ -1,0 +1,50 @@
+<p>Trellis is a <strong>pure CSS layout library</strong> for Lean 4, implementing Flexbox and Grid layout algorithms.
+It provides CSS-style layout computation without any rendering dependencies—given a tree of layout nodes with constraints, it computes the final position and size of each element.</p>
+
+<h3>Key Features</h3>
+<ul>
+  <li><strong>Flexbox Layout</strong> - Full flex container support with direction, wrap, justify-content, align-items, align-content, gaps, and flex item properties (grow, shrink, basis)</li>
+  <li><strong>Grid Layout</strong> - CSS Grid with template rows/columns, <code>fr</code> units, auto-placement, explicit positioning, spanning, and cell alignment</li>
+  <li><strong>Box Model</strong> - Margin, padding, min/max constraints, and CSS dimension values (auto, length, percent, min-content, max-content)</li>
+  <li><strong>Pure Computation</strong> - No side effects, no rendering—just layout math</li>
+</ul>
+
+<h3>Design Philosophy</h3>
+
+<p>Trellis is designed as a <strong>layout-only</strong> library. It doesn't know how to draw anything—it only computes where things should go. This separation of concerns makes it:</p>
+
+<ul>
+  <li><strong>Portable</strong> - Use with any rendering backend (Metal, terminal, SVG, etc.)</li>
+  <li><strong>Testable</strong> - Pure functions with deterministic output</li>
+  <li><strong>Composable</strong> - Integrate into larger systems without side effects</li>
+</ul>
+
+<h3>CSS Compatibility</h3>
+
+<p>Trellis follows CSS specification behavior for Flexbox and Grid layouts. If you know CSS layout, you know Trellis:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>CSS Concept</th><th>Trellis Type</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>display: flex</code></td><td><code>FlexContainer</code></td></tr>
+    <tr><td><code>display: grid</code></td><td><code>GridContainer</code></td></tr>
+    <tr><td><code>flex-grow</code>, <code>flex-shrink</code></td><td><code>FlexItem</code></td></tr>
+    <tr><td><code>grid-template-columns</code></td><td><code>GridContainer.columns</code></td></tr>
+    <tr><td><code>justify-content</code>, <code>align-items</code></td><td><code>JustifyContent</code>, <code>AlignItems</code></td></tr>
+    <tr><td><code>width</code>, <code>height</code>, <code>%</code>, <code>auto</code></td><td><code>Dimension</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Module Structure</h3>
+
+<pre><code>Trellis/
+├── Types.lean      # Dimension, EdgeInsets, BoxConstraints
+├── Flex.lean       # FlexContainer, FlexItem, alignment enums
+├── Grid.lean       # GridContainer, GridItem, TrackSize, GridPlacement
+├── Axis.lean       # Axis abstraction for direction-agnostic code
+├── Node.lean       # LayoutNode tree structure
+├── Result.lean     # LayoutRect, ComputedLayout, LayoutResult
+└── Algorithm.lean  # Layout computation (flex and grid algorithms)</code></pre>
+

@@ -1,0 +1,150 @@
+<p>Trellis supports arbitrary nesting of flex and grid containers. This allows you to build complex layouts by composing simpler building blocks.</p>
+
+<h3>Flex Inside Grid</h3>
+
+<p>Place a flex container inside a grid cell:</p>
+
+<pre><code class="language-lean">let layout := LayoutNode.gridBox 0
+  (GridContainer.columns 2 (gap := 16))
+  #[
+    -- Left cell: vertical stack
+    LayoutNode.column 1 #[
+      LayoutNode.leaf 2 ⟨0, 100⟩,
+      LayoutNode.leaf 3 ⟨0, 100⟩,
+      LayoutNode.leaf 4 ⟨0, 100⟩
+    ] (gap := 8),
+
+    -- Right cell: horizontal buttons
+    LayoutNode.row 5 #[
+      LayoutNode.leaf 6 ⟨80, 40⟩,
+      LayoutNode.leaf 7 ⟨80, 40⟩
+    ] (gap := 8)
+  ]</code></pre>
+
+<h3>Grid Inside Flex</h3>
+
+<p>Use a grid as a flex item that grows:</p>
+
+<pre><code class="language-lean">let dashboard := LayoutNode.column 0 #[
+  -- Header (fixed height)
+  LayoutNode.leaf' 1 0 0
+    (BoxConstraints.fixedHeight 60)
+    (.flexChild FlexItem.default),
+
+  -- Content grid (grows to fill)
+  LayoutNode.gridBox 2
+    (GridContainer.columns 3 (gap := 16))
+    #[
+      LayoutNode.leaf 3 ⟨0, 100⟩,
+      LayoutNode.leaf 4 ⟨0, 100⟩,
+      LayoutNode.leaf 5 ⟨0, 100⟩,
+      LayoutNode.leaf 6 ⟨0, 100⟩,
+      LayoutNode.leaf 7 ⟨0, 100⟩,
+      LayoutNode.leaf 8 ⟨0, 100⟩
+    ]
+    {}
+    (.flexChild (FlexItem.growing 1))
+]</code></pre>
+
+<h3>Multiple Nesting Levels</h3>
+
+<p>Nest as deeply as needed:</p>
+
+<pre><code class="language-lean">-- App layout: sidebar + main content with nested grid
+let app := LayoutNode.row 0 #[
+  -- Sidebar
+  LayoutNode.column 1 #[
+    LayoutNode.leaf 2 ⟨0, 50⟩,   -- Logo
+    LayoutNode.leaf 3 ⟨0, 200⟩,  -- Nav
+    LayoutNode.leaf' 4 0 0 {} (.flexChild (FlexItem.growing 1))  -- Spacer
+  ] (BoxConstraints.fixedWidth 250) (.flexChild FlexItem.default),
+
+  -- Main content
+  LayoutNode.column 5 #[
+    -- Header row
+    LayoutNode.row 6 #[
+      LayoutNode.leaf 7 ⟨200, 40⟩,  -- Title
+      LayoutNode.leaf' 8 0 0 {} (.flexChild (FlexItem.growing 1)),  -- Spacer
+      LayoutNode.leaf 9 ⟨100, 40⟩   -- Actions
+    ] (gap := 16),
+
+    -- Card grid
+    LayoutNode.gridBox 10
+      (GridContainer.columns 3 (gap := 16))
+      cards
+      {}
+      (.flexChild (FlexItem.growing 1))
+  ] {} (.flexChild (FlexItem.growing 1))
+]</code></pre>
+
+<h3>Mixing Alignment Strategies</h3>
+
+<p>Each container maintains its own alignment context:</p>
+
+<pre><code class="language-lean">let mixed := LayoutNode.gridBox 0
+  { GridContainer.columns 2 with
+    justifyItems := .stretch    -- Grid cells stretch
+    alignItems := .flexStart }  -- Grid items align top
+  #[
+    -- First cell: centered flex children
+    LayoutNode.flexBox 1
+      { FlexContainer.column with
+        justifyContent := .center
+        alignItems := .center }
+      innerChildren
+      {}
+      .default,
+
+    -- Second cell: space-between flex children
+    LayoutNode.flexBox 2
+      { FlexContainer.column with
+        justifyContent := .spaceBetween }
+      otherChildren
+      {}
+      .default
+  ]</code></pre>
+
+<h3>Constraints Propagation</h3>
+
+<p>Constraints flow through the tree:</p>
+
+<pre><code class="language-lean">-- Parent with padding creates smaller space for children
+let padded := LayoutNode.row 0 #[
+  LayoutNode.leaf 1 ⟨100, 100⟩,
+  LayoutNode.leaf 2 ⟨100, 100⟩
+] { padding := EdgeInsets.uniform 20 }
+
+-- In a 300x200 container:
+-- - Row content area: 260x160 (minus padding)
+-- - Children laid out within 260x160</code></pre>
+
+<h3>Example: Complete Dashboard</h3>
+
+<pre><code class="language-lean">def dashboard : LayoutNode :=
+  LayoutNode.column 0 #[
+    -- Top bar
+    LayoutNode.row 1 #[
+      LayoutNode.leaf 2 ⟨150, 40⟩,  -- Logo
+      LayoutNode.leaf' 3 0 0 {} (.flexChild (FlexItem.growing 1)),
+      LayoutNode.leaf 4 ⟨40, 40⟩,   -- Search
+      LayoutNode.leaf 5 ⟨40, 40⟩    -- Profile
+    ] (BoxConstraints.fixedHeight 60) (.flexChild FlexItem.default),
+
+    -- Main area
+    LayoutNode.row 6 #[
+      -- Sidebar
+      LayoutNode.column 7 #[
+        LayoutNode.leaf 8 ⟨0, 40⟩,
+        LayoutNode.leaf 9 ⟨0, 40⟩,
+        LayoutNode.leaf 10 ⟨0, 40⟩
+      ] (BoxConstraints.fixedWidth 200) (.flexChild FlexItem.default),
+
+      -- Content
+      LayoutNode.gridBox 11
+        (GridContainer.columns 3 (gap := 16))
+        contentCards
+        { padding := EdgeInsets.uniform 16 }
+        (.flexChild (FlexItem.growing 1))
+    ] {} (.flexChild (FlexItem.growing 1))
+  ]</code></pre>
+

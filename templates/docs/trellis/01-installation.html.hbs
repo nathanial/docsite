@@ -1,0 +1,48 @@
+<p>Trellis is a pure Lean library with minimal dependencies. No native code or special build scripts are required.</p>
+
+<h3>Requirements</h3>
+<ul>
+  <li><a href="https://lean-lang.org/">Lean 4</a> (v4.26.0+)</li>
+  <li>Lake (included with Lean)</li>
+</ul>
+
+<h3>Lakefile Configuration</h3>
+
+<p>Add Trellis to your <code>lakefile.lean</code>:</p>
+
+<pre><code class="language-lean">require trellis from git "https://github.com/nathanial/trellis" @ "v0.0.1"</code></pre>
+
+<h3>Building</h3>
+
+<pre><code class="language-bash"># Build the library
+lake build
+
+# Run tests
+lake test</code></pre>
+
+<h3>Dependencies</h3>
+
+<p>Trellis has minimal dependencies:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Dependency</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>crucible</code></td><td>Test framework (dev dependency)</td></tr>
+    <tr><td><code>chronos</code></td><td>Timing utilities (optional)</td></tr>
+  </tbody>
+</table>
+
+<h3>Quick Verification</h3>
+
+<p>After adding Trellis to your project, verify it works:</p>
+
+<pre><code class="language-lean">import Trellis
+
+open Trellis
+
+-- Should compile successfully
+def testLayout : LayoutResult :=
+  layout (LayoutNode.leaf 1 ⟨100, 50⟩) 500 300</code></pre>
+

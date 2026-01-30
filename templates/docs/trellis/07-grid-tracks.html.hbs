@@ -1,0 +1,98 @@
+<p>Grid tracks define the sizes of columns and rows in a grid. Trellis supports all CSS Grid track sizing functions including fractional units, minmax, and repeat patterns.</p>
+
+<h3>TrackSize</h3>
+
+<p>The <code>TrackSize</code> type represents how a single track (row or column) should be sized:</p>
+
+<pre><code class="language-lean">inductive TrackSize where
+  | px (n : Float)              -- Fixed pixel size
+  | fr (n : Float)              -- Fractional unit
+  | percent (p : Float)         -- Percentage of container
+  | auto                        -- Size from content
+  | minmax (min max : TrackSize)  -- Clamp between min and max
+  | fitContent (max : Float)    -- Fit content up to max</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>TrackSize</th><th>CSS Equivalent</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.px 100</code></td><td><code>100px</code></td><td>Fixed 100 pixels</td></tr>
+    <tr><td><code>.fr 1</code></td><td><code>1fr</code></td><td>1 fraction of remaining space</td></tr>
+    <tr><td><code>.percent 0.25</code></td><td><code>25%</code></td><td>25% of container</td></tr>
+    <tr><td><code>.auto</code></td><td><code>auto</code></td><td>Size based on content</td></tr>
+    <tr><td><code>.minmax (.px 100) (.fr 1)</code></td><td><code>minmax(100px, 1fr)</code></td><td>At least 100px, grows with fr</td></tr>
+    <tr><td><code>.fitContent 200</code></td><td><code>fit-content(200px)</code></td><td>Content size up to 200px max</td></tr>
+  </tbody>
+</table>
+
+<h3>Fractional Units (fr)</h3>
+
+<p>The <code>fr</code> unit distributes remaining space proportionally:</p>
+
+<pre><code class="language-lean">-- Three equal columns
+#[.fr 1, .fr 1, .fr 1]
+
+-- 1:2:1 ratio (sidebar:main:sidebar)
+#[.fr 1, .fr 2, .fr 1]
+
+-- Fixed sidebar, flexible content
+#[.px 250, .fr 1]</code></pre>
+
+<h3>Minmax for Responsive Layouts</h3>
+
+<p>Use <code>minmax</code> to create flexible tracks with constraints:</p>
+
+<pre><code class="language-lean">-- Column at least 100px, but can grow
+.minmax (.px 100) (.fr 1)
+
+-- Column between 100px and 300px
+.minmax (.px 100) (.px 300)
+
+-- At least fit content, grows to fill
+.minmax (.auto) (.fr 1)</code></pre>
+
+<h3>TrackEntry and Repeat</h3>
+
+<p>The <code>TrackEntry</code> type allows single tracks or repeated patterns:</p>
+
+<pre><code class="language-lean">inductive TrackEntry where
+  | single (size : TrackSize)
+  | repeat (repetition : RepeatValue) (tracks : Array TrackSize)</code></pre>
+
+<h3>Repeat Patterns</h3>
+
+<pre><code class="language-lean">-- Repeat 4 times
+TrackEntry.repeat (.count 4) #[.fr 1]
+-- Equivalent to: #[.fr 1, .fr 1, .fr 1, .fr 1]
+
+-- Auto-fill: as many as fit
+TrackEntry.repeat .autoFill #[.minmax (.px 200) (.fr 1)]
+-- Creates columns that are at least 200px, filling container
+
+-- Auto-fit: like auto-fill but collapses empty tracks
+TrackEntry.repeat .autoFit #[.minmax (.px 200) (.fr 1)]</code></pre>
+
+<h3>RepeatValue</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Value</th><th>CSS Equivalent</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.count 3</code></td><td><code>repeat(3, ...)</code></td><td>Repeat exactly 3 times</td></tr>
+    <tr><td><code>.autoFill</code></td><td><code>repeat(auto-fill, ...)</code></td><td>As many tracks as fit</td></tr>
+    <tr><td><code>.autoFit</code></td><td><code>repeat(auto-fit, ...)</code></td><td>Like auto-fill, collapse empty</td></tr>
+  </tbody>
+</table>
+
+<h3>Example: Responsive Card Grid</h3>
+
+<pre><code class="language-lean">-- Cards that are at least 250px, fill available space
+let cardGrid := LayoutNode.gridBox 0
+  { GridContainer.default with
+    columns := #[TrackEntry.repeat .autoFill #[.minmax (.px 250) (.fr 1)]]
+    gap := 16
+    rowGap := 16 }
+  cards</code></pre>
+

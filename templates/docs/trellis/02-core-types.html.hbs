@@ -1,0 +1,84 @@
+<p>Trellis defines several core types that represent CSS layout concepts. These types are used throughout the library to specify sizes, spacing, and constraints.</p>
+
+<h3>Dimension</h3>
+
+<p>The <code>Dimension</code> type represents CSS dimension values—how a width or height should be computed:</p>
+
+<pre><code class="language-lean">inductive Dimension where
+  | auto       -- Size from content or context
+  | length (n : Float)    -- Explicit pixel value
+  | percent (p : Float)   -- Percentage (0.0 to 1.0)
+  | minContent -- Minimum content size
+  | maxContent -- Maximum content size</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Value</th><th>CSS Equivalent</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.auto</code></td><td><code>auto</code></td><td>Let the layout algorithm decide based on content and context</td></tr>
+    <tr><td><code>.length 200</code></td><td><code>200px</code></td><td>Fixed pixel size</td></tr>
+    <tr><td><code>.percent 0.5</code></td><td><code>50%</code></td><td>Percentage of parent container</td></tr>
+    <tr><td><code>.minContent</code></td><td><code>min-content</code></td><td>Smallest size that fits content without overflow</td></tr>
+    <tr><td><code>.maxContent</code></td><td><code>max-content</code></td><td>Ideal size for content (no wrapping)</td></tr>
+  </tbody>
+</table>
+
+<h3>EdgeInsets</h3>
+
+<p>The <code>EdgeInsets</code> type represents spacing on all four sides, used for margin and padding:</p>
+
+<pre><code class="language-lean">structure EdgeInsets where
+  top : Float
+  right : Float
+  bottom : Float
+  left : Float
+
+-- Constructors
+EdgeInsets.uniform 8           -- All sides 8px
+EdgeInsets.symmetric 16 8      -- Vertical 16, horizontal 8
+EdgeInsets.only (top := 10)    -- Just top, others 0
+EdgeInsets.horizontal 20       -- Left and right 20px
+EdgeInsets.vertical 10         -- Top and bottom 10px</code></pre>
+
+<h3>BoxConstraints</h3>
+
+<p>The <code>BoxConstraints</code> type combines all sizing and spacing properties for a layout node:</p>
+
+<pre><code class="language-lean">structure BoxConstraints where
+  width : Dimension := .auto
+  height : Dimension := .auto
+  minWidth : Float := 0
+  maxWidth : Option Float := none
+  minHeight : Float := 0
+  maxHeight : Option Float := none
+  margin : EdgeInsets := EdgeInsets.zero
+  padding : EdgeInsets := EdgeInsets.zero</code></pre>
+
+<p>Convenience constructors:</p>
+
+<pre><code class="language-lean">-- Fixed size
+BoxConstraints.fixed 200 100
+
+-- Fixed height, auto width
+BoxConstraints.fixedHeight 60
+
+-- With min/max constraints
+{ BoxConstraints.empty with
+  width := .percent 0.5
+  minWidth := 100
+  maxWidth := some 400
+  margin := EdgeInsets.uniform 8
+  padding := EdgeInsets.symmetric 16 8
+}</code></pre>
+
+<h3>Position</h3>
+
+<p>The <code>Position</code> type controls whether an element participates in normal flow or is positioned absolutely:</p>
+
+<pre><code class="language-lean">inductive Position where
+  | static    -- Normal document flow
+  | absolute  -- Positioned relative to containing block</code></pre>
+
+<p>Static positioning (the default) means the element participates in flex or grid layout. Absolute positioning removes the element from the normal flow and positions it relative to its nearest positioned ancestor.</p>
+

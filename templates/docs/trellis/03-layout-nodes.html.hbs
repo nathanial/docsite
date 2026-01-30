@@ -1,0 +1,83 @@
+<p>The <code>LayoutNode</code> type represents a node in the layout tree. It can be a leaf node with content dimensions, or a container node (flex or grid) with children.</p>
+
+<h3>LayoutNode Structure</h3>
+
+<pre><code class="language-lean">inductive LayoutNode where
+  | leaf (id : Nat) (contentSize : ContentSize)
+         (constraints : BoxConstraints := {})
+         (childRole : ChildRole := .default)
+  | flexBox (id : Nat) (container : FlexContainer)
+            (children : Array LayoutNode)
+            (constraints : BoxConstraints := {})
+            (childRole : ChildRole := .default)
+  | gridBox (id : Nat) (container : GridContainer)
+            (children : Array LayoutNode)
+            (constraints : BoxConstraints := {})
+            (childRole : ChildRole := .default)</code></pre>
+
+<p>Every node has:</p>
+<ul>
+  <li><strong>id</strong> - Unique identifier used to retrieve computed layout from results</li>
+  <li><strong>constraints</strong> - Box model constraints (width, height, margin, padding, etc.)</li>
+  <li><strong>childRole</strong> - How this node behaves as a child (flex item, grid item, or default)</li>
+</ul>
+
+<h3>Leaf Nodes</h3>
+
+<p>Leaf nodes represent content with known dimensions:</p>
+
+<pre><code class="language-lean">-- Simple leaf with content size
+LayoutNode.leaf 1 ⟨100, 50⟩  -- ID 1, 100x50 content
+
+-- Leaf with constraints
+LayoutNode.leaf' 1 100 50
+  { margin := EdgeInsets.uniform 8 }
+  .default</code></pre>
+
+<h3>ContentSize</h3>
+
+<p>The <code>ContentSize</code> type specifies the intrinsic dimensions of leaf content:</p>
+
+<pre><code class="language-lean">structure ContentSize where
+  width : Float
+  height : Float
+
+-- Using angle bracket syntax
+⟨100, 50⟩  -- 100 width, 50 height</code></pre>
+
+<h3>Container Builders</h3>
+
+<p>Trellis provides convenient builder functions for common layouts:</p>
+
+<pre><code class="language-lean">-- Horizontal row (flex row)
+LayoutNode.row 0 #[child1, child2] (gap := 10)
+
+-- Vertical column (flex column)
+LayoutNode.column 0 #[child1, child2, child3] (gap := 8)
+
+-- Simple N-column grid
+LayoutNode.grid 0 3 children (gap := 10)
+
+-- Custom flex container
+LayoutNode.flexBox 0 myFlexContainer children
+
+-- Custom grid container
+LayoutNode.gridBox 0 myGridContainer children</code></pre>
+
+<h3>ChildRole</h3>
+
+<p>The <code>ChildRole</code> type specifies how a node behaves when it's a child of a flex or grid container:</p>
+
+<pre><code class="language-lean">inductive ChildRole where
+  | default                    -- Standard behavior
+  | flexChild (item : FlexItem)   -- Flex item properties
+  | gridChild (item : GridItem)   -- Grid item properties</code></pre>
+
+<p>Example with flex child role:</p>
+
+<pre><code class="language-lean">-- A leaf that grows to fill available space
+LayoutNode.leaf' 1 0 0 {} (.flexChild (FlexItem.growing 1))
+
+-- A leaf with specific grid placement
+LayoutNode.leaf' 2 0 100 {} (.gridChild (GridItem.atPosition 1 2))</code></pre>
+

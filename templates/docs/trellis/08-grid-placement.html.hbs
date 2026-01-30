@@ -1,0 +1,110 @@
+<p>Grid items can be placed automatically or positioned explicitly at specific grid cells. Trellis supports spanning multiple rows/columns and per-item alignment overrides.</p>
+
+<h3>GridItem</h3>
+
+<p>The <code>GridItem</code> type controls how an individual item is placed in the grid:</p>
+
+<pre><code class="language-lean">structure GridItem where
+  placement : GridPlacement := {}
+  justifySelf : Option JustifyItems := none
+  alignSelf : Option AlignItems := none</code></pre>
+
+<h3>GridPlacement</h3>
+
+<p>Specifies the row and column position of an item:</p>
+
+<pre><code class="language-lean">structure GridPlacement where
+  row : GridSpan := .auto
+  column : GridSpan := .auto</code></pre>
+
+<h3>GridSpan</h3>
+
+<p>The <code>GridSpan</code> type specifies where an item starts and how many tracks it spans:</p>
+
+<pre><code class="language-lean">inductive GridSpan where
+  | auto                         -- Auto-placement
+  | line (start : Nat)           -- Start at line, span 1
+  | lineSpan (start span : Nat)  -- Start at line, span N tracks
+  | lines (start end_ : Nat)     -- From start line to end line</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>GridSpan</th><th>CSS Equivalent</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.auto</code></td><td><code>auto</code></td><td>Let grid auto-place this item</td></tr>
+    <tr><td><code>.line 2</code></td><td><code>2</code></td><td>Start at line 2, span 1</td></tr>
+    <tr><td><code>.lineSpan 1 3</code></td><td><code>1 / span 3</code></td><td>Start at line 1, span 3 tracks</td></tr>
+    <tr><td><code>.lines 2 5</code></td><td><code>2 / 5</code></td><td>From line 2 to line 5</td></tr>
+  </tbody>
+</table>
+
+<p>Note: Grid lines are 1-indexed, following CSS convention.</p>
+
+<h3>GridItem Constructors</h3>
+
+<pre><code class="language-lean">-- Place at specific position (1-indexed)
+GridItem.atPosition 2 3      -- row 2, column 3
+
+-- Span multiple cells
+GridItem.span 2 3            -- span 2 rows, 3 columns
+
+-- Full control
+{ placement := {
+    row := GridSpan.lineSpan 1 2     -- start at row 1, span 2
+    column := GridSpan.lines 2 4     -- columns 2 through 4
+  }
+  justifySelf := some .center
+  alignSelf := some .flexEnd }</code></pre>
+
+<h3>Using GridItem as ChildRole</h3>
+
+<pre><code class="language-lean">-- Item placed at specific position
+LayoutNode.leaf' 1 0 100 {}
+  (.gridChild (GridItem.atPosition 1 2))
+
+-- Item spanning 2 columns
+LayoutNode.leaf' 2 0 50 {}
+  (.gridChild (GridItem.span 1 2))
+
+-- Auto-placed item (default)
+LayoutNode.leaf 3 ⟨0, 100⟩</code></pre>
+
+<h3>Cell Alignment</h3>
+
+<p>Individual items can override the container's alignment:</p>
+
+<pre><code class="language-lean">-- Center this item in its cell
+.gridChild { GridItem.default with
+  justifySelf := some .center    -- Horizontal
+  alignSelf := some .center      -- Vertical
+}
+
+-- Stretch horizontally, align to bottom
+.gridChild { GridItem.default with
+  justifySelf := some .stretch
+  alignSelf := some .flexEnd
+}</code></pre>
+
+<h3>Example: Header + Sidebar Layout</h3>
+
+<pre><code class="language-lean">let layout := LayoutNode.gridBox 0
+  (GridContainer.withTemplate
+    #[.px 60, .fr 1]           -- rows
+    #[.px 200, .fr 1]          -- columns
+    (gap := 0))
+  #[
+    -- Header: row 1, spans both columns
+    LayoutNode.leaf' 1 0 0 {}
+      (.gridChild { placement := {
+        row := .line 1
+        column := .lineSpan 1 2
+      }}),
+    -- Sidebar: row 2, column 1
+    LayoutNode.leaf' 2 0 0 {}
+      (.gridChild (GridItem.atPosition 2 1)),
+    -- Content: row 2, column 2
+    LayoutNode.leaf' 3 0 0 {}
+      (.gridChild (GridItem.atPosition 2 2))
+  ]</code></pre>
+

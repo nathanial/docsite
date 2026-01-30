@@ -1,0 +1,103 @@
+<p>Flexbox alignment controls how items are distributed along the main axis (justify) and cross axis (align). Trellis supports all standard CSS alignment values.</p>
+
+<h3>JustifyContent</h3>
+
+<p>Controls item distribution along the <strong>main axis</strong> (horizontal for rows, vertical for columns):</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Value</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.flexStart</code></td><td>Items packed to start</td></tr>
+    <tr><td><code>.flexEnd</code></td><td>Items packed to end</td></tr>
+    <tr><td><code>.center</code></td><td>Items centered</td></tr>
+    <tr><td><code>.spaceBetween</code></td><td>Equal space between items, no space at edges</td></tr>
+    <tr><td><code>.spaceAround</code></td><td>Equal space around each item</td></tr>
+    <tr><td><code>.spaceEvenly</code></td><td>Equal space between items and at edges</td></tr>
+  </tbody>
+</table>
+
+<pre><code class="language-lean">-- Center items horizontally in a row
+{ FlexContainer.row with justifyContent := .center }
+
+-- Space items evenly across the container
+{ FlexContainer.row with justifyContent := .spaceEvenly }</code></pre>
+
+<h3>AlignItems</h3>
+
+<p>Controls item alignment along the <strong>cross axis</strong> (vertical for rows, horizontal for columns):</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Value</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.flexStart</code></td><td>Items aligned to cross-start</td></tr>
+    <tr><td><code>.flexEnd</code></td><td>Items aligned to cross-end</td></tr>
+    <tr><td><code>.center</code></td><td>Items centered on cross axis</td></tr>
+    <tr><td><code>.stretch</code></td><td>Items stretch to fill cross axis (default)</td></tr>
+    <tr><td><code>.baseline</code></td><td>Items aligned by baseline</td></tr>
+  </tbody>
+</table>
+
+<pre><code class="language-lean">-- Vertically center items in a row
+{ FlexContainer.row with alignItems := .center }
+
+-- Align items to the bottom of a row
+{ FlexContainer.row with alignItems := .flexEnd }</code></pre>
+
+<h3>AlignContent</h3>
+
+<p>Controls how <strong>multiple lines</strong> are distributed when wrapping is enabled. Only applies when <code>wrap</code> is not <code>.nowrap</code>:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Value</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.flexStart</code></td><td>Lines packed to start</td></tr>
+    <tr><td><code>.flexEnd</code></td><td>Lines packed to end</td></tr>
+    <tr><td><code>.center</code></td><td>Lines centered</td></tr>
+    <tr><td><code>.stretch</code></td><td>Lines stretch to fill container (default)</td></tr>
+    <tr><td><code>.spaceBetween</code></td><td>Equal space between lines</td></tr>
+    <tr><td><code>.spaceAround</code></td><td>Equal space around lines</td></tr>
+    <tr><td><code>.spaceEvenly</code></td><td>Equal space between and around lines</td></tr>
+  </tbody>
+</table>
+
+<pre><code class="language-lean">-- Center wrapped lines vertically
+{ FlexContainer.rowWrap with alignContent := .center }</code></pre>
+
+<h3>AlignSelf</h3>
+
+<p>Individual items can override the container's <code>alignItems</code> using <code>alignSelf</code> on their <code>FlexItem</code>:</p>
+
+<pre><code class="language-lean">-- Most items stretch, but this one centers itself
+.flexChild { FlexItem.default with alignSelf := some .center }</code></pre>
+
+<h3>Gap Properties</h3>
+
+<p>Control spacing between items without using margin:</p>
+
+<pre><code class="language-lean">{ FlexContainer.row with
+  gap := 16      -- Space between items on main axis
+}
+
+{ FlexContainer.rowWrap with
+  gap := 8       -- Horizontal gap between items
+  rowGap := 12   -- Vertical gap between wrapped rows
+}</code></pre>
+
+<h3>Example: Toolbar with Spacer</h3>
+
+<pre><code class="language-lean">-- Left items, spacer, right items
+let toolbar := LayoutNode.row 0 #[
+  LayoutNode.leaf 1 ⟨32, 32⟩,  -- Left button
+  LayoutNode.leaf 2 ⟨32, 32⟩,  -- Left button
+  -- Spacer grows to push remaining items right
+  LayoutNode.leaf' 3 0 0 {} (.flexChild (FlexItem.growing 1)),
+  LayoutNode.leaf 4 ⟨32, 32⟩,  -- Right button
+  LayoutNode.leaf 5 ⟨32, 32⟩   -- Right button
+] (gap := 8)</code></pre>
+

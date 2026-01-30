@@ -1,0 +1,86 @@
+<p>Afferent requires macOS with Metal GPU support and several dependencies installed via Homebrew.</p>
+
+<h3>Requirements</h3>
+<ul>
+  <li>macOS 10.13+ with Metal support</li>
+  <li><a href="https://lean-lang.org/">Lean 4</a> (v4.25.0+)</li>
+  <li><a href="https://brew.sh/">Homebrew</a> for dependencies</li>
+  <li>CMake (for building Assimp)</li>
+</ul>
+
+<h3>Installing Dependencies</h3>
+
+<pre><code class="language-bash">brew install freetype cmake</code></pre>
+
+<p>Note: Assimp is included as a git submodule and built from source automatically on first build.</p>
+
+<h3>Building Afferent</h3>
+
+<pre><code class="language-bash"># Clone with submodules
+git clone --recurse-submodules &lt;repo-url&gt;
+cd afferent
+
+# Build (initializes submodules and builds Assimp on first run)
+./build.sh
+
+# Run the demo
+./run.sh</code></pre>
+
+<p>If you've already cloned without <code>--recurse-submodules</code>, the build script will automatically initialize and build the Assimp submodule on first run.</p>
+
+<h3>Why Use build.sh?</h3>
+
+<p><strong>Important:</strong> Use <code>./build.sh</code> instead of <code>lake build</code> directly. The build script:</p>
+
+<ul>
+  <li>Sets <code>LEAN_CC=/usr/bin/clang</code> for proper macOS framework linking</li>
+  <li>Initializes git submodules if needed</li>
+  <li>Builds Assimp from source on first run</li>
+</ul>
+
+<p>The bundled lld linker doesn't handle macOS frameworks correctly, so the system clang is required.</p>
+
+<h3>Build Commands</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Command</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>./build.sh</code></td><td>Build the main library and demo runner</td></tr>
+    <tr><td><code>./build.sh afferent</code></td><td>Build a specific target</td></tr>
+    <tr><td><code>./build.sh hello_triangle</code></td><td>Build the minimal example</td></tr>
+    <tr><td><code>./run.sh</code></td><td>Build and run the demo runner</td></tr>
+    <tr><td><code>./run.sh hello_triangle</code></td><td>Build and run a specific example</td></tr>
+    <tr><td><code>./test.sh</code></td><td>Run the test suite</td></tr>
+  </tbody>
+</table>
+
+<h3>Project Structure</h3>
+
+<pre><code>afferent/
++-- Afferent/
+|   +-- Core/           # Point, Color, Rect, Path, Transform, Paint
+|   +-- Render/         # Tessellation, Matrix4, Mesh, FPSCamera, Dynamic
+|   +-- Canvas/         # Canvas monad, state management
+|   +-- Widget/         # Declarative UI system, events, hit testing
+|   +-- Layout/         # CSS Flexbox and Grid layout engine
+|   +-- Text/           # Font loading and text measurement
+|   +-- Arbor/          # Declarative widget builders
+|   +-- Canopy/         # Reactive FRP widgets
+|   +-- FFI/            # Lean FFI bindings (Window, Renderer, Texture)
++-- Demos/              # 20+ demo applications
++-- Examples/           # Minimal standalone examples
++-- native/
+|   +-- src/metal/      # Metal renderer, shaders, pipeline
+|   +-- src/common/     # FreeType, FloatBuffer, Assimp loader
+|   +-- include/        # C headers
++-- build.sh            # Build script
++-- run.sh              # Build and run script
++-- test.sh             # Run test suite</code></pre>
+
+<h3>Lakefile Configuration</h3>
+
+<p>Projects depending on Afferent should use the GitHub URL with version tag:</p>
+
+<pre><code class="language-lean">require afferent from git "https://github.com/nathanial/afferent" @ "v0.0.1"</code></pre>

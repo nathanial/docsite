@@ -1,0 +1,128 @@
+<p>Paths allow you to define complex shapes using a sequence of drawing commands. Combined with stroke
+styles, you can create lines, curves, and outlines with various visual effects.</p>
+
+<h3>Building Paths</h3>
+
+<pre><code class="language-lean">-- Create a triangle path
+let triangle := Path.empty
+  |>.moveTo 50.0 0.0
+  |>.lineTo 100.0 86.6
+  |>.lineTo 0.0 86.6
+  |>.close
+
+-- Create a star path
+let star := Path.empty
+  |>.moveTo 50.0 0.0
+  |>.lineTo 61.0 35.0
+  |>.lineTo 98.0 35.0
+  |>.lineTo 68.0 57.0
+  |>.lineTo 79.0 91.0
+  |>.lineTo 50.0 70.0
+  |>.lineTo 21.0 91.0
+  |>.lineTo 32.0 57.0
+  |>.lineTo 2.0 35.0
+  |>.lineTo 39.0 35.0
+  |>.close</code></pre>
+
+<h3>Path Commands</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Command</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>moveTo x y</code></td><td>Move to point without drawing</td></tr>
+    <tr><td><code>lineTo x y</code></td><td>Draw line to point</td></tr>
+    <tr><td><code>quadraticTo cx cy x y</code></td><td>Quadratic Bezier curve</td></tr>
+    <tr><td><code>cubicTo c1x c1y c2x c2y x y</code></td><td>Cubic Bezier curve</td></tr>
+    <tr><td><code>arcTo x y r startAngle endAngle</code></td><td>Arc segment</td></tr>
+    <tr><td><code>close</code></td><td>Close path back to start</td></tr>
+  </tbody>
+</table>
+
+<h3>Bezier Curves</h3>
+
+<pre><code class="language-lean">-- Quadratic Bezier (one control point)
+let wave := Path.empty
+  |>.moveTo 0.0 100.0
+  |>.quadraticTo 50.0 0.0 100.0 100.0    -- control, end
+  |>.quadraticTo 150.0 200.0 200.0 100.0
+
+-- Cubic Bezier (two control points)
+let smooth := Path.empty
+  |>.moveTo 0.0 100.0
+  |>.cubicTo 33.0 0.0 66.0 200.0 100.0 100.0  -- c1, c2, end</code></pre>
+
+<h3>Arcs</h3>
+
+<pre><code class="language-lean">-- Draw a pie slice
+let pie := Path.empty
+  |>.moveTo 100.0 100.0  -- center
+  |>.lineTo 100.0 50.0   -- to edge
+  |>.arcTo 100.0 100.0 50.0 (-Float.pi / 2) (Float.pi / 4)  -- arc
+  |>.close</code></pre>
+
+<h3>Stroke Styles</h3>
+
+<p>Configure how path outlines are rendered:</p>
+
+<pre><code class="language-lean">-- Set stroke properties
+Canvas.setLineWidth 3.0
+Canvas.setLineCap .round
+Canvas.setLineJoin .round
+Canvas.setStrokeColor Color.black
+Canvas.strokePath myPath</code></pre>
+
+<h3>Line Caps</h3>
+
+<p>How line endpoints are drawn:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Cap Style</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>LineCap.butt</code></td><td>Square end at exact endpoint</td></tr>
+    <tr><td><code>LineCap.round</code></td><td>Semicircle extending past endpoint</td></tr>
+    <tr><td><code>LineCap.square</code></td><td>Square extending past endpoint</td></tr>
+  </tbody>
+</table>
+
+<h3>Line Joins</h3>
+
+<p>How corners between line segments are drawn:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Join Style</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>LineJoin.miter</code></td><td>Sharp corner (extends to point)</td></tr>
+    <tr><td><code>LineJoin.round</code></td><td>Rounded corner</td></tr>
+    <tr><td><code>LineJoin.bevel</code></td><td>Flat corner (cuts across)</td></tr>
+  </tbody>
+</table>
+
+<h3>Complete Example</h3>
+
+<pre><code class="language-lean">def drawRoundedShape : Canvas Unit := do
+  -- Create a rounded rectangle path manually
+  let r := 20.0  -- corner radius
+  let path := Path.empty
+    |>.moveTo (50.0 + r) 50.0
+    |>.lineTo (200.0 - r) 50.0
+    |>.quadraticTo 200.0 50.0 200.0 (50.0 + r)
+    |>.lineTo 200.0 (150.0 - r)
+    |>.quadraticTo 200.0 150.0 (200.0 - r) 150.0
+    |>.lineTo (50.0 + r) 150.0
+    |>.quadraticTo 50.0 150.0 50.0 (150.0 - r)
+    |>.lineTo 50.0 (50.0 + r)
+    |>.quadraticTo 50.0 50.0 (50.0 + r) 50.0
+    |>.close
+
+  -- Fill and stroke
+  Canvas.setFillColor (Color.rgba 0.2 0.6 1.0 0.5)
+  Canvas.fillPath path
+  Canvas.setLineWidth 2.0
+  Canvas.setStrokeColor Color.darkBlue
+  Canvas.strokePath path</code></pre>

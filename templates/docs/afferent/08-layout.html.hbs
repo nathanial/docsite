@@ -1,0 +1,150 @@
+<p>Afferent uses the Trellis layout engine to provide CSS-style Flexbox and Grid layouts. These layouts
+automatically position child widgets based on constraints and available space.</p>
+
+<h3>Flexbox Layout</h3>
+
+<p>Flexbox arranges children along a main axis (row or column) with control over alignment and distribution:</p>
+
+<pre><code class="language-lean">-- Horizontal row with space between items
+let toolbar := Arbor.flexRow
+  (props := { direction := .row, justify := .spaceBetween, align := .center, gap := 8 })
+  (style := { padding := EdgeInsets.symmetric 16 8 })
+  #[button1, button2, spacer, button3]
+
+-- Vertical column centered
+let centered := Arbor.flexColumn
+  (props := { direction := .column, justify := .center, align := .center })
+  (style := {})
+  #[title, subtitle, content]</code></pre>
+
+<h3>Flex Container Properties</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Property</th><th>Values</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>direction</code></td><td>row, column, rowReverse, columnReverse</td><td>Main axis direction</td></tr>
+    <tr><td><code>justify</code></td><td>start, end, center, spaceBetween, spaceAround, spaceEvenly</td><td>Main axis alignment</td></tr>
+    <tr><td><code>align</code></td><td>start, end, center, stretch, baseline</td><td>Cross axis alignment</td></tr>
+    <tr><td><code>wrap</code></td><td>nowrap, wrap, wrapReverse</td><td>Line wrapping behavior</td></tr>
+    <tr><td><code>gap</code></td><td>Float</td><td>Space between items</td></tr>
+  </tbody>
+</table>
+
+<h3>Justify Content</h3>
+
+<pre><code class="language-lean">-- Pack items at start
+{ justify := .start }       -- [A][B][C]          |
+
+-- Pack items at end
+{ justify := .end }         -- |          [A][B][C]
+
+-- Center items
+{ justify := .center }      -- |    [A][B][C]    |
+
+-- Space between items
+{ justify := .spaceBetween } -- [A]    [B]    [C]
+
+-- Space around items
+{ justify := .spaceAround }  -- | [A]  [B]  [C] |
+
+-- Space evenly
+{ justify := .spaceEvenly }  -- |  [A]  [B]  [C]  |</code></pre>
+
+<h3>Align Items</h3>
+
+<pre><code class="language-lean">-- Align to cross-axis start
+{ align := .start }   -- Items at top (for row) or left (for column)
+
+-- Align to cross-axis end
+{ align := .end }     -- Items at bottom or right
+
+-- Center on cross axis
+{ align := .center }  -- Items centered vertically (row) or horizontally (column)
+
+-- Stretch to fill
+{ align := .stretch } -- Items expand to fill cross axis</code></pre>
+
+<h3>Grid Layout</h3>
+
+<p>Grid arranges children in a 2D grid with defined columns and rows:</p>
+
+<pre><code class="language-lean">-- 3-column grid
+let grid := Arbor.grid
+  (props := {
+    columns := 3,
+    columnGap := 16,
+    rowGap := 16
+  })
+  (style := { padding := EdgeInsets.all 16 })
+  items
+
+-- Template-based columns (like CSS grid-template-columns)
+let templateGrid := Arbor.grid
+  (props := {
+    columnTemplate := #[.fr 1, .fr 2, .fr 1],  -- 1fr 2fr 1fr
+    rowGap := 8,
+    columnGap := 8
+  })
+  (style := {})
+  items</code></pre>
+
+<h3>Grid Track Sizing</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Track Size</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.auto</code></td><td>Size to content</td></tr>
+    <tr><td><code>.length n</code></td><td>Fixed size in pixels</td></tr>
+    <tr><td><code>.fr n</code></td><td>Fractional unit (like CSS fr)</td></tr>
+    <tr><td><code>.minContent</code></td><td>Minimum content size</td></tr>
+    <tr><td><code>.maxContent</code></td><td>Maximum content size</td></tr>
+  </tbody>
+</table>
+
+<h3>Dimension Types</h3>
+
+<p>Control how widget sizes are calculated:</p>
+
+<pre><code class="language-lean">-- Fixed size
+{ width := .length 200, height := .length 100 }
+
+-- Percentage of parent
+{ width := .percent 50, height := .percent 100 }
+
+-- Auto (size to content)
+{ width := .auto, height := .auto }
+
+-- Fill available space
+{ width := .fill, height := .fill }</code></pre>
+
+<h3>Box Model</h3>
+
+<pre><code class="language-lean">-- Padding: inside the border
+{ padding := EdgeInsets.all 16 }
+{ padding := EdgeInsets.symmetric 20 10 }  -- horizontal, vertical
+{ padding := EdgeInsets.mk 10 20 10 20 }   -- top, right, bottom, left
+
+-- Margin: outside the border
+{ margin := EdgeInsets.all 8 }
+
+-- Border
+{ borderWidth := 2, borderColor := Color.gray, borderRadius := 8 }</code></pre>
+
+<h3>Layout Computation</h3>
+
+<pre><code class="language-lean">-- Create a layout tree
+let node := LayoutNode.flex
+  { direction := .row, justify := .spaceBetween, gap := 10 }
+  [child1, child2, child3]
+
+-- Compute layout with constraints
+let constraints := BoxConstraints.tight 800 600
+let result := Layout.compute node constraints
+
+-- Result contains positioned rects for each node
+for (id, rect) in result.positions do
+  IO.println s!"{id}: {rect.x}, {rect.y}, {rect.width}x{rect.height}"</code></pre>

@@ -1,0 +1,164 @@
+<p>Canopy provides a library of interactive components for building applications. Each component returns
+reactive state (Events, Dynamics) that you can wire together.</p>
+
+<h3>Buttons</h3>
+
+<pre><code class="language-lean">-- Basic button (returns click event)
+let click ← button "Click Me" theme .primary
+
+-- Button variants
+button "Primary" theme .primary     -- Filled, prominent
+button "Secondary" theme .secondary -- Outlined
+button "Ghost" theme .ghost         -- Text only
+button "Danger" theme .danger       -- Red, destructive
+
+-- Handle click
+performEvent_ (← Event.mapM (fun _ => IO.println "Clicked!") click)</code></pre>
+
+<h3>Checkboxes and Switches</h3>
+
+<pre><code class="language-lean">-- Checkbox (returns checked state dynamic)
+let isChecked ← checkbox "Enable feature" theme false
+
+-- Switch (toggle without label)
+let isOn ← switch none theme true
+
+-- Switch with label
+let darkMode ← switch (some "Dark Mode") theme false
+
+-- React to state changes
+let _ ← dynWidget isChecked fun checked => do
+  if checked then
+    bodyText' "Feature is enabled" theme
+  else
+    bodyText' "Feature is disabled" theme</code></pre>
+
+<h3>Radio Groups</h3>
+
+<pre><code class="language-lean">-- Radio group (returns selected value dynamic)
+let options := #[
+  { value := "small", label := "Small" },
+  { value := "medium", label := "Medium" },
+  { value := "large", label := "Large" }
+]
+let selectedSize ← radioGroup options theme "medium"  -- initial value
+
+let _ ← dynWidget selectedSize fun size => do
+  bodyText' s!"Selected size: {size}" theme</code></pre>
+
+<h3>Dropdowns</h3>
+
+<pre><code class="language-lean">-- Dropdown (returns selection dynamic and open state)
+let options := #["Apple", "Banana", "Cherry", "Date"]
+let result ← dropdown options theme 0  -- initial index
+
+-- Access selection
+let _ ← dynWidget result.selection fun idx => do
+  bodyText' s!"Selected: {options[idx]!}" theme
+
+-- Dependent dropdowns
+let categories := #["Fruits", "Vegetables", "Dairy"]
+let catResult ← dropdown categories theme 0
+
+let _ ← dynWidget catResult.selection fun catIdx =>
+  let items := match catIdx with
+    | 0 => #["Apple", "Banana", "Cherry"]
+    | 1 => #["Carrot", "Broccoli", "Spinach"]
+    | _ => #["Milk", "Cheese", "Yogurt"]
+  dropdown items theme 0</code></pre>
+
+<h3>Sliders</h3>
+
+<pre><code class="language-lean">-- Slider (returns value dynamic 0.0 to 1.0)
+let volume ← slider (some "Volume") theme 0.5
+
+-- Use slider value
+let _ ← dynWidget volume fun v => do
+  bodyText' s!"Volume: {(v * 100).toInt}%" theme</code></pre>
+
+<h3>Text Input</h3>
+
+<pre><code class="language-lean">-- Text input (returns value dynamic and events)
+let result ← textInput theme "Enter name" "Initial value"
+
+-- Access current text
+let _ ← dynWidget result.value fun text => do
+  bodyText' s!"Hello, {text}!" theme
+
+-- Handle submit (Enter key)
+performEvent_ (← Event.mapM (fun _ => IO.println "Submitted!") result.onSubmit)</code></pre>
+
+<h3>Text Area</h3>
+
+<pre><code class="language-lean">-- Multi-line text area
+let config := { rows := 5, placeholder := "Enter description..." }
+let result ← textArea theme "Description" config font
+
+let _ ← dynWidget result.value fun text => do
+  caption' s!"Characters: {text.length}" theme</code></pre>
+
+<h3>Progress Bars</h3>
+
+<pre><code class="language-lean">-- Determinate progress (0.0 to 1.0)
+progressBar theme 0.75 .primary (some "Loading...") true
+
+-- Indeterminate progress (animated)
+progressBarIndeterminate theme .secondary (some "Processing...")</code></pre>
+
+<h3>Modals</h3>
+
+<pre><code class="language-lean">-- Modal dialog
+let result ← modal "Confirm Action" theme do
+  column' (gap := 16) (style := {}) do
+    bodyText' "Are you sure you want to proceed?" theme
+    row' (gap := 8) (style := {}) do
+      let cancel ← button "Cancel" theme .secondary
+      let confirm ← button "Confirm" theme .primary
+      pure (cancel, confirm)
+
+-- Modal returns open state and close event
+when' result.isOpen do
+  -- Modal content is shown</code></pre>
+
+<h3>Toasts</h3>
+
+<pre><code class="language-lean">-- Toast notification manager
+let toasts ← toastManager theme
+
+-- Show toast
+performEvent_ (← Event.mapM (fun _ =>
+  toasts.show "Operation successful!" .success 3000
+) saveEvent)</code></pre>
+
+<h3>Tabs</h3>
+
+<pre><code class="language-lean">-- Tab view (returns selected index dynamic)
+let tabs := #[
+  { label := "General", content := generalPanel },
+  { label := "Settings", content := settingsPanel },
+  { label := "About", content := aboutPanel }
+]
+let selectedTab ← tabView tabs theme 0
+
+let _ ← dynWidget selectedTab fun idx => do
+  tabs[idx]!.content theme</code></pre>
+
+<h3>Component Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Component</th><th>Returns</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>button</code></td><td><code>Event Spider Unit</code></td></tr>
+    <tr><td><code>checkbox</code></td><td><code>Dynamic Spider Bool</code></td></tr>
+    <tr><td><code>switch</code></td><td><code>Dynamic Spider Bool</code></td></tr>
+    <tr><td><code>radioGroup</code></td><td><code>Dynamic Spider String</code></td></tr>
+    <tr><td><code>dropdown</code></td><td><code>DropdownResult</code> (selection, isOpen)</td></tr>
+    <tr><td><code>slider</code></td><td><code>Dynamic Spider Float</code></td></tr>
+    <tr><td><code>textInput</code></td><td><code>TextInputResult</code> (value, onSubmit)</td></tr>
+    <tr><td><code>textArea</code></td><td><code>TextAreaResult</code> (value)</td></tr>
+    <tr><td><code>modal</code></td><td><code>ModalResult</code> (isOpen, close)</td></tr>
+    <tr><td><code>tabView</code></td><td><code>Dynamic Spider Nat</code></td></tr>
+  </tbody>
+</table>

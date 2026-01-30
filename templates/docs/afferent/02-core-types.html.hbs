@@ -1,0 +1,117 @@
+<p>Afferent provides fundamental types for 2D graphics: points, rectangles, sizes, colors, paths, and transforms.
+These types form the foundation for all drawing operations.</p>
+
+<h3>Point</h3>
+
+<p>A 2D coordinate with x and y components:</p>
+
+<pre><code class="language-lean">-- Create points
+let origin := Point.mk 0.0 0.0
+let position := Point.mk 100.0 50.0
+
+-- Point operations
+let offset := Point.mk 10.0 20.0
+let moved := position.add offset
+let distance := position.distance origin</code></pre>
+
+<h3>Rect</h3>
+
+<p>An axis-aligned rectangle defined by origin and size:</p>
+
+<pre><code class="language-lean">-- Create rectangles
+let bounds := Rect.mk 10.0 20.0 200.0 100.0  -- x, y, width, height
+let centered := Rect.centered 400.0 300.0 100.0 50.0  -- center, size
+
+-- Rectangle operations
+let contains := bounds.contains (Point.mk 50.0 50.0)
+let expanded := bounds.inset (-10.0)  -- grow by 10
+let intersection := bounds.intersect otherRect</code></pre>
+
+<h3>Size</h3>
+
+<p>Dimensions with width and height:</p>
+
+<pre><code class="language-lean">let windowSize := Size.mk 800.0 600.0
+let area := windowSize.width * windowSize.height</code></pre>
+
+<h3>Color</h3>
+
+<p>RGBA color with values from 0.0 to 1.0. Afferent uses the Tincture color library:</p>
+
+<pre><code class="language-lean">-- RGB colors (alpha defaults to 1.0)
+let red := Color.rgb 1.0 0.0 0.0
+let semiTransparent := Color.rgba 0.2 0.4 0.8 0.5
+
+-- Named colors from Tincture
+let bg := Color.darkSlateGray
+let accent := Color.cornflowerBlue
+let text := Color.white
+
+-- HSV/HSL color spaces
+let hue := Color.hsv 0.6 0.8 1.0      -- hue, saturation, value
+let pastel := Color.hsl 0.3 0.5 0.8   -- hue, saturation, lightness
+
+-- Color operations
+let lighter := color.lighten 0.2
+let darker := color.darken 0.1
+let blended := color1.lerp color2 0.5</code></pre>
+
+<h3>Path</h3>
+
+<p>A sequence of drawing commands for complex shapes:</p>
+
+<pre><code class="language-lean">-- Build a path
+let path := Path.empty
+  |>.moveTo 0.0 0.0
+  |>.lineTo 100.0 0.0
+  |>.lineTo 50.0 86.6
+  |>.close  -- close back to start
+
+-- Use in Canvas
+Canvas.setFillColor Color.red
+Canvas.fillPath path</code></pre>
+
+<h3>Transform</h3>
+
+<p>A 2D affine transformation matrix for translating, rotating, and scaling:</p>
+
+<pre><code class="language-lean">-- Create transforms
+let translate := Transform.translation 100.0 50.0
+let rotate := Transform.rotation (Float.pi / 4)  -- 45 degrees
+let scale := Transform.scaling 2.0 2.0
+
+-- Combine transforms (applied right to left)
+let combined := translate.concat rotate |>.concat scale
+
+-- Transform a point
+let transformed := combined.apply (Point.mk 10.0 10.0)</code></pre>
+
+<h3>EdgeInsets</h3>
+
+<p>Padding/margin values for all four edges:</p>
+
+<pre><code class="language-lean">-- Uniform insets
+let padding := EdgeInsets.all 10.0
+
+-- Symmetric insets
+let margins := EdgeInsets.symmetric 20.0 10.0  -- horizontal, vertical
+
+-- Individual edges
+let custom := EdgeInsets.mk 5.0 10.0 15.0 20.0  -- top, right, bottom, left</code></pre>
+
+<h3>Type Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Type</th><th>Fields</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Point</code></td><td>x, y : Float</td><td>2D coordinate</td></tr>
+    <tr><td><code>Rect</code></td><td>x, y, width, height : Float</td><td>Axis-aligned rectangle</td></tr>
+    <tr><td><code>Size</code></td><td>width, height : Float</td><td>2D dimensions</td></tr>
+    <tr><td><code>Color</code></td><td>r, g, b, a : Float</td><td>RGBA color (0-1 range)</td></tr>
+    <tr><td><code>Path</code></td><td>commands : List PathCommand</td><td>Drawing commands</td></tr>
+    <tr><td><code>Transform</code></td><td>2D matrix</td><td>Affine transformation</td></tr>
+    <tr><td><code>EdgeInsets</code></td><td>top, right, bottom, left : Float</td><td>Edge spacing</td></tr>
+  </tbody>
+</table>

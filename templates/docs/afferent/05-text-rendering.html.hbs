@@ -1,0 +1,106 @@
+<p>Afferent uses FreeType for high-quality text rendering with font loading, glyph caching, and texture atlas management.
+Text is rendered as textured quads for GPU-accelerated display.</p>
+
+<h3>Loading Fonts</h3>
+
+<pre><code class="language-lean">-- Load a font from file
+let font ← Font.load "/System/Library/Fonts/Helvetica.ttc" 24.0
+
+-- Load with specific face index (for .ttc files with multiple faces)
+let boldFont ← Font.loadWithIndex "/System/Library/Fonts/Helvetica.ttc" 1 24.0</code></pre>
+
+<h3>Drawing Text</h3>
+
+<pre><code class="language-lean">-- Draw text at position
+Canvas.setFillColor Color.white
+Canvas.drawText font "Hello, Afferent!" 100.0 100.0
+
+-- Draw with different colors
+Canvas.setFillColor Color.red
+Canvas.drawText font "Red text" 100.0 150.0
+
+Canvas.setFillColor Color.cornflowerBlue
+Canvas.drawText font "Blue text" 100.0 200.0</code></pre>
+
+<h3>Measuring Text</h3>
+
+<p>Get text dimensions for layout calculations:</p>
+
+<pre><code class="language-lean">-- Measure text width and height
+let metrics := font.measureText "Hello, World!"
+let width := metrics.width
+let height := metrics.height
+
+-- Center text horizontally
+let screenWidth := 800.0
+let x := (screenWidth - width) / 2.0
+Canvas.drawText font "Centered Text" x 100.0</code></pre>
+
+<h3>Font Metrics</h3>
+
+<pre><code class="language-lean">-- Get font-level metrics
+let ascender := font.ascender    -- Height above baseline
+let descender := font.descender  -- Depth below baseline (negative)
+let lineHeight := font.lineHeight
+
+-- Calculate line spacing
+let lineSpacing := lineHeight * 1.2  -- 20% extra space</code></pre>
+
+<h3>Multi-line Text</h3>
+
+<pre><code class="language-lean">def drawMultilineText (font : Font) (lines : Array String) (x y : Float) : Canvas Unit := do
+  let lineHeight := font.lineHeight * 1.2
+  for (line, i) in lines.zipWithIndex do
+    Canvas.drawText font line x (y + i.toFloat * lineHeight)</code></pre>
+
+<h3>Text Alignment</h3>
+
+<pre><code class="language-lean">def drawAlignedText (font : Font) (text : String) (x y width : Float)
+    (align : TextAlign) : Canvas Unit := do
+  let metrics := font.measureText text
+  let offsetX := match align with
+    | .left => 0.0
+    | .center => (width - metrics.width) / 2.0
+    | .right => width - metrics.width
+  Canvas.drawText font text (x + offsetX) y</code></pre>
+
+<h3>Glyph Caching</h3>
+
+<p>Fonts automatically cache rendered glyphs in a texture atlas for performance. The first time a character
+is drawn, its glyph is rasterized and stored. Subsequent draws use the cached texture.</p>
+
+<pre><code class="language-lean">-- Preload common characters (optional optimization)
+font.preloadGlyphs "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"</code></pre>
+
+<h3>API Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Font.load path size</code></td><td>Load font from file at given size</td></tr>
+    <tr><td><code>Font.loadWithIndex path idx size</code></td><td>Load specific face from .ttc file</td></tr>
+    <tr><td><code>font.measureText text</code></td><td>Get text dimensions</td></tr>
+    <tr><td><code>font.ascender</code></td><td>Height above baseline</td></tr>
+    <tr><td><code>font.descender</code></td><td>Depth below baseline</td></tr>
+    <tr><td><code>font.lineHeight</code></td><td>Recommended line spacing</td></tr>
+    <tr><td><code>Canvas.drawText font text x y</code></td><td>Draw text at position</td></tr>
+  </tbody>
+</table>
+
+<h3>System Fonts on macOS</h3>
+
+<p>Common system font paths:</p>
+
+<pre><code class="language-lean">-- San Francisco (system font)
+"/System/Library/Fonts/SFNS.ttf"
+
+-- Helvetica
+"/System/Library/Fonts/Helvetica.ttc"
+
+-- Menlo (monospace)
+"/System/Library/Fonts/Menlo.ttc"
+
+-- Times New Roman
+"/Library/Fonts/Times New Roman.ttf"</code></pre>

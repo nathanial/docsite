@@ -1,0 +1,133 @@
+<p>Transforms allow you to translate, rotate, and scale drawings. The Canvas API maintains a transform stack
+that lets you compose transformations and isolate them using save/restore.</p>
+
+<h3>Basic Transforms</h3>
+
+<pre><code class="language-lean">-- Translate (move origin)
+Canvas.translate 100.0 50.0
+Canvas.fillRect 0 0 50 50  -- Draws at (100, 50)
+
+-- Rotate around origin (radians)
+Canvas.rotate (Float.pi / 4)  -- 45 degrees
+Canvas.fillRect 0 0 50 50     -- Rotated square
+
+-- Scale
+Canvas.scale 2.0 2.0
+Canvas.fillRect 0 0 50 50  -- 100x100 square</code></pre>
+
+<h3>Transform Order</h3>
+
+<p>Transforms are applied in reverse order. The last transform called is applied first to the coordinates:</p>
+
+<pre><code class="language-lean">-- This sequence:
+Canvas.translate 100.0 100.0
+Canvas.rotate (Float.pi / 4)
+Canvas.scale 0.5 0.5
+Canvas.fillRect (-25) (-25) 50 50
+
+-- Means: scale the rect, then rotate it, then move it to (100, 100)</code></pre>
+
+<h3>Save and Restore</h3>
+
+<p>Isolate transform changes within save/restore blocks:</p>
+
+<pre><code class="language-lean">def drawSpinningSquares : Canvas Unit := do
+  for i in [0:8] do
+    Canvas.save
+    Canvas.translate 400.0 300.0
+    Canvas.rotate (i.toFloat * Float.pi / 4)
+    Canvas.translate 100.0 0.0
+    Canvas.setFillColor (Color.hsv (i.toFloat / 8.0) 0.8 1.0)
+    Canvas.fillRect (-20) (-20) 40 40
+    Canvas.restore</code></pre>
+
+<h3>Rotating Around a Point</h3>
+
+<p>To rotate around an arbitrary point, translate to that point, rotate, then translate back:</p>
+
+<pre><code class="language-lean">def rotateAround (cx cy angle : Float) : Canvas Unit := do
+  Canvas.translate cx cy
+  Canvas.rotate angle
+  Canvas.translate (-cx) (-cy)
+
+-- Rotate a rectangle around its center
+def drawRotatedRect (x y w h angle : Float) : Canvas Unit := do
+  Canvas.save
+  let cx := x + w / 2
+  let cy := y + h / 2
+  rotateAround cx cy angle
+  Canvas.fillRect x y w h
+  Canvas.restore</code></pre>
+
+<h3>Transform Matrix</h3>
+
+<p>For more control, work with the Transform type directly:</p>
+
+<pre><code class="language-lean">-- Create individual transforms
+let t := Transform.translation 100.0 50.0
+let r := Transform.rotation (Float.pi / 6)
+let s := Transform.scaling 2.0 1.5
+
+-- Compose transforms
+let combined := t.concat r |>.concat s
+
+-- Apply to a point
+let p := Point.mk 10.0 10.0
+let transformed := combined.apply p
+
+-- Set canvas transform directly
+Canvas.setTransform combined</code></pre>
+
+<h3>Transform Functions</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Canvas.translate dx dy</code></td><td>Move origin by (dx, dy)</td></tr>
+    <tr><td><code>Canvas.rotate angle</code></td><td>Rotate by angle (radians)</td></tr>
+    <tr><td><code>Canvas.scale sx sy</code></td><td>Scale by (sx, sy)</td></tr>
+    <tr><td><code>Canvas.setTransform t</code></td><td>Set transform matrix directly</td></tr>
+    <tr><td><code>Canvas.save</code></td><td>Push current transform to stack</td></tr>
+    <tr><td><code>Canvas.restore</code></td><td>Pop transform from stack</td></tr>
+  </tbody>
+</table>
+
+<h3>Transform Type</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Transform.identity</code></td><td>No transformation</td></tr>
+    <tr><td><code>Transform.translation dx dy</code></td><td>Create translation matrix</td></tr>
+    <tr><td><code>Transform.rotation angle</code></td><td>Create rotation matrix</td></tr>
+    <tr><td><code>Transform.scaling sx sy</code></td><td>Create scale matrix</td></tr>
+    <tr><td><code>t.concat other</code></td><td>Compose two transforms</td></tr>
+    <tr><td><code>t.apply point</code></td><td>Transform a point</td></tr>
+    <tr><td><code>t.inverse</code></td><td>Inverse transform (if exists)</td></tr>
+  </tbody>
+</table>
+
+<h3>Animation Example</h3>
+
+<pre><code class="language-lean">def drawAnimatedScene (time : Float) : Canvas Unit := do
+  -- Orbiting circle
+  Canvas.save
+  Canvas.translate 400.0 300.0
+  Canvas.rotate time
+  Canvas.translate 150.0 0.0
+  Canvas.setFillColor Color.orange
+  Canvas.fillCircle 0 0 20
+  Canvas.restore
+
+  -- Pulsing square
+  Canvas.save
+  Canvas.translate 400.0 300.0
+  let scale := 1.0 + 0.3 * Float.sin (time * 2)
+  Canvas.scale scale scale
+  Canvas.setFillColor Color.cyan
+  Canvas.fillRect (-30) (-30) 60 60
+  Canvas.restore</code></pre>

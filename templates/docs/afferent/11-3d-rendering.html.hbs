@@ -1,0 +1,153 @@
+<p>Afferent supports 3D rendering with perspective projection, mesh rendering, lighting, fog effects,
+and camera controls. The 3D system integrates with the same Metal pipeline as 2D rendering.</p>
+
+<h3>Perspective Projection</h3>
+
+<pre><code class="language-lean">import Afferent.Render.Matrix4
+
+-- Create perspective projection matrix
+let fov := Float.pi / 4           -- 45 degree field of view
+let aspectRatio := 16.0 / 9.0     -- Screen aspect ratio
+let near := 0.1                   -- Near clip plane
+let far := 1000.0                 -- Far clip plane
+
+let projection := Matrix4.perspective fov aspectRatio near far</code></pre>
+
+<h3>Matrix4 Operations</h3>
+
+<pre><code class="language-lean">-- Create transformation matrices
+let translation := Matrix4.translation 0 5 (-10)
+let rotation := Matrix4.rotationY (Float.pi / 4)
+let scale := Matrix4.scaling 2 2 2
+
+-- Combine transformations
+let model := translation * rotation * scale
+
+-- Model-View-Projection matrix
+let mvp := projection * view * model</code></pre>
+
+<h3>FPS Camera</h3>
+
+<pre><code class="language-lean">import Afferent.Render.FPSCamera
+
+-- Create camera at position looking in direction
+let camera := FPSCamera.create
+  (position := Vec3.mk 0 5 10)
+  (yaw := Float.pi)               -- Looking toward -Z
+  (pitch := 0.0)
+
+-- Handle mouse input (delta movement)
+let camera := camera.rotate deltaX deltaY sensitivity
+
+-- Handle keyboard input
+let camera := camera.moveForward speed dt      -- W key
+let camera := camera.moveBackward speed dt     -- S key
+let camera := camera.strafeLeft speed dt       -- A key
+let camera := camera.strafeRight speed dt      -- D key
+let camera := camera.moveUp speed dt           -- Space
+let camera := camera.moveDown speed dt         -- Shift
+
+-- Get view matrix for rendering
+let view := camera.viewMatrix</code></pre>
+
+<h3>3D Mesh Rendering</h3>
+
+<pre><code class="language-lean">-- Render a 3D mesh with lighting
+renderer.drawMesh3D
+  vertices              -- Vertex buffer (position, normal, uv)
+  indices               -- Index buffer
+  mvp                   -- Model-View-Projection matrix
+  modelMatrix           -- Model matrix (for normal transformation)
+  lightDir              -- Light direction (normalized)
+  ambientFactor         -- Ambient light intensity (0-1)
+  cameraPos             -- Camera position (for specular)
+  fogColor              -- Fog color
+  fogStart              -- Distance where fog starts
+  fogEnd                -- Distance where fog is fully opaque</code></pre>
+
+<h3>Fog Effects</h3>
+
+<p>Linear distance-based fog blends geometry with a fog color based on distance from the camera:</p>
+
+<pre><code class="language-lean">-- Light fog for atmosphere
+let fogColor := Color.lightSkyBlue
+let fogStart := 50.0   -- Fog begins at 50 units
+let fogEnd := 200.0    -- Full fog at 200 units
+
+-- Dense fog
+let denseFog := (Color.gray, 10.0, 50.0)
+
+-- No fog
+let noFog := (Color.black, 10000.0, 10001.0)</code></pre>
+
+<h3>Procedural Ocean</h3>
+
+<p>Gerstner wave simulation for realistic ocean surfaces:</p>
+
+<pre><code class="language-lean">-- Ocean parameters
+let waveAmplitude := 2.0
+let waveLength := 20.0
+let waveSpeed := 1.5
+let waveDirection := Vec2.mk 1.0 0.3 |>.normalize
+
+-- The GPU computes wave displacement using Gerstner wave formula
+renderer.drawOcean
+  gridSize            -- Ocean mesh resolution
+  mvp projection view
+  cameraPos
+  time                -- Animation time
+  waveParams          -- Wave configuration
+  fogColor fogStart fogEnd</code></pre>
+
+<h3>Loading 3D Models</h3>
+
+<pre><code class="language-lean">import Afferent.FFI.Asset
+
+-- Load model via Assimp (FBX, OBJ, COLLADA, etc.)
+let model ← Asset.loadModel "path/to/model.fbx"
+
+-- Access meshes
+for mesh in model.meshes do
+  let vertices := mesh.vertices
+  let indices := mesh.indices
+  renderer.drawMesh3D vertices indices mvp ...</code></pre>
+
+<h3>Matrix4 Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Matrix4.identity</code></td><td>Identity matrix</td></tr>
+    <tr><td><code>Matrix4.perspective fov aspect near far</code></td><td>Perspective projection</td></tr>
+    <tr><td><code>Matrix4.orthographic l r b t n f</code></td><td>Orthographic projection</td></tr>
+    <tr><td><code>Matrix4.lookAt eye target up</code></td><td>View matrix</td></tr>
+    <tr><td><code>Matrix4.translation x y z</code></td><td>Translation matrix</td></tr>
+    <tr><td><code>Matrix4.rotationX/Y/Z angle</code></td><td>Rotation matrices</td></tr>
+    <tr><td><code>Matrix4.rotation axis angle</code></td><td>Arbitrary axis rotation</td></tr>
+    <tr><td><code>Matrix4.scaling x y z</code></td><td>Scale matrix</td></tr>
+    <tr><td><code>m1 * m2</code></td><td>Matrix multiplication</td></tr>
+    <tr><td><code>m.inverse</code></td><td>Matrix inverse</td></tr>
+    <tr><td><code>m.transpose</code></td><td>Matrix transpose</td></tr>
+  </tbody>
+</table>
+
+<h3>FPSCamera Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>FPSCamera.create pos yaw pitch</code></td><td>Create camera</td></tr>
+    <tr><td><code>camera.viewMatrix</code></td><td>Get view matrix</td></tr>
+    <tr><td><code>camera.position</code></td><td>Current position</td></tr>
+    <tr><td><code>camera.forward</code></td><td>Forward direction</td></tr>
+    <tr><td><code>camera.right</code></td><td>Right direction</td></tr>
+    <tr><td><code>camera.rotate dx dy sens</code></td><td>Rotate by mouse delta</td></tr>
+    <tr><td><code>camera.moveForward/Backward speed dt</code></td><td>Move along forward axis</td></tr>
+    <tr><td><code>camera.strafeLeft/Right speed dt</code></td><td>Move along right axis</td></tr>
+    <tr><td><code>camera.moveUp/Down speed dt</code></td><td>Move along up axis</td></tr>
+  </tbody>
+</table>

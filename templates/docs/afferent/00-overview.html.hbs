@@ -1,0 +1,74 @@
+<p>Afferent is a <strong>2D/3D graphics and UI framework</strong> for Lean 4, powered by Metal GPU rendering on macOS.
+It provides hardware-accelerated graphics, declarative widgets, and CSS-style layout in a functional programming environment.</p>
+
+<h3>Key Features</h3>
+<ul>
+  <li><strong>2D Graphics</strong> - Canvas API with shapes, paths, gradients, text rendering, and transforms</li>
+  <li><strong>3D Rendering</strong> - Perspective projection, mesh rendering, lighting, fog, and procedural effects</li>
+  <li><strong>Widget System</strong> - Declarative UI with Arbor builders and Canopy reactive FRP</li>
+  <li><strong>Layout Engine</strong> - CSS Flexbox and Grid via the Trellis layout library</li>
+  <li><strong>High Performance</strong> - GPU instancing for 50M+ shapes, zero-copy buffers, 4x MSAA</li>
+</ul>
+
+<h3>Architecture</h3>
+
+<pre><code>+--------------------------------------+
+|   Lean 4 Application                 |  Main.lean, Demos/, Examples/
+|   (demos, examples, user code)       |
++--------------------------------------+
+|   Canopy (Reactive Widgets)          |  Afferent/Canopy/*.lean
+|   FRP-powered WidgetM, hooks, events |  (uses reactive library)
++--------------------------------------+
+|   Arbor (Widget Builders)            |  Afferent/Arbor/*.lean
+|   declarative widget construction    |  (uses trellis for layout)
++--------------------------------------+
+|   Widget System                      |  Afferent/Widget/*.lean
+|   declarative UI, events, Elm arch   |
++--------------------------------------+
+|   Layout Engine                      |  Afferent/Layout/*.lean
+|   CSS Flexbox, Grid, constraints     |
++--------------------------------------+
+|   Canvas API                         |  Afferent/Canvas/*.lean
+|   2D drawing, state, transforms      |
++--------------------------------------+
+|   3D Rendering                       |  Afferent/Render/*.lean
+|   Matrix4, FPSCamera, Mesh, Dynamic  |
++--------------------------------------+
+|   Core Types                         |  Afferent/Core/*.lean
+|   Point, Color, Rect, Path, Paint    |
++--------------------------------------+
+|   Text Rendering                     |  Afferent/Text/Font.lean
+|   FreeType fonts, measurement        |
++--------------------------------------+
+|   FFI Layer                          |  Afferent/FFI/*.lean
+|   Window, Renderer, Texture, 3D      |
++--------------------------------------+
+|   Native Code                        |  native/src/
+|   Metal pipeline, FreeType           |
++--------------------------------------+</code></pre>
+
+<h3>Design Decisions</h3>
+<table class="api-table">
+  <thead>
+    <tr><th>Decision</th><th>Choice</th><th>Rationale</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>GPU Backend</td><td>Metal</td><td>Native macOS performance, modern API</td></tr>
+    <tr><td>Canvas API</td><td>HTML5-style</td><td>Familiar save/restore state model</td></tr>
+    <tr><td>Widget Model</td><td>Elm architecture</td><td>Predictable state management</td></tr>
+    <tr><td>Layout System</td><td>CSS Flexbox/Grid</td><td>Industry-standard, well-understood</td></tr>
+    <tr><td>Reactive System</td><td>Reflex-style FRP</td><td>Composable, declarative event handling</td></tr>
+    <tr><td>Anti-aliasing</td><td>4x MSAA</td><td>High-quality rendering with good performance</td></tr>
+  </tbody>
+</table>
+
+<h3>Dependencies</h3>
+<ul>
+  <li><strong>collimator</strong> - Profunctor optics for state management</li>
+  <li><strong>reactive</strong> - FRP library (Event, Behavior, Dynamic)</li>
+  <li><strong>trellis</strong> - CSS-style layout engine</li>
+  <li><strong>tincture</strong> - Color library with named colors, HSV/HSL</li>
+  <li><strong>assimptor</strong> - Assimp 3D model loading wrapper</li>
+  <li><strong>FreeType</strong> - Font rendering (Homebrew)</li>
+  <li><strong>Metal/Cocoa/QuartzCore</strong> - macOS frameworks</li>
+</ul>

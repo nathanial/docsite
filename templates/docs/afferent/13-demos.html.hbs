@@ -1,0 +1,120 @@
+<p>Afferent includes 20+ demo applications showcasing its features. Run demos using the multi-pane demo
+runner or individually.</p>
+
+<h3>Running Demos</h3>
+
+<pre><code class="language-bash"># Run the demo runner (shows all demos)
+./run.sh
+
+# Run a specific example
+./run.sh hello_triangle
+./run.sh spinning_cubes</code></pre>
+
+<h3>Demo Runner</h3>
+
+<p>The demo runner presents a grid of demo thumbnails. Click a demo to view it full-screen, press Escape
+to return to the grid.</p>
+
+<h3>Available Demos</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Demo</th><th>Category</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Seascape</strong></td><td>3D</td><td>Ocean with Gerstner waves and FPS camera navigation</td></tr>
+    <tr><td><strong>SpinningCubes</strong></td><td>3D</td><td>Grid of rotating 3D cubes with lighting</td></tr>
+    <tr><td><strong>Widgets</strong></td><td>UI</td><td>Interactive widget showcase (buttons, inputs, sliders)</td></tr>
+    <tr><td><strong>Layout</strong></td><td>UI</td><td>Flexbox and Grid layout demonstrations</td></tr>
+    <tr><td><strong>Shapes</strong></td><td>2D</td><td>Basic shapes (rectangles, circles, polygons)</td></tr>
+    <tr><td><strong>Gradients</strong></td><td>2D</td><td>Linear and radial gradient fills</td></tr>
+    <tr><td><strong>Strokes</strong></td><td>2D</td><td>Stroke rendering with various caps and joins</td></tr>
+    <tr><td><strong>Text</strong></td><td>2D</td><td>Text rendering at various sizes and styles</td></tr>
+    <tr><td><strong>Transforms</strong></td><td>2D</td><td>Transform compositions and animations</td></tr>
+    <tr><td><strong>Paths</strong></td><td>2D</td><td>Complex path drawing with curves</td></tr>
+    <tr><td><strong>Animations</strong></td><td>Effects</td><td>GPU-side animation showcase</td></tr>
+    <tr><td><strong>CirclesPerf</strong></td><td>Performance</td><td>1M+ bouncing circles benchmark</td></tr>
+    <tr><td><strong>Bunnymark</strong></td><td>Performance</td><td>Sprite physics benchmark</td></tr>
+    <tr><td><strong>Reactive</strong></td><td>UI</td><td>FRP reactive widget examples</td></tr>
+    <tr><td><strong>DependentDropdowns</strong></td><td>UI</td><td>Cascading dropdown selections</td></tr>
+    <tr><td><strong>ClickCounter</strong></td><td>UI</td><td>Simple reactive state example</td></tr>
+    <tr><td><strong>Tabs</strong></td><td>UI</td><td>Tab navigation component</td></tr>
+    <tr><td><strong>Modal</strong></td><td>UI</td><td>Modal dialog component</td></tr>
+    <tr><td><strong>Toasts</strong></td><td>UI</td><td>Toast notification system</td></tr>
+    <tr><td><strong>Forms</strong></td><td>UI</td><td>Form inputs and validation</td></tr>
+  </tbody>
+</table>
+
+<h3>Standalone Examples</h3>
+
+<p>Minimal examples for learning specific concepts:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Example</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>HelloTriangle</strong></td><td>Minimal Metal setup, single triangle</td></tr>
+    <tr><td><strong>SpinningCubes</strong></td><td>3D cube rendering with perspective</td></tr>
+  </tbody>
+</table>
+
+<h3>Demo Code Locations</h3>
+
+<pre><code>afferent/
++-- Demos/
+|   +-- Runner.lean        # Multi-pane demo runner
+|   +-- Seascape.lean      # 3D ocean demo
+|   +-- Widgets.lean       # Widget showcase
+|   +-- Layout.lean        # Layout demos
+|   +-- Shapes.lean        # 2D shapes
+|   +-- Gradients.lean     # Gradient fills
+|   +-- Strokes.lean       # Stroke styles
+|   +-- Text.lean          # Text rendering
+|   +-- Transforms.lean    # Transform demos
+|   +-- Animations.lean    # GPU animations
+|   +-- CirclesPerf.lean   # Performance test
+|   +-- ...
++-- Examples/
+|   +-- HelloTriangle.lean
+|   +-- SpinningCubes.lean</code></pre>
+
+<h3>Creating Your Own Demo</h3>
+
+<pre><code class="language-lean">import Afferent
+
+def myDemo : Demo where
+  name := "My Demo"
+  description := "A custom demo"
+  run := fun renderer => do
+    -- Your demo code here
+    Canvas.setFillColor Color.cornflowerBlue
+    Canvas.fillRect 100 100 200 150
+
+-- Register in Runner.lean
+def allDemos : Array Demo := #[
+  Shapes.demo,
+  Gradients.demo,
+  myDemo,  -- Add your demo
+  ...
+]</code></pre>
+
+<h3>Demo Structure</h3>
+
+<p>Each demo implements the <code>Demo</code> structure:</p>
+
+<pre><code class="language-lean">structure Demo where
+  name : String
+  description : String
+  run : Renderer → IO Unit
+  -- Optional: per-frame update
+  update : Option (Renderer → Float → IO Unit) := none
+  -- Optional: input handling
+  onInput : Option (Renderer → InputEvent → IO Unit) := none</code></pre>
+
+<h3>Testing</h3>
+
+<pre><code class="language-bash"># Run the test suite
+./test.sh</code></pre>
+
+<p>Tests cover tessellation algorithms, layout computation, widget measurement, asset loading, and FFI safety.</p>

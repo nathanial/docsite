@@ -1,0 +1,131 @@
+<p>Arbor is Afferent's declarative widget system for building user interfaces. It provides composable
+building blocks like text, boxes, rows, and columns that can be styled and nested.</p>
+
+<h3>Basic Widgets</h3>
+
+<pre><code class="language-lean">import Afferent.Arbor
+
+-- Text widget
+let label := Arbor.text "Hello, Afferent!" { color := Color.white, fontSize := 16.0 }
+
+-- Box widget (colored container)
+let box := Arbor.box (style := { background := Color.blue, padding := EdgeInsets.all 10 })
+  (Arbor.text "Inside a box" {})
+
+-- Spacer (flexible empty space)
+let spacer := Arbor.spacer</code></pre>
+
+<h3>Layout Containers</h3>
+
+<pre><code class="language-lean">-- Row: horizontal layout
+let row := Arbor.row (gap := 8) (style := {}) #[
+  Arbor.text "Left" {},
+  Arbor.spacer,
+  Arbor.text "Right" {}
+]
+
+-- Column: vertical layout
+let column := Arbor.column (gap := 8) (style := {}) #[
+  Arbor.text "Top" {},
+  Arbor.text "Middle" {},
+  Arbor.text "Bottom" {}
+]</code></pre>
+
+<h3>Nested Layouts</h3>
+
+<pre><code class="language-lean">-- Build a card layout
+let card := Arbor.box (style := {
+  background := Color.darkSlateGray,
+  padding := EdgeInsets.all 16,
+  borderRadius := 8
+}) (
+  Arbor.column (gap := 8) (style := {}) #[
+    Arbor.text "Card Title" { fontSize := 20, color := Color.white },
+    Arbor.text "Card content goes here" { fontSize := 14, color := Color.lightGray },
+    Arbor.row (gap := 8) (style := {}) #[
+      Arbor.spacer,
+      Arbor.box (style := { background := Color.blue, padding := EdgeInsets.symmetric 16 8 })
+        (Arbor.text "Action" { color := Color.white })
+    ]
+  ]
+)</code></pre>
+
+<h3>Box Style</h3>
+
+<p>Customize box appearance with BoxStyle:</p>
+
+<pre><code class="language-lean">structure BoxStyle where
+  background : Color := Color.transparent
+  borderColor : Color := Color.transparent
+  borderWidth : Float := 0
+  borderRadius : Float := 0
+  padding : EdgeInsets := EdgeInsets.zero
+  margin : EdgeInsets := EdgeInsets.zero</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Property</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>background</code></td><td>Fill color</td></tr>
+    <tr><td><code>borderColor</code></td><td>Border stroke color</td></tr>
+    <tr><td><code>borderWidth</code></td><td>Border stroke width</td></tr>
+    <tr><td><code>borderRadius</code></td><td>Corner radius</td></tr>
+    <tr><td><code>padding</code></td><td>Inner spacing</td></tr>
+    <tr><td><code>margin</code></td><td>Outer spacing</td></tr>
+  </tbody>
+</table>
+
+<h3>Text Style</h3>
+
+<pre><code class="language-lean">structure TextStyle where
+  fontSize : Float := 14.0
+  color : Color := Color.white
+  fontWeight : FontWeight := .regular
+  textAlign : TextAlign := .left</code></pre>
+
+<h3>Widget Builders</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Widget</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Arbor.text str style</code></td><td>Text label</td></tr>
+    <tr><td><code>Arbor.box style child</code></td><td>Styled container</td></tr>
+    <tr><td><code>Arbor.row gap style children</code></td><td>Horizontal layout</td></tr>
+    <tr><td><code>Arbor.column gap style children</code></td><td>Vertical layout</td></tr>
+    <tr><td><code>Arbor.spacer</code></td><td>Flexible space</td></tr>
+    <tr><td><code>Arbor.sized width height child</code></td><td>Fixed size container</td></tr>
+    <tr><td><code>Arbor.constrained minW maxW minH maxH child</code></td><td>Size constraints</td></tr>
+  </tbody>
+</table>
+
+<h3>Complete UI Example</h3>
+
+<pre><code class="language-lean">def myUI : Widget :=
+  Arbor.column (gap := 16) (style := { padding := EdgeInsets.all 20 }) #[
+    -- Header
+    Arbor.text "My Application" { fontSize := 24, color := Color.white },
+
+    -- Content row
+    Arbor.row (gap := 16) (style := {}) #[
+      -- Sidebar
+      Arbor.box (style := { background := Color.darkGray, padding := EdgeInsets.all 12 })
+        (Arbor.column (gap := 8) (style := {}) #[
+          Arbor.text "Menu Item 1" {},
+          Arbor.text "Menu Item 2" {},
+          Arbor.text "Menu Item 3" {}
+        ]),
+
+      -- Main content
+      Arbor.box (style := { background := Color.slateGray, padding := EdgeInsets.all 16 })
+        (Arbor.text "Main content area" {})
+    ],
+
+    -- Footer
+    Arbor.row (gap := 0) (style := {}) #[
+      Arbor.spacer,
+      Arbor.text "Footer text" { color := Color.gray }
+    ]
+  ]</code></pre>

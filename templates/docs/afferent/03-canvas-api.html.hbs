@@ -1,0 +1,108 @@
+<p>The Canvas API provides an HTML5 Canvas-style interface for 2D drawing. It uses a monadic design with
+save/restore state management, making it easy to compose drawing operations.</p>
+
+<h3>Basic Drawing</h3>
+
+<pre><code class="language-lean">import Afferent
+
+def myDrawing : Canvas Unit := do
+  -- Set fill color and draw rectangle
+  Canvas.setFillColor (Color.rgb 0.2 0.4 0.8)
+  Canvas.fillRect 50 50 200 100
+
+  -- Draw a circle
+  Canvas.setFillColor Color.red
+  Canvas.fillCircle 400 200 50
+
+  -- Draw an ellipse
+  Canvas.setFillColor Color.green
+  Canvas.fillEllipse 600 200 80 40
+
+  -- Draw a rounded rectangle
+  Canvas.setFillColor Color.yellow
+  Canvas.fillRoundedRect 100 300 150 80 15</code></pre>
+
+<h3>State Save/Restore</h3>
+
+<p>Canvas state includes fill color, stroke style, and transform. Use <code>save</code> and <code>restore</code>
+to isolate state changes:</p>
+
+<pre><code class="language-lean">def drawWithTransform : Canvas Unit := do
+  Canvas.setFillColor Color.blue
+  Canvas.fillRect 0 0 50 50  -- Blue square at origin
+
+  Canvas.save
+  Canvas.translate 100 100
+  Canvas.rotate (Float.pi / 4)
+  Canvas.setFillColor Color.red
+  Canvas.fillRect (-25) (-25) 50 50  -- Red rotated square
+  Canvas.restore
+
+  -- Back to original state
+  Canvas.fillRect 200 0 50 50  -- Another blue square</code></pre>
+
+<h3>Gradient Fills</h3>
+
+<p>Linear and radial gradients with multiple color stops:</p>
+
+<pre><code class="language-lean">-- Linear gradient
+let linearGrad := Gradient.linear
+  (Point.mk 0 0) (Point.mk 200 0)  -- start, end points
+  #[
+    GradientStop.mk 0.0 Color.red,
+    GradientStop.mk 0.5 Color.yellow,
+    GradientStop.mk 1.0 Color.green
+  ]
+Canvas.setFillStyle (FillStyle.gradient linearGrad)
+Canvas.fillRect 50 50 200 100
+
+-- Radial gradient
+let radialGrad := Gradient.radial
+  (Point.mk 300 200) 80  -- center, radius
+  #[
+    GradientStop.mk 0.0 Color.white,
+    GradientStop.mk 1.0 Color.blue
+  ]
+Canvas.setFillStyle (FillStyle.gradient radialGrad)
+Canvas.fillCircle 300 200 80</code></pre>
+
+<h3>Shape Functions</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Canvas.fillRect x y w h</code></td><td>Fill a rectangle</td></tr>
+    <tr><td><code>Canvas.strokeRect x y w h</code></td><td>Stroke a rectangle outline</td></tr>
+    <tr><td><code>Canvas.fillCircle x y r</code></td><td>Fill a circle</td></tr>
+    <tr><td><code>Canvas.strokeCircle x y r</code></td><td>Stroke a circle outline</td></tr>
+    <tr><td><code>Canvas.fillEllipse x y rx ry</code></td><td>Fill an ellipse</td></tr>
+    <tr><td><code>Canvas.fillRoundedRect x y w h r</code></td><td>Fill a rounded rectangle</td></tr>
+    <tr><td><code>Canvas.fillPolygon points</code></td><td>Fill a polygon from point array</td></tr>
+    <tr><td><code>Canvas.fillPath path</code></td><td>Fill a path</td></tr>
+    <tr><td><code>Canvas.strokePath path</code></td><td>Stroke a path</td></tr>
+  </tbody>
+</table>
+
+<h3>State Functions</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Canvas.save</code></td><td>Push current state onto stack</td></tr>
+    <tr><td><code>Canvas.restore</code></td><td>Pop and restore previous state</td></tr>
+    <tr><td><code>Canvas.setFillColor color</code></td><td>Set solid fill color</td></tr>
+    <tr><td><code>Canvas.setFillStyle style</code></td><td>Set fill style (color or gradient)</td></tr>
+    <tr><td><code>Canvas.setStrokeColor color</code></td><td>Set stroke color</td></tr>
+    <tr><td><code>Canvas.setLineWidth width</code></td><td>Set stroke line width</td></tr>
+  </tbody>
+</table>
+
+<h3>Running Canvas Commands</h3>
+
+<pre><code class="language-lean">-- Execute canvas commands with a renderer
+let commands := Canvas.run myDrawing
+renderer.executeCommands commands</code></pre>

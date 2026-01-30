@@ -1,0 +1,165 @@
+<p>Afferent provides high-performance rendering capabilities through GPU instancing, zero-copy buffers,
+and specialized rendering modes. These features enable rendering millions of shapes per frame.</p>
+
+<h3>FloatBuffer</h3>
+
+<p>FloatBuffer is a C-allocated mutable array that avoids Lean's copy-on-write semantics, enabling
+zero-copy GPU uploads:</p>
+
+<pre><code class="language-lean">-- Create buffer with capacity
+let buf ← FloatBuffer.create 10000
+
+-- Set values (5 floats per element: x, y, size, rotation, alpha)
+buf.setVec5 0 100.0 200.0 50.0 0.0 1.0   -- First element
+buf.setVec5 1 150.0 250.0 40.0 0.5 0.8   -- Second element
+
+-- Get values
+let x ← buf.getFloat 0
+let y ← buf.getFloat 1
+
+-- Bulk operations
+buf.clear
+buf.resize 20000</code></pre>
+
+<h3>Instanced Rendering</h3>
+
+<p>Draw millions of shapes with a single draw call using GPU instancing:</p>
+
+<pre><code class="language-lean">-- Shape types: 0=rect, 1=triangle, 2=circle
+let shapeType := 2  -- circles
+
+-- Render instanced shapes from buffer
+FFI.Renderer.drawInstancedShapesBuffer
+  renderer
+  shapeType
+  instanceBuffer      -- FloatBuffer with instance data
+  count               -- Number of instances
+  a b c d tx ty       -- Base transform
+  screenWidth screenHeight
+  sizeMode            -- 0=absolute, 1=relative
+  t                   -- Animation time
+  hueSpeed            -- Hue shift speed
+  colorMode           -- Color calculation mode</code></pre>
+
+<h3>Dynamic Rendering</h3>
+
+<p>For shapes that move each frame but share GPU-computed properties:</p>
+
+<pre><code class="language-lean">-- Stream positions from CPU, compute colors on GPU
+Render.Dynamic.drawInstancedAnimated
+  renderer
+  shapeType           -- 0=rect, 1=triangle, 2=circle
+  particles           -- Array of particle positions
+  buf                 -- FloatBuffer for GPU upload
+  halfSize            -- Shape half-size
+  t                   -- Animation time
+  spinSpeed           -- Rotation speed</code></pre>
+
+<h3>Sprite Rendering</h3>
+
+<p>Textured sprites with position, rotation, and alpha:</p>
+
+<pre><code class="language-lean">-- Load texture
+let texture ← Texture.load "sprite.png"
+
+-- Draw sprites from buffer
+Render.Dynamic.drawSpritesFromBuffer
+  renderer
+  texture
+  buf                 -- FloatBuffer with sprite data
+  count               -- Number of sprites
+  size                -- Sprite size
+  screenWidth screenHeight</code></pre>
+
+<h3>Rendering Modes</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Mode</th><th>CPU Work</th><th>GPU Work</th><th>Use Case</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Instanced</strong></td>
+      <td>Upload positions once</td>
+      <td>Color, animation, transform</td>
+      <td>Static layouts, particle effects</td>
+    </tr>
+    <tr>
+      <td><strong>Dynamic</strong></td>
+      <td>Update positions each frame</td>
+      <td>Color, rotation</td>
+      <td>Physics simulations, bouncing</td>
+    </tr>
+    <tr>
+      <td><strong>Animated</strong></td>
+      <td>Upload once, send time</td>
+      <td>Position + animation</td>
+      <td>Procedural animations</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Benchmark: Bouncing Circles</h3>
+
+<pre><code class="language-lean">-- 1M+ bouncing circles benchmark
+structure Particle where
+  x : Float
+  y : Float
+  vx : Float
+  vy : Float
+
+def updateParticles (particles : Array Particle) (dt : Float)
+    (w h : Float) : Array Particle :=
+  particles.map fun p =>
+    let x := p.x + p.vx * dt
+    let y := p.y + p.vy * dt
+    let (x, vx) := if x < 0 || x > w then (x.max 0 |>.min w, -p.vx) else (x, p.vx)
+    let (y, vy) := if y < 0 || y > h then (y.max 0 |>.min h, -p.vy) else (y, p.vy)
+    { x, y, vx, vy }
+
+-- Render loop
+loop do
+  particles := updateParticles particles dt width height
+  -- Upload to buffer
+  for (p, i) in particles.zipWithIndex do
+    buf.setVec5 i p.x p.y size 0.0 1.0
+  -- Draw all at once
+  renderer.drawInstancedCircles buf particles.size</code></pre>
+
+<h3>Memory Management</h3>
+
+<pre><code class="language-lean">-- FloatBuffer is manually managed (C memory)
+let buf ← FloatBuffer.create 1000
+
+-- Automatic cleanup when buffer goes out of scope
+-- (via Lean's foreign pointer mechanism)
+
+-- Or explicitly free
+buf.free</code></pre>
+
+<h3>Performance Tips</h3>
+
+<ul>
+  <li><strong>Batch similar shapes</strong> - One draw call for all circles, one for all rects</li>
+  <li><strong>Use FloatBuffer</strong> - Avoid Array allocation for per-frame updates</li>
+  <li><strong>Minimize state changes</strong> - Group draws by texture/shader</li>
+  <li><strong>Let GPU compute</strong> - Colors, rotations, animations can run on GPU</li>
+  <li><strong>Profile with Metal debugger</strong> - Xcode's GPU profiler shows bottlenecks</li>
+</ul>
+
+<h3>FloatBuffer API</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>FloatBuffer.create n</code></td><td>Create buffer with n floats capacity</td></tr>
+    <tr><td><code>buf.setFloat i v</code></td><td>Set float at index i</td></tr>
+    <tr><td><code>buf.getFloat i</code></td><td>Get float at index i</td></tr>
+    <tr><td><code>buf.setVec5 i x y s r a</code></td><td>Set 5 floats at index i*5</td></tr>
+    <tr><td><code>buf.resize n</code></td><td>Resize buffer</td></tr>
+    <tr><td><code>buf.clear</code></td><td>Zero all values</td></tr>
+    <tr><td><code>buf.capacity</code></td><td>Current capacity</td></tr>
+  </tbody>
+</table>

@@ -1,0 +1,47 @@
+<p>Tincture is a pure Lean library with minimal dependencies. No native code or special build scripts are required.</p>
+
+<h3>Requirements</h3>
+<ul>
+  <li><a href="https://lean-lang.org/">Lean 4</a> (v4.26.0+)</li>
+  <li>Lake (included with Lean)</li>
+</ul>
+
+<h3>Lakefile Configuration</h3>
+
+<p>Add Tincture to your <code>lakefile.lean</code>:</p>
+
+<pre><code class="language-lean">require tincture from git "https://github.com/nathanial/tincture" @ "v0.0.1"</code></pre>
+
+<h3>Building</h3>
+
+<pre><code class="language-bash"># Build the library
+lake build
+
+# Run tests
+lake test</code></pre>
+
+<h3>Dependencies</h3>
+
+<p>Tincture has minimal dependencies:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Dependency</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>plausible</code></td><td>Property-based testing (dev dependency)</td></tr>
+  </tbody>
+</table>
+
+<h3>Quick Verification</h3>
+
+<p>After adding Tincture to your project, verify it works:</p>
+
+<pre><code class="language-lean">import Tincture
+
+open Tincture (Color)
+
+-- Should compile successfully
+def testColor : Color :=
+  Color.lerp Color.red Color.blue 0.5</code></pre>
+

@@ -1,0 +1,49 @@
+<p>Tincture is a <strong>color library</strong> for Lean 4 with support for RGBA and HSV color models. It provides a simple, type-safe API for creating, manipulating, and interpolating colors.</p>
+
+<h3>Key Features</h3>
+<ul>
+  <li><strong>RGBA Colors</strong> - Create colors with red, green, blue, and alpha components (0.0 to 1.0)</li>
+  <li><strong>HSV Support</strong> - Create colors using hue, saturation, and value for intuitive color manipulation</li>
+  <li><strong>Named Colors</strong> - Common colors like red, blue, green, white, black, and more</li>
+  <li><strong>Color Operations</strong> - Interpolation, alpha manipulation, and premultiplied alpha support</li>
+</ul>
+
+<h3>Color Models</h3>
+
+<p>Tincture supports two color models:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Model</th><th>Components</th><th>Best For</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>RGBA</strong></td><td>Red, Green, Blue, Alpha</td><td>Direct color specification, blending, rendering</td></tr>
+    <tr><td><strong>HSV</strong></td><td>Hue, Saturation, Value</td><td>Color selection, gradients, shifting hues</td></tr>
+  </tbody>
+</table>
+
+<h3>Use Cases</h3>
+
+<ul>
+  <li><strong>Graphics Applications</strong> - Define colors for rendering with Metal, OpenGL, or software renderers</li>
+  <li><strong>User Interfaces</strong> - Specify theme colors, hover states, and visual feedback</li>
+  <li><strong>Data Visualization</strong> - Create color gradients and interpolate between values</li>
+  <li><strong>Games</strong> - Define sprite colors, effects, and UI elements</li>
+</ul>
+
+<h3>Quick Example</h3>
+
+<pre><code class="language-lean">import Tincture
+
+open Tincture (Color)
+
+-- Create colors
+let red := Color.red
+let custom := Color.rgb 0.5 0.3 0.8
+let withAlpha := Color.rgba 1.0 0.0 0.0 0.5
+let fromHsv := Color.hsv 0.33 1.0 1.0  -- green
+
+-- Manipulate colors
+let faded := red.withAlpha 0.5
+let mixed := Color.lerp Color.red Color.blue 0.5  -- purple</code></pre>
+

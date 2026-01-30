@@ -1,0 +1,69 @@
+<p>The primary way to create colors in Tincture is using the RGBA color model, where each component is a <code>Float</code> value from 0.0 to 1.0.</p>
+
+<h3>RGB Constructor</h3>
+
+<p>Use <code>Color.rgb</code> to create an opaque color (alpha = 1.0):</p>
+
+<pre><code class="language-lean">import Tincture
+open Tincture (Color)
+
+-- Pure red
+let red := Color.rgb 1.0 0.0 0.0
+
+-- Purple (red + blue)
+let purple := Color.rgb 0.5 0.0 0.5
+
+-- Medium gray
+let gray := Color.rgb 0.5 0.5 0.5</code></pre>
+
+<h3>RGBA Constructor</h3>
+
+<p>Use <code>Color.rgba</code> when you need transparency:</p>
+
+<pre><code class="language-lean">-- Semi-transparent red (50% opacity)
+let fadedRed := Color.rgba 1.0 0.0 0.0 0.5
+
+-- Fully transparent (invisible)
+let invisible := Color.rgba 0.0 0.0 0.0 0.0
+
+-- 25% opacity white
+let ghostWhite := Color.rgba 1.0 1.0 1.0 0.25</code></pre>
+
+<h3>Component Values</h3>
+
+<p>All color components are <code>Float</code> values in the range [0.0, 1.0]:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Component</th><th>0.0</th><th>1.0</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Red (r)</td><td>No red</td><td>Full red</td></tr>
+    <tr><td>Green (g)</td><td>No green</td><td>Full green</td></tr>
+    <tr><td>Blue (b)</td><td>No blue</td><td>Full blue</td></tr>
+    <tr><td>Alpha (a)</td><td>Fully transparent</td><td>Fully opaque</td></tr>
+  </tbody>
+</table>
+
+<h3>Accessing Components</h3>
+
+<p>The <code>Color</code> structure exposes its components as fields:</p>
+
+<pre><code class="language-lean">let color := Color.rgba 0.2 0.4 0.6 0.8
+
+-- Access individual components
+let redValue := color.r    -- 0.2
+let greenValue := color.g  -- 0.4
+let blueValue := color.b   -- 0.6
+let alphaValue := color.a  -- 0.8</code></pre>
+
+<h3>Color Structure</h3>
+
+<p>The <code>Color</code> type is a simple structure with four Float fields:</p>
+
+<pre><code class="language-lean">structure Color where
+  r : Float  -- Red component (0.0 to 1.0)
+  g : Float  -- Green component (0.0 to 1.0)
+  b : Float  -- Blue component (0.0 to 1.0)
+  a : Float  -- Alpha component (0.0 to 1.0)</code></pre>
+

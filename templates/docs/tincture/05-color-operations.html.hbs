@@ -1,0 +1,92 @@
+<p>Tincture provides operations for manipulating colors: adjusting transparency, interpolating between colors, and handling premultiplied alpha for compositing.</p>
+
+<h3>Alpha Manipulation</h3>
+
+<p>Use <code>withAlpha</code> to create a copy of a color with a different alpha value:</p>
+
+<pre><code class="language-lean">import Tincture
+open Tincture (Color)
+
+let solid := Color.red
+let faded := solid.withAlpha 0.5      -- 50% opacity
+let ghost := solid.withAlpha 0.1      -- 10% opacity
+let opaque := faded.withAlpha 1.0     -- Back to solid</code></pre>
+
+<p>This is useful for hover effects, disabled states, and animations:</p>
+
+<pre><code class="language-lean">-- Button states
+let buttonNormal := Color.blue
+let buttonHover := buttonNormal.withAlpha 0.8
+let buttonDisabled := buttonNormal.withAlpha 0.4</code></pre>
+
+<h3>Color Interpolation</h3>
+
+<p>Use <code>lerp</code> (linear interpolation) to blend between two colors:</p>
+
+<pre><code class="language-lean">-- Blend red to blue
+let mixed := Color.lerp Color.red Color.blue 0.5  -- Purple
+
+-- Interpolation parameter t:
+-- t = 0.0 → first color
+-- t = 0.5 → halfway between
+-- t = 1.0 → second color
+
+let start := Color.lerp Color.red Color.blue 0.0   -- Red
+let middle := Color.lerp Color.red Color.blue 0.5  -- Purple
+let end := Color.lerp Color.red Color.blue 1.0     -- Blue</code></pre>
+
+<h3>Creating Gradients</h3>
+
+<p>Use <code>lerp</code> to create smooth color gradients:</p>
+
+<pre><code class="language-lean">-- Generate 5 colors from red to blue
+def gradient (steps : Nat) (c1 c2 : Color) : List Color :=
+  List.range steps |>.map fun i =>
+    let t := i.toFloat / (steps - 1).toFloat
+    Color.lerp c1 c2 t
+
+-- Usage
+let colors := gradient 5 Color.red Color.blue
+-- Results in: [red, red-purple, purple, blue-purple, blue]</code></pre>
+
+<h3>Premultiplied Alpha</h3>
+
+<p>For efficient alpha compositing, convert between straight and premultiplied alpha:</p>
+
+<pre><code class="language-lean">-- Convert to premultiplied alpha (for compositing)
+let straight := Color.rgba 1.0 0.0 0.0 0.5
+let premult := Color.premultiply straight
+-- premult.r = 0.5, premult.g = 0.0, premult.b = 0.0, premult.a = 0.5
+
+-- Convert back to straight alpha
+let restored := Color.unpremultiply premult
+-- restored ≈ straight</code></pre>
+
+<h3>Premultiplied Alpha Explained</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Format</th><th>Formula</th><th>Use Case</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Straight Alpha</strong></td><td>RGB stored as-is</td><td>Storage, color editing</td></tr>
+    <tr><td><strong>Premultiplied Alpha</strong></td><td>RGB × Alpha</td><td>GPU blending, compositing</td></tr>
+  </tbody>
+</table>
+
+<p>Premultiplied alpha avoids artifacts when blending semi-transparent colors and is the standard format for GPU rendering pipelines.</p>
+
+<h3>Example: Animation</h3>
+
+<pre><code class="language-lean">-- Animate between two colors
+def animateColor (from to : Color) (progress : Float) : Color :=
+  Color.lerp from to progress
+
+-- Fade in effect
+def fadeIn (color : Color) (progress : Float) : Color :=
+  color.withAlpha progress
+
+-- Fade out effect
+def fadeOut (color : Color) (progress : Float) : Color :=
+  color.withAlpha (1.0 - progress)</code></pre>
+

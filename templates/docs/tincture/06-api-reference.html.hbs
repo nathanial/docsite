@@ -1,0 +1,105 @@
+<p>Complete reference for all Tincture types and functions.</p>
+
+<h3>Color Structure</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>r</code></td><td><code>Float</code></td><td>Red component (0.0 to 1.0)</td></tr>
+    <tr><td><code>g</code></td><td><code>Float</code></td><td>Green component (0.0 to 1.0)</td></tr>
+    <tr><td><code>b</code></td><td><code>Float</code></td><td>Blue component (0.0 to 1.0)</td></tr>
+    <tr><td><code>a</code></td><td><code>Float</code></td><td>Alpha component (0.0 to 1.0)</td></tr>
+  </tbody>
+</table>
+
+<h3>RGB Constructors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Color.rgb r g b</code></td><td>Create opaque color from RGB components</td></tr>
+    <tr><td><code>Color.rgba r g b a</code></td><td>Create color with explicit alpha</td></tr>
+  </tbody>
+</table>
+
+<h3>HSV Constructors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Color.hsv h s v</code></td><td>Create opaque color from HSV (hue in [0,1])</td></tr>
+    <tr><td><code>Color.hsva h s v a</code></td><td>Create color from HSV with alpha</td></tr>
+  </tbody>
+</table>
+
+<h3>Grayscale Constructors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Color.gray v</code></td><td>Create grayscale color from brightness value</td></tr>
+  </tbody>
+</table>
+
+<h3>Named Colors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Constant</th><th>RGB</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Color.black</code></td><td>(0, 0, 0)</td><td>Pure black</td></tr>
+    <tr><td><code>Color.white</code></td><td>(1, 1, 1)</td><td>Pure white</td></tr>
+    <tr><td><code>Color.red</code></td><td>(1, 0, 0)</td><td>Pure red</td></tr>
+    <tr><td><code>Color.green</code></td><td>(0, 1, 0)</td><td>Pure green</td></tr>
+    <tr><td><code>Color.blue</code></td><td>(0, 0, 1)</td><td>Pure blue</td></tr>
+    <tr><td><code>Color.yellow</code></td><td>(1, 1, 0)</td><td>Red + Green</td></tr>
+    <tr><td><code>Color.cyan</code></td><td>(0, 1, 1)</td><td>Green + Blue</td></tr>
+    <tr><td><code>Color.magenta</code></td><td>(1, 0, 1)</td><td>Red + Blue</td></tr>
+    <tr><td><code>Color.orange</code></td><td>(1, 0.5, 0)</td><td>Orange</td></tr>
+    <tr><td><code>Color.purple</code></td><td>(0.5, 0, 0.5)</td><td>Purple</td></tr>
+    <tr><td><code>Color.transparent</code></td><td>(0, 0, 0, 0)</td><td>Fully transparent</td></tr>
+  </tbody>
+</table>
+
+<h3>Gray Presets</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Constant</th><th>Value</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Color.darkGray</code></td><td>0.25</td><td>25% brightness</td></tr>
+    <tr><td><code>Color.lightGray</code></td><td>0.75</td><td>75% brightness</td></tr>
+  </tbody>
+</table>
+
+<h3>Color Operations</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>color.withAlpha a</code></td><td>Return copy with new alpha value</td></tr>
+    <tr><td><code>Color.lerp c1 c2 t</code></td><td>Linear interpolation between colors (t in [0,1])</td></tr>
+    <tr><td><code>Color.premultiply c</code></td><td>Convert to premultiplied alpha format</td></tr>
+    <tr><td><code>Color.unpremultiply c</code></td><td>Convert from premultiplied alpha format</td></tr>
+  </tbody>
+</table>
+
+<h3>Import</h3>
+
+<pre><code class="language-lean">import Tincture
+
+-- Open the Color type for convenient access
+open Tincture (Color)</code></pre>
+

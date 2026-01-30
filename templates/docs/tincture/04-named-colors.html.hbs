@@ -1,0 +1,89 @@
+<p>Tincture provides a set of predefined named colors for common use cases, plus convenience functions for creating grayscale colors.</p>
+
+<h3>Predefined Colors</h3>
+
+<p>All named colors are available as constants on the <code>Color</code> type:</p>
+
+<pre><code class="language-lean">import Tincture
+open Tincture (Color)
+
+let bg := Color.black
+let fg := Color.white
+let error := Color.red
+let success := Color.green
+let link := Color.blue</code></pre>
+
+<h3>Available Named Colors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Name</th><th>RGB Values</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Color.black</code></td><td>(0, 0, 0)</td><td>Pure black</td></tr>
+    <tr><td><code>Color.white</code></td><td>(1, 1, 1)</td><td>Pure white</td></tr>
+    <tr><td><code>Color.red</code></td><td>(1, 0, 0)</td><td>Pure red</td></tr>
+    <tr><td><code>Color.green</code></td><td>(0, 1, 0)</td><td>Pure green</td></tr>
+    <tr><td><code>Color.blue</code></td><td>(0, 0, 1)</td><td>Pure blue</td></tr>
+    <tr><td><code>Color.yellow</code></td><td>(1, 1, 0)</td><td>Red + Green</td></tr>
+    <tr><td><code>Color.cyan</code></td><td>(0, 1, 1)</td><td>Green + Blue</td></tr>
+    <tr><td><code>Color.magenta</code></td><td>(1, 0, 1)</td><td>Red + Blue</td></tr>
+    <tr><td><code>Color.orange</code></td><td>(1, 0.5, 0)</td><td>Red + half Green</td></tr>
+    <tr><td><code>Color.purple</code></td><td>(0.5, 0, 0.5)</td><td>Half Red + half Blue</td></tr>
+    <tr><td><code>Color.transparent</code></td><td>(0, 0, 0, 0)</td><td>Fully transparent</td></tr>
+  </tbody>
+</table>
+
+<h3>Grayscale Colors</h3>
+
+<p>For grayscale colors, use the <code>gray</code> function or predefined grays:</p>
+
+<pre><code class="language-lean">-- Create custom gray (0.0 = black, 1.0 = white)
+let midGray := Color.gray 0.5
+
+-- Predefined grays
+let dark := Color.darkGray    -- 25% brightness
+let light := Color.lightGray  -- 75% brightness</code></pre>
+
+<h3>Gray Functions</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Value</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Color.gray v</code></td><td>custom</td><td>Create gray from brightness (0.0-1.0)</td></tr>
+    <tr><td><code>Color.darkGray</code></td><td>0.25</td><td>Dark gray preset</td></tr>
+    <tr><td><code>Color.lightGray</code></td><td>0.75</td><td>Light gray preset</td></tr>
+  </tbody>
+</table>
+
+<h3>Example: Theme Colors</h3>
+
+<pre><code class="language-lean">-- Define a simple theme
+structure Theme where
+  background : Color
+  foreground : Color
+  primary : Color
+  secondary : Color
+  error : Color
+  success : Color
+
+def darkTheme : Theme := {
+  background := Color.gray 0.1
+  foreground := Color.white
+  primary := Color.blue
+  secondary := Color.cyan
+  error := Color.red
+  success := Color.green
+}
+
+def lightTheme : Theme := {
+  background := Color.white
+  foreground := Color.gray 0.1
+  primary := Color.blue
+  secondary := Color.purple
+  error := Color.red
+  success := Color.green
+}</code></pre>
+

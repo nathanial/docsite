@@ -1,0 +1,87 @@
+<p>The HSV (Hue, Saturation, Value) color model provides an intuitive way to specify colors, especially useful for color pickers, gradients, and programmatic color manipulation.</p>
+
+<h3>HSV Constructor</h3>
+
+<p>Use <code>Color.hsv</code> to create an opaque color from HSV values:</p>
+
+<pre><code class="language-lean">import Tincture
+open Tincture (Color)
+
+-- Pure red (hue = 0.0)
+let red := Color.hsv 0.0 1.0 1.0
+
+-- Green (hue ≈ 0.33)
+let green := Color.hsv 0.33 1.0 1.0
+
+-- Blue (hue ≈ 0.67)
+let blue := Color.hsv 0.67 1.0 1.0</code></pre>
+
+<h3>HSVA Constructor</h3>
+
+<p>Use <code>Color.hsva</code> when you need transparency:</p>
+
+<pre><code class="language-lean">-- Semi-transparent yellow
+let fadedYellow := Color.hsva 0.167 1.0 1.0 0.5
+
+-- Pale blue with 75% opacity
+let paleBlue := Color.hsva 0.6 0.3 1.0 0.75</code></pre>
+
+<h3>HSV Components</h3>
+
+<p>All HSV components are <code>Float</code> values in the range [0.0, 1.0]:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Component</th><th>Range</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Hue (h)</strong></td><td>0.0 - 1.0</td><td>Color position on the color wheel (0° - 360°)</td></tr>
+    <tr><td><strong>Saturation (s)</strong></td><td>0.0 - 1.0</td><td>Color intensity (0 = gray, 1 = vivid)</td></tr>
+    <tr><td><strong>Value (v)</strong></td><td>0.0 - 1.0</td><td>Brightness (0 = black, 1 = bright)</td></tr>
+  </tbody>
+</table>
+
+<h3>Hue Values</h3>
+
+<p>The hue component maps to the color wheel, normalized to [0.0, 1.0]:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Hue</th><th>Degrees</th><th>Color</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>0.000</td><td>0°</td><td>Red</td></tr>
+    <tr><td>0.083</td><td>30°</td><td>Orange</td></tr>
+    <tr><td>0.167</td><td>60°</td><td>Yellow</td></tr>
+    <tr><td>0.333</td><td>120°</td><td>Green</td></tr>
+    <tr><td>0.500</td><td>180°</td><td>Cyan</td></tr>
+    <tr><td>0.667</td><td>240°</td><td>Blue</td></tr>
+    <tr><td>0.833</td><td>300°</td><td>Magenta</td></tr>
+    <tr><td>1.000</td><td>360°</td><td>Red (wraps around)</td></tr>
+  </tbody>
+</table>
+
+<h3>When to Use HSV vs RGB</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Use Case</th><th>Recommended Model</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Color picker UI</td><td>HSV - intuitive hue slider</td></tr>
+    <tr><td>Creating color variations</td><td>HSV - adjust saturation/value</td></tr>
+    <tr><td>Rainbow gradients</td><td>HSV - sweep hue from 0 to 1</td></tr>
+    <tr><td>Exact color specification</td><td>RGB - matches display output</td></tr>
+    <tr><td>Alpha blending</td><td>RGB - direct component math</td></tr>
+    <tr><td>Converting from hex codes</td><td>RGB - direct mapping</td></tr>
+  </tbody>
+</table>
+
+<h3>Example: Color Variations</h3>
+
+<pre><code class="language-lean">-- Create variations of blue
+let vividBlue := Color.hsv 0.6 1.0 1.0   -- Bright, saturated
+let paleBlue := Color.hsv 0.6 0.3 1.0    -- Pastel
+let darkBlue := Color.hsv 0.6 1.0 0.4    -- Navy
+let grayBlue := Color.hsv 0.6 0.2 0.7    -- Muted</code></pre>
+

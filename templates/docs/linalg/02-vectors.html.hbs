@@ -1,0 +1,125 @@
+<p>Vectors are the fundamental building blocks of game math. Linalg provides <code>Vec2</code>,
+<code>Vec3</code>, and <code>Vec4</code> types for 2D, 3D, and homogeneous coordinate operations.</p>
+
+<h3>Creating Vectors</h3>
+
+<pre><code class="language-lean">-- Explicit construction
+let position := Vec3.mk 10.0 5.0 (-3.0)
+
+-- Named constants
+let origin := Vec3.zero          -- (0, 0, 0)
+let direction := Vec3.forward    -- (0, 0, -1) right-handed
+let up := Vec3.up                -- (0, 1, 0)
+
+-- 2D vectors
+let screenPos := Vec2.mk 400.0 300.0</code></pre>
+
+<h3>Basic Operations</h3>
+
+<pre><code class="language-lean">-- Movement: position + velocity * dt
+let velocity := Vec3.mk 5.0 0.0 2.0
+let dt := 0.016  -- 60 FPS
+let newPosition := position.add (velocity.scale dt)
+
+-- Distance between two points
+let target := Vec3.mk 20.0 5.0 10.0
+let dist := position.distance target
+
+-- Direction to target (normalized)
+let toTarget := target.sub position |>.normalize</code></pre>
+
+<h3>Dot Product: Angles and Projections</h3>
+
+<p>The dot product tells you how aligned two vectors are:</p>
+
+<pre><code class="language-lean">-- Check if enemy is in front of player
+let playerForward := Vec3.forward
+let toEnemy := enemyPos.sub playerPos |>.normalize
+let dot := playerForward.dot toEnemy
+
+if dot > 0.0 then
+  IO.println "Enemy is in front"
+else
+  IO.println "Enemy is behind"
+
+-- Angle between vectors (in radians)
+let angle := Float.acos (playerForward.dot toEnemy)
+
+-- Project velocity onto a surface normal (for sliding collision)
+let normal := Vec3.up
+let projectedVelocity := velocity.project normal
+let slideVelocity := velocity.sub projectedVelocity</code></pre>
+
+<h3>Cross Product: Perpendicular Vectors</h3>
+
+<p>The cross product gives a vector perpendicular to two input vectors:</p>
+
+<pre><code class="language-lean">-- Build a coordinate frame from a forward direction
+let forward := Vec3.mk 1.0 0.0 1.0 |>.normalize
+let worldUp := Vec3.up
+let right := forward.cross worldUp |>.normalize
+let up := right.cross forward
+
+-- Calculate surface normal from triangle vertices
+let v0 := Vec3.mk 0.0 0.0 0.0
+let v1 := Vec3.mk 1.0 0.0 0.0
+let v2 := Vec3.mk 0.0 1.0 0.0
+let edge1 := v1.sub v0
+let edge2 := v2.sub v0
+let normal := edge1.cross edge2 |>.normalize</code></pre>
+
+<h3>Reflection</h3>
+
+<pre><code class="language-lean">-- Reflect a velocity off a wall
+let wallNormal := Vec3.mk (-1.0) 0.0 0.0 |>.normalize
+let incomingVelocity := Vec3.mk 5.0 0.0 2.0
+let reflectedVelocity := incomingVelocity.reflect wallNormal</code></pre>
+
+<h3>Linear Interpolation (Lerp)</h3>
+
+<p>Smoothly blend between two values:</p>
+
+<pre><code class="language-lean">-- Interpolate position for smooth movement
+let startPos := Vec3.mk 0.0 0.0 0.0
+let endPos := Vec3.mk 10.0 5.0 0.0
+let t := 0.5  -- 0 = start, 1 = end
+let midpoint := startPos.lerp endPos t
+
+-- Interpolate colors
+let red := Vec3.mk 1.0 0.0 0.0
+let blue := Vec3.mk 0.0 0.0 1.0
+let purple := red.lerp blue 0.5</code></pre>
+
+<h3>API Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Vec3.add</code></td><td>Component-wise addition</td></tr>
+    <tr><td><code>Vec3.sub</code></td><td>Component-wise subtraction</td></tr>
+    <tr><td><code>Vec3.scale</code></td><td>Scalar multiplication</td></tr>
+    <tr><td><code>Vec3.neg</code></td><td>Negate all components</td></tr>
+    <tr><td><code>Vec3.dot</code></td><td>Dot product</td></tr>
+    <tr><td><code>Vec3.cross</code></td><td>Cross product (Vec3 only)</td></tr>
+    <tr><td><code>Vec3.length</code></td><td>Vector magnitude</td></tr>
+    <tr><td><code>Vec3.lengthSquared</code></td><td>Squared magnitude (faster)</td></tr>
+    <tr><td><code>Vec3.normalize</code></td><td>Unit vector in same direction</td></tr>
+    <tr><td><code>Vec3.distance</code></td><td>Distance between two points</td></tr>
+    <tr><td><code>Vec3.lerp</code></td><td>Linear interpolation</td></tr>
+    <tr><td><code>Vec3.reflect</code></td><td>Reflect around normal</td></tr>
+    <tr><td><code>Vec3.project</code></td><td>Project onto another vector</td></tr>
+  </tbody>
+</table>
+
+<h3>Vec4 and Homogeneous Coordinates</h3>
+
+<pre><code class="language-lean">-- Vec4 for homogeneous coordinates
+Vec4.fromPoint (v : Vec3)      -- w = 1 (position)
+Vec4.fromDirection (v : Vec3)  -- w = 0 (direction)
+
+-- Operations
+add, sub, neg, scale, dot, length, normalize
+toVec3                         -- Drop w component
+toVec3Normalized               -- Perspective divide (x/w, y/w, z/w)</code></pre>

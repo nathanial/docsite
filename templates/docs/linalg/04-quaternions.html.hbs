@@ -1,0 +1,84 @@
+<p>Quaternions represent 3D rotations without gimbal lock and interpolate smoothly.
+They are the preferred rotation representation for game programming.</p>
+
+<h3>Creating Rotations</h3>
+
+<pre><code class="language-lean">-- No rotation
+let identity := Quat.identity
+
+-- Rotate around an axis
+let rotateY90 := Quat.fromAxisAngle Vec3.up Float.halfPi
+
+-- From Euler angles (pitch, yaw, roll)
+let euler := Quat.fromEuler
+  (pitch := Float.toRadians 15.0)   -- Look up/down
+  (yaw := Float.toRadians 45.0)     -- Turn left/right
+  (roll := 0.0)                     -- Tilt
+
+-- Look at a target
+let lookAt := Quat.lookAt
+  (forward := target.sub position |>.normalize)
+  (up := Vec3.up)</code></pre>
+
+<h3>Applying Rotations</h3>
+
+<pre><code class="language-lean">-- Rotate a vector
+let direction := Vec3.forward
+let rotation := Quat.fromAxisAngle Vec3.up Float.halfPi
+let rotatedDir := rotation * direction  -- Uses HMul instance
+
+-- Combine rotations (order matters!)
+let pitch := Quat.fromAxisAngle Vec3.right (Float.toRadians 30.0)
+let yaw := Quat.fromAxisAngle Vec3.up (Float.toRadians 45.0)
+let combined := yaw * pitch  -- Yaw first, then pitch</code></pre>
+
+<h3>Smooth Rotation with Slerp</h3>
+
+<p>Spherical linear interpolation for smooth rotation:</p>
+
+<pre><code class="language-lean">-- Smoothly rotate from current to target orientation
+let currentRotation := Quat.identity
+let targetRotation := Quat.fromAxisAngle Vec3.up Float.pi
+let t := 0.1  -- Interpolation factor (0-1)
+
+let smoothedRotation := Quat.slerp currentRotation targetRotation t</code></pre>
+
+<h3>Converting Quaternions</h3>
+
+<pre><code class="language-lean">-- To rotation matrix (for shaders)
+let rotMatrix := rotation.toMat4
+
+-- To Euler angles (for UI display)
+let (pitch, yaw, roll) := rotation.toEuler</code></pre>
+
+<h3>API Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Quat.identity</code></td><td>No rotation</td></tr>
+    <tr><td><code>Quat.fromAxisAngle</code></td><td>Rotation around an axis by an angle</td></tr>
+    <tr><td><code>Quat.fromEuler</code></td><td>From pitch/yaw/roll angles</td></tr>
+    <tr><td><code>Quat.lookAt</code></td><td>Rotation to face a direction</td></tr>
+    <tr><td><code>Quat.mul</code></td><td>Combine rotations</td></tr>
+    <tr><td><code>Quat.conjugate</code></td><td>Inverse rotation</td></tr>
+    <tr><td><code>Quat.inverse</code></td><td>Inverse (same as conjugate for unit quaternions)</td></tr>
+    <tr><td><code>Quat.normalize</code></td><td>Normalize to unit quaternion</td></tr>
+    <tr><td><code>Quat.slerp</code></td><td>Spherical linear interpolation</td></tr>
+    <tr><td><code>Quat.toMat3</code></td><td>Convert to 3x3 rotation matrix</td></tr>
+    <tr><td><code>Quat.toMat4</code></td><td>Convert to 4x4 rotation matrix</td></tr>
+    <tr><td><code>Quat.toEuler</code></td><td>Extract Euler angles</td></tr>
+    <tr><td><code>HMul Quat Vec3 Vec3</code></td><td>Rotate a vector: <code>q * v</code></td></tr>
+  </tbody>
+</table>
+
+<h3>Why Quaternions?</h3>
+
+<ul>
+  <li><strong>No Gimbal Lock</strong> - Euler angles can lose a degree of freedom at certain orientations</li>
+  <li><strong>Smooth Interpolation</strong> - Slerp produces natural-looking rotation transitions</li>
+  <li><strong>Compact</strong> - 4 floats vs 9 for a rotation matrix</li>
+  <li><strong>Stable</strong> - Easy to keep normalized, unlike rotation matrices which can drift</li>
+</ul>

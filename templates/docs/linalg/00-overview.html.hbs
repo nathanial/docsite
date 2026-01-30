@@ -1,0 +1,29 @@
+<p>Linalg is a <strong>linear algebra and game math library</strong> for Lean 4, providing vectors,
+matrices, quaternions, and geometric primitives optimized for 2D and 3D game programming.</p>
+
+<h3>Key Features</h3>
+<ul>
+  <li><strong>Vectors</strong> - Vec2, Vec3, Vec4 with full algebra (add, sub, scale, dot, cross, normalize, lerp)</li>
+  <li><strong>Matrices</strong> - Mat2, Mat3, Mat4 in column-major order (GPU-compatible)</li>
+  <li><strong>Quaternions</strong> - Rotation representation with slerp interpolation, gimbal-lock free</li>
+  <li><strong>Geometry</strong> - Ray, AABB, Sphere, Plane, Triangle, OBB, Capsule, Frustum primitives</li>
+  <li><strong>Intersections</strong> - Ray casting, primitive-vs-primitive tests, frustum culling, 2D collision (SAT, GJK)</li>
+  <li><strong>Animation</strong> - Easing functions, spring physics, smooth damping</li>
+  <li><strong>Curves</strong> - Bezier curves, Catmull-Rom splines, arc-length parameterization</li>
+  <li><strong>Noise</strong> - Perlin, Simplex, FBM, ridged, turbulence, Worley noise</li>
+  <li><strong>Spatial Structures</strong> - BVH, Octree, Quadtree, KD-Tree for efficient queries</li>
+  <li><strong>Physics</strong> - Particle simulation, rigid body dynamics, collision response</li>
+</ul>
+
+<h3>Design Decisions</h3>
+<table class="api-table">
+  <thead>
+    <tr><th>Decision</th><th>Choice</th><th>Rationale</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Matrix storage</td><td>Column-major</td><td>GPU compatibility (Metal/OpenGL)</td></tr>
+    <tr><td>Numeric type</td><td>Float</td><td>Practical game math</td></tr>
+    <tr><td>Failing operations</td><td>Option types</td><td>Safe matrix inverse, intersection tests</td></tr>
+    <tr><td>Normalization</td><td>Auto in constructors</td><td>Ray direction, Plane normal must be unit vectors</td></tr>
+  </tbody>
+</table>

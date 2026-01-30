@@ -1,0 +1,103 @@
+<p>Spatial data structures enable efficient queries over large numbers of objects, essential for
+collision detection, ray tracing, and nearest neighbor searches.</p>
+
+<h3>Quadtree (2D)</h3>
+
+<p>For efficient 2D spatial queries:</p>
+
+<pre><code class="language-lean">-- Create a quadtree covering the game world
+let bounds := AABB2D.fromMinMax Vec2.zero (Vec2.mk 1000.0 1000.0)
+let quadtree := Quadtree.empty bounds (maxDepth := 8) (maxItems := 4)
+
+-- Insert objects with bounding boxes
+let quadtree := quadtree.insert objectId objectBounds
+
+-- Query objects in a region
+let queryRegion := AABB2D.fromCenterExtents playerPos (Vec2.mk 100.0 100.0)
+let nearbyObjects := quadtree.query queryRegion
+
+-- Find k nearest neighbors
+let nearest := quadtree.kNearest playerPos 10</code></pre>
+
+<h3>Octree (3D)</h3>
+
+<p>For 3D spatial partitioning:</p>
+
+<pre><code class="language-lean">-- Create octree
+let bounds := AABB.fromMinMax Vec3.zero (Vec3.mk 1000.0 1000.0 1000.0)
+let octree := Octree.empty bounds (maxDepth := 8) (maxItems := 8)
+
+-- Insert and query same as quadtree
+let octree := octree.insert objectId objectBounds
+let visible := octree.queryFrustum frustum</code></pre>
+
+<h3>BVH (Bounding Volume Hierarchy)</h3>
+
+<p>Optimal for ray tracing and static geometry:</p>
+
+<pre><code class="language-lean">-- Build BVH from triangles
+let triangles : Array (Triangle × UInt32) := ...
+let bvh := BVH.build triangles
+
+-- Fast ray intersection
+match bvh.raycast ray with
+| some (hit, triangleId) =>
+  IO.println s!"Hit triangle {triangleId} at t={hit.t}"
+| none =>
+  IO.println "Miss"</code></pre>
+
+<h3>KD-Tree</h3>
+
+<p>For nearest neighbor queries on point clouds:</p>
+
+<pre><code class="language-lean">-- Build from points
+let points : Array Vec3 := ...
+let kdtree := KDTree3D.build points
+
+-- Find nearest point
+let (nearestIdx, nearestDist) := kdtree.nearest queryPoint
+
+-- Find all points within radius
+let nearby := kdtree.radiusQuery queryPoint 10.0</code></pre>
+
+<h3>Grid</h3>
+
+<p>Simple uniform grid for evenly distributed objects:</p>
+
+<pre><code class="language-lean">-- Create grid with cell size
+let grid := Grid2D.create bounds (cellSize := 50.0)
+
+-- Insert and query
+let grid := grid.insert objectId objectPos
+let nearby := grid.queryCell playerPos</code></pre>
+
+<h3>Choosing the Right Structure</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Use Case</th><th>Structure</th><th>Reason</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>2D game collision</td><td>Quadtree</td><td>Good for varying object sizes</td></tr>
+    <tr><td>3D game collision</td><td>Octree</td><td>Same as quadtree, for 3D</td></tr>
+    <tr><td>Ray tracing</td><td>BVH</td><td>Optimal for ray queries</td></tr>
+    <tr><td>Nearest neighbor</td><td>KD-Tree</td><td>Fastest for point queries</td></tr>
+    <tr><td>Uniform distribution</td><td>Grid</td><td>Simplest, O(1) cell lookup</td></tr>
+    <tr><td>Frustum culling</td><td>Octree or BVH</td><td>Hierarchical culling</td></tr>
+  </tbody>
+</table>
+
+<h3>API Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Type</th><th>Key Functions</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Quadtree</code></td><td><code>empty, insert, query, kNearest</code></td></tr>
+    <tr><td><code>Octree</code></td><td><code>empty, insert, query, queryFrustum</code></td></tr>
+    <tr><td><code>BVH</code></td><td><code>build, raycast, query</code></td></tr>
+    <tr><td><code>KDTree3D</code></td><td><code>build, nearest, radiusQuery</code></td></tr>
+    <tr><td><code>Grid2D</code></td><td><code>create, insert, queryCell</code></td></tr>
+  </tbody>
+</table>

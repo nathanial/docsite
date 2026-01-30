@@ -1,0 +1,95 @@
+<p>The <code>Transform</code> type combines position, rotation, and scale into a convenient
+structure for representing game object transformations.</p>
+
+<h3>Creating Transforms</h3>
+
+<pre><code class="language-lean">-- Create a transform
+let transform := Transform.create
+  (position := Vec3.mk 10.0 0.0 5.0)
+  (rotation := Quat.fromAxisAngle Vec3.up Float.halfPi)
+  (scale := Vec3.one)
+
+-- Get local axes
+let forward := transform.forward
+let right := transform.right
+let up := transform.up
+
+-- Transform a point from local to world space
+let localPoint := Vec3.mk 1.0 0.0 0.0
+let worldPoint := transform.transformPoint localPoint
+
+-- Transform a direction (ignores position)
+let localDir := Vec3.forward
+let worldDir := transform.transformDirection localDir</code></pre>
+
+<h3>Transform Hierarchy</h3>
+
+<p>Parent-child relationships for scene graphs:</p>
+
+<pre><code class="language-lean">-- Car body at world position
+let carTransform := Transform.create
+  (position := Vec3.mk 100.0 0.0 50.0)
+  (rotation := Quat.fromAxisAngle Vec3.up 0.5)
+
+-- Wheel positioned relative to car
+let wheelLocalTransform := Transform.create
+  (position := Vec3.mk 1.5 (-0.5) 2.0)  -- Front-right wheel offset
+  (rotation := Quat.identity)
+
+-- Compute wheel's world transform
+let wheelWorldTransform := carTransform.compose wheelLocalTransform
+
+-- Get wheel position in world space
+let wheelWorldPos := wheelWorldTransform.position</code></pre>
+
+<h3>2D Transforms</h3>
+
+<p>For 2D games, use <code>Affine2D</code> (a 2x3 matrix):</p>
+
+<pre><code class="language-lean">-- Create a 2D transform
+let transform := Affine2D.trs
+  (translation := Vec2.mk 400.0 300.0)
+  (rotation := Float.toRadians 45.0)
+  (scale := Vec2.mk 2.0 2.0)
+
+-- Transform a point
+let localPos := Vec2.mk 10.0 0.0
+let worldPos := transform.transformPoint localPos
+
+-- Compose transforms
+let parent := Affine2D.translation 100.0 100.0
+let child := Affine2D.rotation Float.halfPi
+let combined := parent.compose child</code></pre>
+
+<h3>API Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Transform.create</code></td><td>Create from position, rotation, scale</td></tr>
+    <tr><td><code>Transform.identity</code></td><td>No transformation</td></tr>
+    <tr><td><code>Transform.forward</code></td><td>Local forward direction in world space</td></tr>
+    <tr><td><code>Transform.right</code></td><td>Local right direction in world space</td></tr>
+    <tr><td><code>Transform.up</code></td><td>Local up direction in world space</td></tr>
+    <tr><td><code>Transform.transformPoint</code></td><td>Local point to world space</td></tr>
+    <tr><td><code>Transform.transformDirection</code></td><td>Local direction to world space</td></tr>
+    <tr><td><code>Transform.compose</code></td><td>Combine parent and child transforms</td></tr>
+    <tr><td><code>Transform.toMat4</code></td><td>Convert to 4x4 matrix</td></tr>
+  </tbody>
+</table>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Affine2D.trs</code></td><td>Create from translation, rotation, scale</td></tr>
+    <tr><td><code>Affine2D.translation</code></td><td>Translation-only transform</td></tr>
+    <tr><td><code>Affine2D.rotation</code></td><td>Rotation-only transform</td></tr>
+    <tr><td><code>Affine2D.scaling</code></td><td>Scale-only transform</td></tr>
+    <tr><td><code>Affine2D.transformPoint</code></td><td>Apply transform to point</td></tr>
+    <tr><td><code>Affine2D.compose</code></td><td>Combine transforms</td></tr>
+  </tbody>
+</table>

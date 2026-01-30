@@ -1,0 +1,151 @@
+<p>Intersection tests determine if and where geometric primitives overlap or intersect.</p>
+
+<h3>Ray Casting</h3>
+
+<pre><code class="language-lean">-- Create a ray from camera through mouse position
+let rayOrigin := cameraPos
+let rayDirection := screenToWorld mousePos |>.normalize
+let ray := Ray.mk' rayOrigin rayDirection
+
+-- Cast against a sphere
+let sphere := Sphere.mk' (center := Vec3.zero) (radius := 5.0)
+match Intersection.raySphere ray sphere with
+| some hit =>
+  let hitPoint := ray.pointAt hit.t
+  let hitNormal := hit.normal
+  IO.println s!"Hit at {hitPoint}"
+| none =>
+  IO.println "Miss"
+
+-- Cast against an AABB
+let box := AABB.fromCenterExtents Vec3.zero (Vec3.mk 2.0 2.0 2.0)
+match Intersection.rayAABB ray box with
+| some (tMin, tMax) =>
+  let entryPoint := ray.pointAt tMin
+  let exitPoint := ray.pointAt tMax
+  IO.println s!"Entered at t={tMin}, exited at t={tMax}"
+| none =>
+  IO.println "Miss"
+
+-- Cast against a triangle
+let triangle := Triangle.mk
+  (Vec3.mk 0.0 0.0 0.0)
+  (Vec3.mk 5.0 0.0 0.0)
+  (Vec3.mk 2.5 5.0 0.0)
+match Intersection.rayTriangle ray triangle with
+| some hit => IO.println s!"Hit triangle at t={hit.t}"
+| none => IO.println "Miss"
+
+-- Cast against a plane
+match Intersection.rayPlane ray ground with
+| some hit => IO.println s!"Hit plane at t={hit.t}"
+| none => IO.println "Ray parallel to plane"</code></pre>
+
+<h3>Primitive vs Primitive</h3>
+
+<pre><code class="language-lean">-- Sphere-sphere collision
+let sphere1 := Sphere.mk' Vec3.zero 2.0
+let sphere2 := Sphere.mk' (Vec3.mk 3.0 0.0 0.0) 2.0
+if Intersection.sphereSphere sphere1 sphere2 then
+  IO.println "Spheres collide!"
+
+-- AABB-AABB collision
+let box1 := AABB.fromCenterExtents Vec3.zero Vec3.one
+let box2 := AABB.fromCenterExtents (Vec3.mk 1.5 0.0 0.0) Vec3.one
+if Intersection.aabbAABB box1 box2 then
+  IO.println "Boxes overlap!"
+
+-- Sphere-AABB collision
+if Intersection.sphereAABB sphere1 box1 then
+  IO.println "Sphere touches box!"</code></pre>
+
+<h3>Frustum Culling</h3>
+
+<p>Efficiently cull objects outside the camera view:</p>
+
+<pre><code class="language-lean">-- Build frustum from view-projection matrix
+let frustum := Frustum.fromViewProjection vpMatrix
+
+-- Test if objects are visible
+let objectSphere := Sphere.mk' objectPos 5.0
+let objectBox := AABB.fromCenterExtents objectPos (Vec3.mk 2.0 2.0 2.0)
+
+if Intersection.frustumSphere frustum objectSphere then
+  -- Object might be visible, render it
+  render object
+
+if Intersection.frustumAABB frustum objectBox then
+  -- Object might be visible
+  render object</code></pre>
+
+<h3>2D Collision</h3>
+
+<pre><code class="language-lean">-- Circle-circle
+let circle1 := Circle.mk Vec2.zero 50.0
+let circle2 := Circle.mk (Vec2.mk 60.0 0.0) 30.0
+if Collision2D.circleCircle circle1 circle2 then
+  IO.println "Circles overlap!"
+
+-- Point in polygon
+let polygon := Polygon2D.fromVertices #[
+  Vec2.mk 0.0 0.0,
+  Vec2.mk 100.0 0.0,
+  Vec2.mk 100.0 100.0,
+  Vec2.mk 0.0 100.0
+]
+let point := Vec2.mk 50.0 50.0
+if polygon.containsPoint point then
+  IO.println "Point is inside polygon!"
+
+-- SAT collision with MTV (Minimum Translation Vector)
+let poly1 := Polygon2D.regularPolygon Vec2.zero 50.0 6  -- Hexagon
+let poly2 := Polygon2D.rectangle (Vec2.mk 40.0 0.0) 60.0 60.0
+match Collision2D.satPolygonPolygon poly1 poly2 with
+| some mtv =>
+  -- mtv is the smallest vector to separate the shapes
+  let separatedPos := poly1.centroid.add mtv
+  IO.println s!"Collision! Separate by {mtv}"
+| none =>
+  IO.println "No collision"</code></pre>
+
+<h3>API Reference - Ray Intersections</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Return Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Intersection.raySphere</code></td><td><code>Option RayHit</code></td><td>Ray vs sphere</td></tr>
+    <tr><td><code>Intersection.rayAABB</code></td><td><code>Option (Float × Float)</code></td><td>Ray vs AABB (entry/exit t)</td></tr>
+    <tr><td><code>Intersection.rayPlane</code></td><td><code>Option RayHit</code></td><td>Ray vs plane</td></tr>
+    <tr><td><code>Intersection.rayTriangle</code></td><td><code>Option RayHit</code></td><td>Ray vs triangle</td></tr>
+  </tbody>
+</table>
+
+<h3>API Reference - Primitive Tests</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Return Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Intersection.sphereSphere</code></td><td><code>Bool</code></td><td>Sphere vs sphere</td></tr>
+    <tr><td><code>Intersection.aabbAABB</code></td><td><code>Bool</code></td><td>AABB vs AABB</td></tr>
+    <tr><td><code>Intersection.sphereAABB</code></td><td><code>Bool</code></td><td>Sphere vs AABB</td></tr>
+    <tr><td><code>Intersection.frustumSphere</code></td><td><code>Bool</code></td><td>Frustum vs sphere</td></tr>
+    <tr><td><code>Intersection.frustumAABB</code></td><td><code>Bool</code></td><td>Frustum vs AABB</td></tr>
+  </tbody>
+</table>
+
+<h3>API Reference - 2D Collision</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Return Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Collision2D.circleCircle</code></td><td><code>Bool</code></td><td>Circle vs circle</td></tr>
+    <tr><td><code>Polygon2D.containsPoint</code></td><td><code>Bool</code></td><td>Point-in-polygon test</td></tr>
+    <tr><td><code>Collision2D.satPolygonPolygon</code></td><td><code>Option Vec2</code></td><td>SAT with MTV</td></tr>
+  </tbody>
+</table>

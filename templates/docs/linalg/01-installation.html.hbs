@@ -1,0 +1,16 @@
+<p>Add Linalg to your <code>lakefile.lean</code>:</p>
+
+<pre><code class="language-lean">require linalg from git "https://github.com/nathanial/linalg" @ "v0.0.1"</code></pre>
+
+<p>Then import and open the namespace in your Lean files:</p>
+
+<pre><code class="language-lean">import Linalg
+
+open Linalg</code></pre>
+
+<p>All examples in this documentation assume these imports are in scope.</p>
+
+<h3>Building</h3>
+
+<pre><code class="language-bash">lake build    # Build library
+lake test     # Run tests</code></pre>

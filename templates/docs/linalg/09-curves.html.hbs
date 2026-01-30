@@ -1,0 +1,101 @@
+<p>Curves and splines allow smooth paths through control points, useful for animation paths,
+procedural geometry, and UI.</p>
+
+<h3>Bezier Curves</h3>
+
+<pre><code class="language-lean">-- Quadratic Bezier (3 control points)
+let p0 := Vec3.mk 0.0 0.0 0.0
+let p1 := Vec3.mk 5.0 10.0 0.0   -- Control point (curve bends toward this)
+let p2 := Vec3.mk 10.0 0.0 0.0
+let quadCurve := Bezier.quadratic p0 p1 p2
+
+-- Sample points along the curve
+for t in [0.0, 0.25, 0.5, 0.75, 1.0] do
+  let point := quadCurve.evaluate t
+  IO.println s!"t={t}: {point}"
+
+-- Cubic Bezier (4 control points) - most common
+let c0 := Vec3.mk 0.0 0.0 0.0
+let c1 := Vec3.mk 3.0 10.0 0.0
+let c2 := Vec3.mk 7.0 10.0 0.0
+let c3 := Vec3.mk 10.0 0.0 0.0
+let cubicCurve := Bezier.cubic c0 c1 c2 c3
+
+-- Get tangent (direction) at a point
+let tangent := cubicCurve.tangent 0.5 |>.normalize</code></pre>
+
+<h3>Catmull-Rom Splines</h3>
+
+<p>Smooth curves that pass through all control points:</p>
+
+<pre><code class="language-lean">-- Define waypoints
+let waypoints := #[
+  Vec3.mk 0.0 0.0 0.0,
+  Vec3.mk 10.0 5.0 0.0,
+  Vec3.mk 20.0 0.0 5.0,
+  Vec3.mk 30.0 8.0 0.0
+]
+
+let spline := CatmullRom.fromPoints waypoints
+
+-- Sample the full path
+for i in [0:100] do
+  let t := i.toFloat / 99.0
+  let point := spline.evaluate t
+  -- Draw or use point</code></pre>
+
+<h3>B-Splines</h3>
+
+<p>B-splines offer local control - moving one control point only affects nearby curve segments:</p>
+
+<pre><code class="language-lean">let controlPoints := #[...]
+let bspline := BSpline.fromPoints controlPoints (degree := 3)
+let point := bspline.evaluate t</code></pre>
+
+<h3>Arc-Length Parameterization</h3>
+
+<p>Move at constant speed along a curve (default t parameter doesn't give uniform speed):</p>
+
+<pre><code class="language-lean">-- Build arc-length table
+let arcLengthCurve := cubicCurve.buildArcLengthTable 100
+
+-- Move at constant speed
+let totalLength := arcLengthCurve.totalLength
+let speed := 5.0  -- Units per second
+let distanceTraveled := speed * elapsedTime
+let t := arcLengthCurve.tAtDistance distanceTraveled
+let position := cubicCurve.evaluate t</code></pre>
+
+<h3>API Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Type</th><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Bezier</code></td><td><code>quadratic p0 p1 p2</code></td><td>Quadratic Bezier (3 points)</td></tr>
+    <tr><td><code>Bezier</code></td><td><code>cubic p0 p1 p2 p3</code></td><td>Cubic Bezier (4 points)</td></tr>
+    <tr><td><code>Bezier</code></td><td><code>evaluate t</code></td><td>Point at parameter t</td></tr>
+    <tr><td><code>Bezier</code></td><td><code>tangent t</code></td><td>Tangent vector at t</td></tr>
+    <tr><td><code>CatmullRom</code></td><td><code>fromPoints points</code></td><td>Create spline through points</td></tr>
+    <tr><td><code>CatmullRom</code></td><td><code>evaluate t</code></td><td>Point at parameter t</td></tr>
+    <tr><td><code>BSpline</code></td><td><code>fromPoints points degree</code></td><td>Create B-spline</td></tr>
+    <tr><td><code>ArcLength</code></td><td><code>buildArcLengthTable n</code></td><td>Build lookup table</td></tr>
+    <tr><td><code>ArcLength</code></td><td><code>totalLength</code></td><td>Total curve length</td></tr>
+    <tr><td><code>ArcLength</code></td><td><code>tAtDistance d</code></td><td>Parameter t at distance d</td></tr>
+  </tbody>
+</table>
+
+<h3>Choosing the Right Curve</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Use Case</th><th>Curve Type</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Simple path between two points with control</td><td>Cubic Bezier</td></tr>
+    <tr><td>Smooth path through waypoints</td><td>Catmull-Rom</td></tr>
+    <tr><td>Editable curves (local control)</td><td>B-Spline</td></tr>
+    <tr><td>Constant-speed movement</td><td>Any curve + Arc-Length parameterization</td></tr>
+  </tbody>
+</table>

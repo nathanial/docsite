@@ -1,0 +1,82 @@
+<p>Matrices represent linear transformations. Linalg provides <code>Mat2</code>, <code>Mat3</code>,
+and <code>Mat4</code> in column-major order for GPU compatibility with Metal and OpenGL.</p>
+
+<h3>Matrix Operations</h3>
+
+<pre><code class="language-lean">-- Build a model matrix manually
+let translation := Mat4.translation 10.0 5.0 3.0
+let rotation := Mat4.rotationY Float.halfPi
+let scale := Mat4.scaling 2.0 2.0 2.0
+
+-- Order matters! Scale -> Rotate -> Translate
+let modelMatrix := translation * rotation * scale
+
+-- Transform a point
+let localPos := Vec3.mk 1.0 0.0 0.0
+let worldPos := modelMatrix.transformPoint localPos
+
+-- Transform a direction (no translation)
+let localDir := Vec3.forward
+let worldDir := modelMatrix.transformDirection localDir</code></pre>
+
+<h3>View and Projection Matrices</h3>
+
+<p>For camera setup:</p>
+
+<pre><code class="language-lean">-- Camera parameters
+let cameraPos := Vec3.mk 0.0 10.0 20.0
+let target := Vec3.zero
+let up := Vec3.up
+
+-- View matrix (world -> camera space)
+let viewMatrix := Mat4.lookAt cameraPos target up
+
+-- Perspective projection
+let fovY := Float.toRadians 60.0
+let aspect := 16.0 / 9.0
+let nearPlane := 0.1
+let farPlane := 1000.0
+let projMatrix := Mat4.perspective fovY aspect nearPlane farPlane
+
+-- Orthographic projection (for 2D or UI)
+let orthoMatrix := Mat4.orthographic
+  (left := 0.0) (right := 1920.0)
+  (bottom := 1080.0) (top := 0.0)  -- Y-down for screen coords
+  (near := -1.0) (far := 1.0)
+
+-- Combined view-projection matrix
+let vpMatrix := projMatrix * viewMatrix</code></pre>
+
+<h3>Common Operations</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Mat4.identity</code></td><td>Identity matrix (no transformation)</td></tr>
+    <tr><td><code>Mat4.translation</code></td><td>Translation matrix</td></tr>
+    <tr><td><code>Mat4.scaling</code></td><td>Scale matrix</td></tr>
+    <tr><td><code>Mat4.rotationX/Y/Z</code></td><td>Rotation around axis</td></tr>
+    <tr><td><code>Mat4.perspective</code></td><td>Perspective projection</td></tr>
+    <tr><td><code>Mat4.orthographic</code></td><td>Orthographic projection</td></tr>
+    <tr><td><code>Mat4.lookAt</code></td><td>View matrix from position/target</td></tr>
+    <tr><td><code>Mat4.transpose</code></td><td>Transpose matrix</td></tr>
+    <tr><td><code>Mat4.determinant</code></td><td>Calculate determinant</td></tr>
+    <tr><td><code>Mat4.inverse</code></td><td>Inverse matrix (returns Option)</td></tr>
+    <tr><td><code>Mat4.transformPoint</code></td><td>Transform a position</td></tr>
+    <tr><td><code>Mat4.transformDirection</code></td><td>Transform a direction (ignores translation)</td></tr>
+  </tbody>
+</table>
+
+<h3>Mat2 and Mat3</h3>
+
+<p>Smaller matrices for 2D operations or 3x3 rotation matrices:</p>
+
+<pre><code class="language-lean">-- Mat2 for 2D rotations
+let rot2D := Mat2.rotation (Float.toRadians 45.0)
+let scaled := Mat2.scaling 2.0 3.0
+
+-- Mat3 for 3D rotations without translation
+let rot3D := Mat3.rotationY Float.halfPi
+let normal := rot3D.transformVector Vec3.forward</code></pre>

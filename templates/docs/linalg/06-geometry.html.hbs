@@ -1,0 +1,89 @@
+<p>Linalg provides geometric primitives for collision detection, ray casting, and spatial queries.</p>
+
+<h3>3D Primitives</h3>
+
+<pre><code class="language-lean">-- Ray (origin + normalized direction)
+let ray := Ray.mk' (Vec3.mk 0.0 0.0 (-10.0)) Vec3.unitZ
+let pointOnRay := ray.pointAt 5.0  -- 5 units along ray
+
+-- Axis-Aligned Bounding Box (AABB)
+let box := AABB.fromMinMax Vec3.zero (Vec3.mk 10.0 10.0 10.0)
+let box := AABB.fromCenterExtents Vec3.zero (Vec3.mk 5.0 5.0 5.0)
+let center := box.center
+let size := box.extents
+
+-- Sphere
+let sphere := Sphere.mk' (center := Vec3.zero) (radius := 5.0)
+let contains := sphere.containsPoint somePoint
+
+-- Plane (normal + distance from origin)
+let ground := Plane.xz  -- Y = 0 plane
+let wall := Plane.mk Vec3.forward 10.0  -- Z = 10 plane
+let dist := ground.signedDistance somePoint
+
+-- Triangle
+let triangle := Triangle.mk
+  (Vec3.mk 0.0 0.0 0.0)
+  (Vec3.mk 5.0 0.0 0.0)
+  (Vec3.mk 2.5 5.0 0.0)
+
+-- Oriented Bounding Box (OBB)
+let obb := OBB.create center orientation halfExtents
+
+-- Capsule (line segment with radius)
+let capsule := Capsule.mk startPoint endPoint radius
+
+-- Frustum (6 planes for view frustum culling)
+let frustum := Frustum.fromViewProjection vpMatrix</code></pre>
+
+<h3>2D Primitives</h3>
+
+<pre><code class="language-lean">-- Circle
+let circle := Circle.mk Vec2.zero 50.0
+
+-- Rectangle (axis-aligned)
+let rect := AABB2D.fromCenterExtents Vec2.zero (Vec2.mk 100.0 50.0)
+
+-- Polygon
+let polygon := Polygon2D.fromVertices #[
+  Vec2.mk 0.0 0.0,
+  Vec2.mk 100.0 0.0,
+  Vec2.mk 100.0 100.0,
+  Vec2.mk 0.0 100.0
+]
+
+-- Regular polygon
+let hexagon := Polygon2D.regularPolygon Vec2.zero 50.0 6</code></pre>
+
+<h3>API Reference - 3D</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Type</th><th>Constructor</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Ray</code></td><td><code>Ray.mk' origin direction</code></td><td>Auto-normalizes direction</td></tr>
+    <tr><td><code>AABB</code></td><td><code>AABB.fromMinMax min max</code></td><td>From corner points</td></tr>
+    <tr><td><code>AABB</code></td><td><code>AABB.fromCenterExtents center extents</code></td><td>From center and half-size</td></tr>
+    <tr><td><code>Sphere</code></td><td><code>Sphere.mk' center radius</code></td><td>Ensures positive radius</td></tr>
+    <tr><td><code>Plane</code></td><td><code>Plane.mk normal distance</code></td><td>Normal + distance from origin</td></tr>
+    <tr><td><code>Plane</code></td><td><code>Plane.xy/xz/yz</code></td><td>Standard axis planes</td></tr>
+    <tr><td><code>Triangle</code></td><td><code>Triangle.mk v0 v1 v2</code></td><td>Three vertices</td></tr>
+    <tr><td><code>Frustum</code></td><td><code>Frustum.fromViewProjection mat</code></td><td>Extract from VP matrix</td></tr>
+  </tbody>
+</table>
+
+<h3>API Reference - 2D</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Type</th><th>Constructor</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Circle</code></td><td><code>Circle.mk center radius</code></td><td>2D circle</td></tr>
+    <tr><td><code>AABB2D</code></td><td><code>AABB2D.fromMinMax min max</code></td><td>2D bounding box</td></tr>
+    <tr><td><code>Polygon2D</code></td><td><code>Polygon2D.fromVertices verts</code></td><td>From vertex array</td></tr>
+    <tr><td><code>Polygon2D</code></td><td><code>Polygon2D.regularPolygon center radius sides</code></td><td>Regular n-gon</td></tr>
+    <tr><td><code>Polygon2D</code></td><td><code>Polygon2D.rectangle center w h</code></td><td>Axis-aligned rectangle</td></tr>
+  </tbody>
+</table>

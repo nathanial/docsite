@@ -1,0 +1,136 @@
+<p>Linalg provides physics primitives for particle systems, rigid body dynamics, and collision response.</p>
+
+<h3>Particle Physics</h3>
+
+<p>Simple point-mass physics:</p>
+
+<pre><code class="language-lean">-- Create a particle
+let particle := Particle.create
+  (position := Vec3.mk 0.0 10.0 0.0)
+  (velocity := Vec3.mk 5.0 0.0 0.0)
+  (mass := 1.0)
+
+-- Apply gravity
+let gravity := Vec3.mk 0.0 (-9.81) 0.0
+let particle := particle.applyForce (gravity.scale particle.mass)
+
+-- Integrate (multiple methods available)
+let particle := Integration.semiImplicitEuler particle dt
+-- Or: Integration.verlet, Integration.rk4</code></pre>
+
+<h3>Integration Methods</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Method</th><th>Accuracy</th><th>Stability</th><th>Use Case</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Integration.euler</code></td><td>Low</td><td>Low</td><td>Simple demos</td></tr>
+    <tr><td><code>Integration.semiImplicitEuler</code></td><td>Medium</td><td>High</td><td>Games (recommended)</td></tr>
+    <tr><td><code>Integration.verlet</code></td><td>Medium</td><td>High</td><td>Constraints, cloth</td></tr>
+    <tr><td><code>Integration.rk4</code></td><td>High</td><td>Medium</td><td>Precision required</td></tr>
+  </tbody>
+</table>
+
+<h3>Collision Response</h3>
+
+<p>Impulse-based collision resolution:</p>
+
+<pre><code class="language-lean">-- Two particles colliding
+let contact := Contact.mk
+  (point := collisionPoint)
+  (normal := collisionNormal)
+  (penetration := overlapAmount)
+
+let (p1, p2) := CollisionResponse.resolveParticleCollision
+  particle1 particle2 contact (restitution := 0.8)</code></pre>
+
+<h3>Rigid Body Physics</h3>
+
+<p>Full 3D rigid body with rotation:</p>
+
+<pre><code class="language-lean">-- Create a rigid body (box)
+let mass := 10.0
+let halfExtents := Vec3.mk 1.0 0.5 2.0
+let inertiaTensor := InertiaTensor.solidBox mass halfExtents
+
+let body := RigidBody.create
+  (position := Vec3.mk 0.0 5.0 0.0)
+  (mass := mass)
+  (inertiaTensor := inertiaTensor)
+
+-- Apply force at a point (creates torque)
+let forcePoint := body.position.add (Vec3.mk 1.0 0.0 0.0)
+let force := Vec3.mk 0.0 0.0 100.0
+let body := body.applyForceAtPoint force forcePoint
+
+-- Integrate
+let body := Integration.integrateRigidBody body dt</code></pre>
+
+<h3>Inertia Tensors</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>InertiaTensor.solidBox</code></td><td>Solid box</td></tr>
+    <tr><td><code>InertiaTensor.solidSphere</code></td><td>Solid sphere</td></tr>
+    <tr><td><code>InertiaTensor.hollowSphere</code></td><td>Hollow sphere</td></tr>
+    <tr><td><code>InertiaTensor.solidCylinder</code></td><td>Solid cylinder</td></tr>
+  </tbody>
+</table>
+
+<h3>Swept Collision</h3>
+
+<p>Detect collisions during motion:</p>
+
+<pre><code class="language-lean">-- Sphere moving through space
+let startPos := Vec3.mk 0.0 10.0 0.0
+let endPos := Vec3.mk 0.0 0.0 0.0
+let radius := 1.0
+
+-- Check if it hits a plane (ground)
+let ground := Plane.xz  -- Y = 0 plane
+match SweptCollision.sphereVsPlane startPos endPos radius ground with
+| some hit =>
+  let hitPos := startPos.lerp endPos hit.t
+  IO.println s!"Hit ground at t={hit.t}, position={hitPos}"
+| none =>
+  IO.println "No collision"</code></pre>
+
+<h3>Time of Impact</h3>
+
+<p>Find exact collision time between moving objects:</p>
+
+<pre><code class="language-lean">-- Two spheres moving toward each other
+let sphere1 := Sphere.mk' (Vec3.mk 0.0 0.0 0.0) 1.0
+let vel1 := Vec3.mk 5.0 0.0 0.0
+
+let sphere2 := Sphere.mk' (Vec3.mk 10.0 0.0 0.0) 1.0
+let vel2 := Vec3.mk (-5.0) 0.0 0.0
+
+match ContinuousCollision.sphereVsSphereTOI
+  sphere1 vel1 sphere2 vel2 (maxTime := 1.0) with
+| some toi =>
+  IO.println s!"Collision at t={toi}"
+  let pos1AtCollision := sphere1.center.add (vel1.scale toi)
+  let pos2AtCollision := sphere2.center.add (vel2.scale toi)
+| none =>
+  IO.println "No collision within time window"</code></pre>
+
+<h3>API Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Type</th><th>Key Functions</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Particle</code></td><td><code>create, applyForce, position, velocity</code></td></tr>
+    <tr><td><code>RigidBody</code></td><td><code>create, applyForce, applyForceAtPoint, applyTorque</code></td></tr>
+    <tr><td><code>Integration</code></td><td><code>euler, semiImplicitEuler, verlet, rk4</code></td></tr>
+    <tr><td><code>CollisionResponse</code></td><td><code>resolveParticleCollision</code></td></tr>
+    <tr><td><code>SweptCollision</code></td><td><code>sphereVsPlane, sphereVsSphere</code></td></tr>
+    <tr><td><code>ContinuousCollision</code></td><td><code>sphereVsSphereTOI</code></td></tr>
+  </tbody>
+</table>

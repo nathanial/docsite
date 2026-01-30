@@ -1,0 +1,96 @@
+<p>Procedural noise functions generate natural-looking randomness for terrain, textures, and effects.</p>
+
+<h3>Perlin Noise</h3>
+
+<pre><code class="language-lean">-- 1D noise (for terrain height along a line)
+let height := Noise.perlin1D x
+
+-- 2D noise (for heightmaps, textures)
+let value := Noise.perlin2D x y
+
+-- 3D noise (for volumetric effects, 3D textures)
+let density := Noise.perlin3D x y z</code></pre>
+
+<h3>Simplex Noise</h3>
+
+<p>Faster than Perlin with fewer directional artifacts:</p>
+
+<pre><code class="language-lean">let value := Noise.simplex2D x y
+let value := Noise.simplex3D x y z</code></pre>
+
+<h3>Fractal Noise (FBM)</h3>
+
+<p>Layer multiple octaves for natural-looking results:</p>
+
+<pre><code class="language-lean">-- Fractal Brownian Motion
+let terrain := Noise.fbm2D x y
+  (octaves := 6)
+  (lacunarity := 2.0)      -- Frequency multiplier per octave
+  (persistence := 0.5)     -- Amplitude multiplier per octave
+
+-- Ridged multifractal (for mountains)
+let mountains := Noise.ridged2D x y
+  (octaves := 6)
+  (lacunarity := 2.0)
+  (gain := 0.5)
+
+-- Turbulence (absolute value creates billowy effect)
+let clouds := Noise.turbulence2D x y (octaves := 4)</code></pre>
+
+<h3>Domain Warping</h3>
+
+<p>Distort coordinates for organic patterns:</p>
+
+<pre><code class="language-lean">-- Warp the input coordinates with noise
+let warpedX := x + Noise.perlin2D (x * 0.5) (y * 0.5) * 2.0
+let warpedY := y + Noise.perlin2D (x * 0.5 + 5.3) (y * 0.5 + 1.7) * 2.0
+let value := Noise.perlin2D warpedX warpedY</code></pre>
+
+<h3>Worley (Cellular) Noise</h3>
+
+<p>For cell-like patterns:</p>
+
+<pre><code class="language-lean">let (f1, f2) := Noise.worley2D x y
+-- f1 = distance to nearest point
+-- f2 = distance to second nearest
+let cellPattern := f2 - f1  -- Creates cell edges</code></pre>
+
+<h3>PCG Random</h3>
+
+<p>Fast, high-quality pseudo-random number generation:</p>
+
+<pre><code class="language-lean">let rng := PCG.seed 12345
+let (value, rng) := rng.nextFloat  -- 0.0 to 1.0
+let (int, rng) := rng.nextUInt32   -- Full 32-bit range</code></pre>
+
+<h3>API Reference</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Noise.perlin1D/2D/3D</code></td><td>Classic Perlin noise</td></tr>
+    <tr><td><code>Noise.simplex2D/3D</code></td><td>Simplex noise (faster, fewer artifacts)</td></tr>
+    <tr><td><code>Noise.fbm2D/3D</code></td><td>Fractal Brownian Motion</td></tr>
+    <tr><td><code>Noise.ridged2D/3D</code></td><td>Ridged multifractal</td></tr>
+    <tr><td><code>Noise.turbulence2D/3D</code></td><td>Turbulence (absolute value FBM)</td></tr>
+    <tr><td><code>Noise.worley2D/3D</code></td><td>Cellular/Voronoi noise</td></tr>
+  </tbody>
+</table>
+
+<h3>Common Patterns</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Effect</th><th>Technique</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Terrain heightmap</td><td>FBM with 4-8 octaves</td></tr>
+    <tr><td>Mountains</td><td>Ridged multifractal</td></tr>
+    <tr><td>Clouds</td><td>Turbulence or FBM</td></tr>
+    <tr><td>Marble/wood</td><td>Domain warping</td></tr>
+    <tr><td>Cells/cracks</td><td>Worley noise</td></tr>
+    <tr><td>Lava/organic</td><td>Domain warping + FBM</td></tr>
+  </tbody>
+</table>

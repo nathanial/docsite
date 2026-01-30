@@ -1,0 +1,100 @@
+<p>Linalg provides easing functions and spring physics for smooth, natural-feeling animations.</p>
+
+<h3>Easing Functions</h3>
+
+<p>Make animations feel natural by controlling acceleration:</p>
+
+<pre><code class="language-lean">-- t goes from 0 to 1 over the animation duration
+let t := elapsedTime / duration
+
+-- Different easing curves
+let linear := t
+let smooth := Easing.smoothstep t           -- Smooth start and end
+let quadIn := Easing.quadIn t               -- Slow start
+let quadOut := Easing.quadOut t             -- Slow end
+let quadInOut := Easing.quadInOut t         -- Slow start and end
+let elastic := Easing.elasticOut t          -- Bouncy overshoot
+let bounce := Easing.bounceOut t            -- Bouncing ball effect
+let back := Easing.backOut t                -- Slight overshoot
+
+-- Apply easing to position
+let startPos := Vec3.mk 0.0 0.0 0.0
+let endPos := Vec3.mk 100.0 0.0 0.0
+let easedT := Easing.cubicInOut t
+let animatedPos := startPos.lerp endPos easedT</code></pre>
+
+<h3>Available Easing Functions</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Easing.linear</code></td><td>Constant speed</td></tr>
+    <tr><td><code>Easing.smoothstep</code></td><td>Smooth acceleration and deceleration</td></tr>
+    <tr><td><code>Easing.quadIn/Out/InOut</code></td><td>Quadratic (power of 2)</td></tr>
+    <tr><td><code>Easing.cubicIn/Out/InOut</code></td><td>Cubic (power of 3)</td></tr>
+    <tr><td><code>Easing.quartIn/Out/InOut</code></td><td>Quartic (power of 4)</td></tr>
+    <tr><td><code>Easing.quintIn/Out/InOut</code></td><td>Quintic (power of 5)</td></tr>
+    <tr><td><code>Easing.sineIn/Out/InOut</code></td><td>Sinusoidal</td></tr>
+    <tr><td><code>Easing.expoIn/Out/InOut</code></td><td>Exponential</td></tr>
+    <tr><td><code>Easing.circIn/Out/InOut</code></td><td>Circular</td></tr>
+    <tr><td><code>Easing.backIn/Out/InOut</code></td><td>Overshoot</td></tr>
+    <tr><td><code>Easing.elasticIn/Out/InOut</code></td><td>Elastic spring</td></tr>
+    <tr><td><code>Easing.bounceIn/Out/InOut</code></td><td>Bouncing</td></tr>
+  </tbody>
+</table>
+
+<h3>Spring Animation</h3>
+
+<p>Physics-based springy motion:</p>
+
+<pre><code class="language-lean">-- Spring parameters
+let spring := Spring.mk
+  (stiffness := 100.0)   -- Higher = faster oscillation
+  (damping := 10.0)      -- Higher = less bounce
+
+-- Update spring each frame
+let (newValue, newVelocity) := Spring.update
+  spring
+  currentValue
+  currentVelocity
+  targetValue
+  dt</code></pre>
+
+<h3>Smooth Damp</h3>
+
+<p>Unity-style smooth following:</p>
+
+<pre><code class="language-lean">-- Smooth camera follow
+let (newPos, newVel) := Vec3.smoothDamp
+  currentCameraPos
+  currentVelocity
+  targetPos
+  (smoothTime := 0.3)    -- Approximate time to reach target
+  (maxSpeed := 100.0)    -- Speed limit
+  dt</code></pre>
+
+<h3>Hermite Interpolation</h3>
+
+<p>Interpolate with velocity control:</p>
+
+<pre><code class="language-lean">-- Hermite interpolation considers velocities at endpoints
+let pos := Hermite.interpolate
+  startPos startVelocity
+  endPos endVelocity
+  t</code></pre>
+
+<h3>Choosing the Right Animation Method</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Use Case</th><th>Method</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Fixed-duration animations</td><td>Easing functions</td></tr>
+    <tr><td>Physics-based bounce</td><td>Spring</td></tr>
+    <tr><td>Smooth following (cameras)</td><td>smoothDamp</td></tr>
+    <tr><td>Velocity-aware interpolation</td><td>Hermite</td></tr>
+  </tbody>
+</table>

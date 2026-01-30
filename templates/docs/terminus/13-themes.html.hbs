@@ -1,0 +1,181 @@
+<p>Terminus provides a theming system for consistent visual styling across your application.</p>
+
+<h3>Theme Structure</h3>
+
+<pre><code class="language-lean">structure Theme where
+  background : Color := .default
+  foreground : Color := .default
+  primary : Color := .ansi .cyan       -- Accent color (buttons, links)
+  secondary : Color := .ansi .blue     -- Secondary accent
+  success : Color := .ansi .green      -- Positive states
+  warning : Color := .ansi .yellow     -- Warnings
+  error : Color := .ansi .red          -- Errors
+  muted : Color := .ansi .brightBlack  -- Caption/secondary text
+  border : Color := .ansi .brightBlack -- Border lines</code></pre>
+
+<h3>Built-in Themes</h3>
+
+<pre><code class="language-lean">-- Dark theme (default)
+let theme := Theme.dark
+
+-- Light theme
+let theme := Theme.light</code></pre>
+
+<h3>Theme.dark</h3>
+
+<p>The default dark theme uses terminal defaults with ANSI accent colors:</p>
+
+<pre><code class="language-lean">def Theme.dark : Theme := {
+  background := .default
+  foreground := .default
+  primary := .ansi .cyan
+  secondary := .ansi .blue
+  success := .ansi .green
+  warning := .ansi .yellow
+  error := .ansi .red
+  muted := .ansi .brightBlack
+  border := .ansi .brightBlack
+}</code></pre>
+
+<h3>Theme.light</h3>
+
+<p>Light theme for terminals with light backgrounds:</p>
+
+<pre><code class="language-lean">def Theme.light : Theme := {
+  background := .ansi .white
+  foreground := .ansi .black
+  muted := .ansi .brightBlack
+  border := .ansi .brightBlack
+}</code></pre>
+
+<h3>Theme Style Helpers</h3>
+
+<p>Themes provide methods to create styled text:</p>
+
+<pre><code class="language-lean">theme.heading1Style   -- Bold foreground
+theme.heading2Style   -- Bold foreground
+theme.heading3Style   -- Regular foreground
+theme.bodyStyle       -- Regular foreground
+theme.captionStyle    -- Muted color
+theme.primaryStyle    -- Primary accent color
+theme.borderStyle     -- Border color</code></pre>
+
+<h3>Using Theme Styles</h3>
+
+<pre><code class="language-lean">let theme := Theme.dark
+
+-- Theme-aware text widgets
+heading1' "Title" theme
+heading2' "Section" theme
+bodyText' "Regular text" theme
+caption' "Secondary info" theme
+
+-- Manual style access
+text' "Custom" theme.primaryStyle
+text' "Error!" { fg := theme.error }</code></pre>
+
+<h3>Custom Themes</h3>
+
+<p>Create a custom theme by modifying defaults:</p>
+
+<pre><code class="language-lean">def myTheme : Theme := {
+  Theme.dark with
+  primary := .rgb 100 200 255     -- Custom blue
+  success := .rgb 100 255 100     -- Bright green
+  error := .rgb 255 80 80         -- Soft red
+  border := .ansi .cyan           -- Cyan borders
+}</code></pre>
+
+<h3>Theme with True Color</h3>
+
+<pre><code class="language-lean">def modernTheme : Theme := {
+  background := .rgb 30 30 46     -- Dark purple-gray
+  foreground := .rgb 205 214 244  -- Light lavender
+  primary := .rgb 137 180 250     -- Soft blue
+  secondary := .rgb 180 190 254   -- Lavender
+  success := .rgb 166 227 161     -- Mint green
+  warning := .rgb 249 226 175     -- Cream yellow
+  error := .rgb 243 139 168       -- Soft pink
+  muted := .rgb 147 153 178       -- Gray
+  border := .rgb 88 91 112        -- Dark gray
+}</code></pre>
+
+<h3>Semantic Styling</h3>
+
+<p>Use theme colors for semantic meaning:</p>
+
+<pre><code class="language-lean">def statusText' (status : Status) (theme : Theme) : WidgetM Unit :=
+  match status with
+  | .ok => text' "OK" { fg := theme.success }
+  | .warning => text' "Warning" { fg := theme.warning }
+  | .error => text' "Error" { fg := theme.error }
+  | .pending => text' "Pending" { fg := theme.muted }</code></pre>
+
+<h3>Theme-Aware Widgets</h3>
+
+<p>Many widgets accept a theme parameter:</p>
+
+<pre><code class="language-lean">-- Panels use theme for border styling
+titledPanel' "Settings" .rounded theme none do ...
+
+-- Theme provides focus highlight color
+block' .rounded theme none do ...</code></pre>
+
+<h3>Dynamic Theme Switching</h3>
+
+<pre><code class="language-lean">let isDarkMode ← switch' "darkMode" true {}
+
+let themeDyn ← isDarkMode.isOn.map' fun dark =>
+  if dark then Theme.dark else Theme.light
+
+let _ ← dynWidget themeDyn fun theme =>
+  column' (gap := 1) {} do
+    heading1' "Themed Content" theme
+    bodyText' "This updates when theme changes" theme</code></pre>
+
+<h3>Border Styles</h3>
+
+<p>Border types available for blocks and panels:</p>
+
+<pre><code class="language-lean">inductive BorderType where
+  | none      -- No border
+  | single    -- ┌─┐ Single line
+  | double    -- ╔═╗ Double line
+  | rounded   -- ╭─╮ Rounded corners
+  | thick     -- ┏━┓ Thick line</code></pre>
+
+<h3>BorderChars</h3>
+
+<p>The actual characters used for borders:</p>
+
+<pre><code class="language-lean">structure BorderChars where
+  topLeft : Char
+  topRight : Char
+  bottomLeft : Char
+  bottomRight : Char
+  horizontal : Char
+  vertical : Char
+
+-- Access predefined sets
+BorderChars.single    -- ┌ ┐ └ ┘ ─ │
+BorderChars.double    -- ╔ ╗ ╚ ╝ ═ ║
+BorderChars.rounded   -- ╭ ╮ ╰ ╯ ─ │
+BorderChars.thick     -- ┏ ┓ ┗ ┛ ━ ┃</code></pre>
+
+<h3>Application-Wide Theme</h3>
+
+<pre><code class="language-lean">def main : IO Unit := runReactiveApp do
+  -- Define theme once
+  let theme := Theme.dark
+
+  let (_, render) ← runWidget do
+    column' (gap := 1) {} do
+      -- All widgets use the same theme
+      heading1' "My Application" theme
+
+      titledPanel' "Main Content" .rounded theme none do
+        bodyText' "Consistently styled content" theme
+
+      caption' "Press Ctrl+C to exit" theme
+
+  pure { render }</code></pre>

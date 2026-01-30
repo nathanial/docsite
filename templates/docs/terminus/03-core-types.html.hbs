@@ -1,0 +1,194 @@
+<p>Terminus provides a set of core types that form the foundation for terminal rendering.
+Understanding these types helps when working with styling and custom widgets.</p>
+
+<h3>Color</h3>
+
+<p>The <code>Color</code> type represents terminal colors with multiple color modes:</p>
+
+<pre><code class="language-lean">inductive Color where
+  | default                    -- Terminal default color
+  | ansi (c : Color16)         -- Standard 16 ANSI colors
+  | indexed (n : UInt8)        -- 256-color palette (0-255)
+  | rgb (r g b : UInt8)        -- True color (24-bit RGB)</code></pre>
+
+<p>Common color constructors:</p>
+
+<pre><code class="language-lean">-- ANSI colors via Color namespace
+Color.black
+Color.red
+Color.green
+Color.yellow
+Color.blue
+Color.magenta
+Color.cyan
+Color.white
+
+-- Bright variants
+Color.brightBlack  -- Often displayed as gray
+Color.brightRed
+Color.brightGreen
+-- ... etc
+
+-- 256-color palette
+Color.indexed 196  -- Bright red in extended palette
+
+-- True color RGB
+Color.rgb 255 128 0  -- Orange</code></pre>
+
+<h3>Color16</h3>
+
+<p>The standard 16 ANSI colors:</p>
+
+<pre><code class="language-lean">inductive Color16 where
+  | black | red | green | yellow
+  | blue | magenta | cyan | white
+  | brightBlack | brightRed | brightGreen | brightYellow
+  | brightBlue | brightMagenta | brightCyan | brightWhite</code></pre>
+
+<h3>Modifier</h3>
+
+<p>Text modifiers control text appearance:</p>
+
+<pre><code class="language-lean">structure Modifier where
+  bold : Bool := false
+  dim : Bool := false
+  italic : Bool := false
+  underline : Bool := false
+  blink : Bool := false
+  reverse : Bool := false      -- Swap fg/bg
+  hidden : Bool := false
+  crossedOut : Bool := false</code></pre>
+
+<p>Convenience constructors:</p>
+
+<pre><code class="language-lean">Modifier.empty        -- No modifiers
+Modifier.mkBold       -- Bold text
+Modifier.mkItalic     -- Italic text
+Modifier.mkUnderline  -- Underlined text</code></pre>
+
+<h3>Style</h3>
+
+<p>A <code>Style</code> combines foreground color, background color, and modifiers:</p>
+
+<pre><code class="language-lean">structure Style where
+  fg : Color := .default
+  bg : Color := .default
+  modifier : Modifier := {}</code></pre>
+
+<p>Creating styles:</p>
+
+<pre><code class="language-lean">-- Empty style (terminal defaults)
+Style.default
+
+-- Foreground only
+Style.fgColor .red
+{ fg := .ansi .cyan }
+
+-- Background only
+Style.bgColor .blue
+
+-- Combined
+{ fg := .ansi .white, bg := .ansi .blue }
+
+-- With modifiers
+{ fg := .ansi .green, modifier := { bold := true } }
+Style.bold
+Style.italic
+Style.underline</code></pre>
+
+<p>Styles can be merged with <code>++</code>:</p>
+
+<pre><code class="language-lean">let base := { fg := .ansi .white }
+let emphasis := Style.bold
+let combined := base ++ emphasis  -- White bold text</code></pre>
+
+<h3>Cell</h3>
+
+<p>A <code>Cell</code> represents a single character position in the terminal:</p>
+
+<pre><code class="language-lean">structure Cell where
+  char : Char := ' '
+  style : Style := {}
+  hyperlink : Option String := none
+  isPlaceholder : Bool := false  -- For wide character 2nd column</code></pre>
+
+<p>Cell constructors:</p>
+
+<pre><code class="language-lean">Cell.empty                    -- Empty space
+Cell.new 'X'                  -- Character with default style
+Cell.styled 'X' myStyle       -- Styled character
+Cell.link 'X' myStyle "url"   -- Hyperlinked character</code></pre>
+
+<h3>Buffer</h3>
+
+<p>A <code>Buffer</code> is a 2D grid of cells representing terminal content:</p>
+
+<pre><code class="language-lean">structure Buffer where
+  width : Nat
+  height : Nat
+  cells : Array Cell
+  rowHashes : Array RowHash  -- For efficient diffing</code></pre>
+
+<p>Buffer operations:</p>
+
+<pre><code class="language-lean">-- Create empty buffer
+let buf := Buffer.new 80 24
+
+-- Get/set cells
+let cell := buf.get x y
+let buf := buf.set x y cell
+
+-- Write strings
+let buf := buf.writeString 0 0 "Hello" myStyle
+let buf := buf.writeStringBounded 0 0 10 "Long text" myStyle
+
+-- Write hyperlinks
+let buf := buf.writeLink 0 0 "Click me" "https://..." myStyle
+
+-- Fill operations
+let buf := buf.fill Cell.empty
+let buf := buf.fillRect rect cell
+let buf := buf.clear</code></pre>
+
+<h3>Rect</h3>
+
+<p>A <code>Rect</code> defines a rectangular region:</p>
+
+<pre><code class="language-lean">structure Rect where
+  x : Nat
+  y : Nat
+  width : Nat
+  height : Nat</code></pre>
+
+<p>Rect operations:</p>
+
+<pre><code class="language-lean">let r := { x := 10, y := 5, width := 20, height := 10 : Rect }
+
+r.area           -- 200
+r.right          -- 30 (x + width)
+r.bottom         -- 15 (y + height)
+r.contains 15 8  -- true
+r.intersects other</code></pre>
+
+<h3>Orientation</h3>
+
+<p>Used for directional widgets:</p>
+
+<pre><code class="language-lean">inductive Orientation where
+  | horizontal
+  | vertical</code></pre>
+
+<h3>Using Core Types in Widgets</h3>
+
+<p>While the reactive widget system handles most rendering, you can use core types
+directly for custom styling:</p>
+
+<pre><code class="language-lean">-- Create a custom style
+let errorStyle : Style := {
+  fg := .ansi .white
+  bg := .ansi .red
+  modifier := { bold := true }
+}
+
+-- Use in widgets
+text' "Error: Something went wrong!" errorStyle</code></pre>

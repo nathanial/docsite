@@ -1,0 +1,188 @@
+<p>Hooks provide React-like access to events and state management in ReactiveTermM and WidgetM.</p>
+
+<h3>Event Hooks</h3>
+
+<p>Basic event subscription hooks:</p>
+
+<pre><code class="language-lean">-- All keyboard events
+let keyEvents ← useKeyEvent
+
+-- All mouse events
+let mouseEvents ← useMouseEvent
+
+-- Terminal resize events
+let resizeEvents ← useResize
+
+-- Tick events (for animations, requires useTick to enable)
+let tickEvents ← useTick</code></pre>
+
+<h3>Time Hooks</h3>
+
+<pre><code class="language-lean">-- Current frame number (increments each tick)
+let frameDyn ← useFrame
+
+-- Elapsed time in milliseconds
+let elapsedMsDyn ← useElapsedMs</code></pre>
+
+<h3>Filtered Key Hooks</h3>
+
+<pre><code class="language-lean">-- Specific key
+let upEvents ← useKey .up
+let enterEvents ← useKey .enter
+let escapeEvents ← useKey .escape
+
+-- Any character key
+let charEvents ← useAnyChar
+
+-- Arrow keys (returns KeyCode)
+let arrowEvents ← useArrowKeys
+
+-- Convenience for Enter/Escape
+let enterEvents ← useEnter
+let escapeEvents ← useEscape</code></pre>
+
+<h3>Mouse Hooks</h3>
+
+<pre><code class="language-lean">-- Click events
+let leftClicks ← useLeftClick
+let rightClicks ← useRightClick
+
+-- Scroll events
+let scrollEvents ← useScroll
+
+-- Mouse position as Dynamic
+let positionDyn ← useMousePosition  -- (Nat × Nat)</code></pre>
+
+<h3>Focus Management</h3>
+
+<pre><code class="language-lean">-- Get currently focused input name
+let focusedDyn ← useFocusedInput  -- Option String
+
+-- Set focus to a specific widget
+setFocus (some "myInput")
+setFocus none  -- Clear focus
+
+-- Check if a specific widget is focused
+let isFocusedDyn ← useIsFocused "myInput"</code></pre>
+
+<h3>Focus-Filtered Events (WidgetM)</h3>
+
+<pre><code class="language-lean">-- Events only when this widget has focus
+let keyEvents ← useFocusedKeyEventsW "myWidget"
+
+-- Events regardless of focus
+let keyEvents ← useFocusedKeyEventsW "myWidget" (globalKeys := true)
+
+-- Events gated by visibility
+let keyEvents ← useVisibilityGatedKeyEventsW visibleDyn</code></pre>
+
+<h3>State Helpers</h3>
+
+<pre><code class="language-lean">-- Counter that increments on each event
+let countDyn ← useCounter keyEvents 0
+
+-- Toggle on each event
+let toggleDyn ← useToggle enterEvents false
+
+-- Hold latest value from event stream
+let latestDyn ← useLatest charEvents</code></pre>
+
+<h3>WidgetM Versions</h3>
+
+<p>Most hooks have WidgetM versions with <code>W</code> suffix:</p>
+
+<pre><code class="language-lean">let keyEvents ← useKeyEventW
+let mouseEvents ← useMouseEventW
+let resizeEvents ← useResizeW
+let focusedDyn ← useFocusedInputW
+let tickEvents ← useTickW
+let frameDyn ← useFrameW
+let elapsedDyn ← useElapsedMsW</code></pre>
+
+<h3>Component Registration</h3>
+
+<pre><code class="language-lean">-- Register a focusable component
+let widgetName ← registerComponentW "myWidget" (isInput := true)
+
+-- With custom name
+let widgetName ← registerComponentW "myWidget" (isInput := true)
+  (nameOverride := "customName")
+
+-- Non-focusable but interactive (responds to clicks)
+let widgetName ← registerComponentW "label" (isInput := false) (isInteractive := true)</code></pre>
+
+<h3>Focus Groups</h3>
+
+<p>Run widgets in a focus group for grouped focus behavior:</p>
+
+<pre><code class="language-lean">withFocusGroupW "panel1" do
+  let input1 ← textInput' "input1" "" {}
+  let input2 ← textInput' "input2" "" {}</code></pre>
+
+<h3>Tab Navigation</h3>
+
+<p>Set up Tab key navigation:</p>
+
+<pre><code class="language-lean">let keyEvents ← useKeyEvent
+let events ← getEvents
+
+-- Tab cycles through focusable inputs
+let tabEvents ← Event.filterM (fun kd => kd.event.code == .tab) keyEvents
+let shiftTabEvents ← Event.filterM (fun kd =>
+  kd.event.code == .tab && kd.event.modifiers.shift) keyEvents
+
+let _unsub1 ← SpiderM.liftIO <| tabEvents.subscribe fun _ =>
+  events.registry.focusNext
+
+let _unsub2 ← SpiderM.liftIO <| shiftTabEvents.subscribe fun _ =>
+  events.registry.focusPrev</code></pre>
+
+<h3>Animation Pattern</h3>
+
+<pre><code class="language-lean">-- Request tick events
+let tickEvents ← useTick
+let elapsedDyn ← useElapsedMs
+
+-- Animate based on elapsed time
+let positionDyn ← elapsedDyn.map' fun ms =>
+  let seconds := ms.toFloat / 1000.0
+  let x := (Float.sin (seconds * 2.0) * 10.0).toUInt32.toNat + 20
+  x</code></pre>
+
+<h3>Custom Widget with Hooks</h3>
+
+<pre><code class="language-lean">def animatedCounter' (name : String) : WidgetM (Dynamic Spider Int) := do
+  let widgetName ← registerComponentW "animatedCounter" (isInput := true) (nameOverride := name)
+
+  let keyEvents ← useFocusedKeyEventsW widgetName
+  let focusedDyn ← useIsFocused widgetName
+
+  let counterOps ← Event.mapMaybeM (fun kd =>
+    match kd.event.code with
+    | .up => some (· + 1)
+    | .down => some (· - 1)
+    | _ => none) keyEvents
+
+  let counterDyn ← foldDyn (fun op n => op n) 0 counterOps
+
+  let node ← focusedDyn.zipWith' (fun focused count =>
+    let style := if focused then { fg := .ansi .cyan } else {}
+    RNode.text s!"[{count}]" style) counterDyn
+
+  emit node
+  pure counterDyn</code></pre>
+
+<h3>getEvents and getEventsW</h3>
+
+<p>Access the full TerminusEvents context:</p>
+
+<pre><code class="language-lean">-- In ReactiveTermM
+let events ← getEvents
+
+-- In WidgetM
+let events ← getEventsW
+
+-- Use for direct registry access
+events.registry.focusNext
+events.registry.focusPrev
+events.registry.fireFocus (some "widgetName")</code></pre>

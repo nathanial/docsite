@@ -1,0 +1,199 @@
+<p>Terminus provides comprehensive input handling for keyboard and mouse events.</p>
+
+<h3>KeyCode</h3>
+
+<p>The <code>KeyCode</code> type represents keyboard keys:</p>
+
+<pre><code class="language-lean">inductive KeyCode where
+  | char (c : Char)    -- Printable character
+  | enter
+  | escape
+  | backspace
+  | tab
+  | space
+  | up | down | left | right
+  | home | end
+  | pageUp | pageDown
+  | insert | delete
+  | f (n : Nat)        -- F1-F12
+  | null</code></pre>
+
+<h3>KeyModifiers</h3>
+
+<p>Modifier keys that can be combined with other keys:</p>
+
+<pre><code class="language-lean">structure KeyModifiers where
+  ctrl : Bool := false
+  alt : Bool := false
+  shift : Bool := false</code></pre>
+
+<h3>KeyEvent</h3>
+
+<p>A complete keyboard event:</p>
+
+<pre><code class="language-lean">structure KeyEvent where
+  code : KeyCode
+  modifiers : KeyModifiers := {}</code></pre>
+
+<p>Convenience checks:</p>
+
+<pre><code class="language-lean">ke.isChar 'q'    -- Check for specific character
+ke.isCtrlC       -- Check for Ctrl+C
+ke.isCtrlQ       -- Check for Ctrl+Q (common quit key)</code></pre>
+
+<h3>MouseButton</h3>
+
+<p>Mouse button identifiers:</p>
+
+<pre><code class="language-lean">inductive MouseButton where
+  | left
+  | middle
+  | right
+  | scrollUp
+  | scrollDown
+  | none          -- For motion-only events</code></pre>
+
+<h3>MouseAction</h3>
+
+<p>Mouse action types:</p>
+
+<pre><code class="language-lean">inductive MouseAction where
+  | press
+  | release
+  | motion        -- Movement (drag or hover)</code></pre>
+
+<h3>MouseEvent</h3>
+
+<p>A complete mouse event:</p>
+
+<pre><code class="language-lean">structure MouseEvent where
+  x : Nat                    -- Column (1-based)
+  y : Nat                    -- Row (1-based)
+  button : MouseButton
+  action : MouseAction
+  modifiers : KeyModifiers   -- Ctrl, Alt, Shift held</code></pre>
+
+<p>Convenience checks:</p>
+
+<pre><code class="language-lean">me.isLeftClick    -- Left button press
+me.isRightClick   -- Right button press
+me.isScroll       -- Scroll wheel event</code></pre>
+
+<h3>Event</h3>
+
+<p>The top-level event type:</p>
+
+<pre><code class="language-lean">inductive Event where
+  | key (event : KeyEvent)
+  | mouse (event : MouseEvent)
+  | resize (width height : Nat)
+  | none</code></pre>
+
+<h3>Event Hooks in ReactiveTermM</h3>
+
+<p>Terminus provides React-like hooks for subscribing to events:</p>
+
+<pre><code class="language-lean">-- All keyboard events
+let keyEvents ← useKeyEvent
+
+-- All mouse events
+let mouseEvents ← useMouseEvent
+
+-- Terminal resize events
+let resizeEvents ← useResize
+
+-- Tick events (for animations)
+let tickEvents ← useTick</code></pre>
+
+<h3>Filtered Event Hooks</h3>
+
+<p>Convenience hooks for common event patterns:</p>
+
+<pre><code class="language-lean">-- Specific key
+let upEvents ← useKey .up
+let enterEvents ← useKey .enter
+
+-- Character input
+let charEvents ← useAnyChar
+
+-- Arrow keys
+let arrowEvents ← useArrowKeys
+
+-- Enter/Escape
+let enterEvents ← useEnter
+let escapeEvents ← useEscape
+
+-- Mouse clicks
+let leftClicks ← useLeftClick
+let rightClicks ← useRightClick
+let scrollEvents ← useScroll
+
+-- Mouse position
+let positionDyn ← useMousePosition</code></pre>
+
+<h3>Event Filtering with FRP</h3>
+
+<p>Use FRP combinators to filter and transform events:</p>
+
+<pre><code class="language-lean">let keyEvents ← useKeyEvent
+
+-- Filter to specific keys
+let arrowEvents ← Event.filterM (fun kd =>
+  match kd.event.code with
+  | .up | .down | .left | .right => true
+  | _ => false) keyEvents
+
+-- Map to specific values
+let directionEvents ← Event.mapMaybeM (fun kd =>
+  match kd.event.code with
+  | .up => some Direction.up
+  | .down => some Direction.down
+  | .left => some Direction.left
+  | .right => some Direction.right
+  | _ => none) keyEvents</code></pre>
+
+<h3>Focus-Aware Event Handling</h3>
+
+<p>In WidgetM, use focus-filtered events:</p>
+
+<pre><code class="language-lean">def myWidget (name : String) : WidgetM MyResult := do
+  let widgetName ← registerComponentW "myWidget" (isInput := true) (nameOverride := name)
+
+  -- Only receive events when this widget is focused
+  let keyEvents ← useFocusedKeyEventsW widgetName
+
+  -- Or use globalKeys := true to receive all events
+  let globalKeyEvents ← useFocusedKeyEventsW widgetName (globalKeys := true)
+
+  -- ... widget logic</code></pre>
+
+<h3>KeyData and MouseData</h3>
+
+<p>Event hooks return data wrappers with additional context:</p>
+
+<pre><code class="language-lean">structure KeyData where
+  event : KeyEvent
+  focusedWidget : Option String := none
+
+structure MouseData where
+  event : MouseEvent</code></pre>
+
+<h3>Example: Custom Key Handler</h3>
+
+<pre><code class="language-lean">def main : IO Unit := runReactiveApp do
+  let keyEvents ← useKeyEvent
+
+  -- Map keys to state operations
+  let stateOps ← Event.mapMaybeM (fun kd =>
+    match kd.event.code with
+    | .up => some fun s => { s with y := s.y - 1 }
+    | .down => some fun s => { s with y := s.y + 1 }
+    | .left => some fun s => { s with x := s.x - 1 }
+    | .right => some fun s => { s with x := s.x + 1 }
+    | .char 'r' => some fun _ => initialState  -- Reset
+    | _ => none) keyEvents
+
+  -- Fold into state
+  let stateDyn ← foldDyn (fun op s => op s) initialState stateOps
+
+  -- ... rest of app</code></pre>

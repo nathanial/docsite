@@ -1,0 +1,72 @@
+<p>Assimptor requires the Assimp library to be installed on your system. It currently supports macOS only (both Apple Silicon and Intel).</p>
+
+<h3>Requirements</h3>
+<ul>
+  <li><a href="https://lean-lang.org/">Lean 4</a> (v4.26.0+)</li>
+  <li>Lake (included with Lean)</li>
+  <li><a href="https://brew.sh/">Homebrew</a> (for installing Assimp)</li>
+  <li>macOS with Clang compiler</li>
+</ul>
+
+<h3>Installing Assimp</h3>
+
+<p>Install Assimp via Homebrew:</p>
+
+<pre><code class="language-bash">brew install assimp</code></pre>
+
+<p>This installs Assimp to <code>/opt/homebrew</code> (Apple Silicon) or <code>/usr/local</code> (Intel). The lakefile automatically searches both locations.</p>
+
+<h3>Lakefile Configuration</h3>
+
+<p>Add Assimptor to your <code>lakefile.lean</code>:</p>
+
+<pre><code class="language-lean">require assimptor from git "https://github.com/nathanial/assimptor" @ "v0.1.0"</code></pre>
+
+<h3>Building</h3>
+
+<p>Assimptor includes native C++ code that must be compiled. Use the provided build script:</p>
+
+<pre><code class="language-bash"># Navigate to your project
+cd your-project/
+
+# Build with the build script
+./build.sh</code></pre>
+
+<p>Or build manually by setting the Lean C compiler:</p>
+
+<pre><code class="language-bash">LEAN_CC=/usr/bin/clang lake build</code></pre>
+
+<h3>Dependencies</h3>
+
+<p>Assimptor links against the following libraries:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Library</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>assimp</code></td><td>3D model loading and processing</td></tr>
+    <tr><td><code>z</code></td><td>Compression (required by Assimp)</td></tr>
+    <tr><td><code>c++</code></td><td>C++ standard library</td></tr>
+  </tbody>
+</table>
+
+<h3>Verification</h3>
+
+<p>After installation, verify Assimptor works:</p>
+
+<pre><code class="language-lean">import Assimptor
+
+def main : IO Unit := do
+  -- This should compile and link successfully
+  IO.println "Assimptor is ready!"
+
+  -- Optionally test loading a model
+  -- let asset ← Assimptor.loadAsset "test.obj" "./"
+  -- IO.println s!"Loaded {asset.vertices.size / 12} vertices"</code></pre>
+
+<h3>Troubleshooting</h3>
+
+<p><strong>Linker errors about Assimp:</strong> Ensure Assimp is installed via Homebrew. Run <code>brew list assimp</code> to verify.</p>
+
+<p><strong>Compilation errors:</strong> Make sure you're using the build script or setting <code>LEAN_CC=/usr/bin/clang</code>. The native code requires a C++17 compatible compiler.</p>

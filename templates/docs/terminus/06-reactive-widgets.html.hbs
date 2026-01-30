@@ -1,0 +1,164 @@
+<p>The reactive widget system is Terminus's primary API. It combines FRP network
+construction with declarative widget building, similar to Reflex-DOM.</p>
+
+<h3>The Monad Stack</h3>
+
+<p>Terminus uses a layered monad stack:</p>
+
+<pre><code class="language-lean">-- SpiderM: Base FRP monad from Reactive library
+-- ReactiveTermM: SpiderM + TerminusEvents context
+abbrev ReactiveTermM := ReaderT TerminusEvents SpiderM
+
+-- WidgetM: ReactiveTermM + widget accumulation
+abbrev WidgetM := StateT WidgetMState ReactiveTermM</code></pre>
+
+<h3>ReactiveTermM</h3>
+
+<p>Use <code>ReactiveTermM</code> for FRP setup without widget building:</p>
+
+<pre><code class="language-lean">-- Access event streams
+let keyEvents ← useKeyEvent
+let mouseEvents ← useMouseEvent
+
+-- Create state
+let counter ← Reactive.foldDyn (fun _ n => n + 1) 0 keyEvents
+
+-- Access context
+let events ← getEvents</code></pre>
+
+<h3>WidgetM</h3>
+
+<p>Use <code>WidgetM</code> to build widget trees:</p>
+
+<pre><code class="language-lean">let (result, render) ← runWidget do
+  -- Widgets emit their render into the parent automatically
+  text' "Hello" {}
+  text' "World" {}
+  -- Returns Unit, render is the combined tree</code></pre>
+
+<h3>RNode</h3>
+
+<p>The render tree type:</p>
+
+<pre><code class="language-lean">inductive RNode : Type where
+  | text (content : String) (style : Style)
+  | block (title : Option String) (borderType : BorderType)
+      (borderStyle : Style) (fillStyle : Option Style) (child : RNode)
+  | row (gap : Nat) (style : RStyle) (children : Array RNode)
+  | column (gap : Nat) (style : RStyle) (children : Array RNode)
+  | spacer (width : Nat) (height : Nat)
+  | empty
+  | clipped (child : RNode)
+  | scrolled (offsetX offsetY : Nat) (child : RNode)
+  | dockBottom (footerHeight : Nat) (content : RNode) (footer : RNode)
+  | overlay (base : RNode) (content : RNode) (backdropStyle : Option Style)
+  | image ...</code></pre>
+
+<h3>Widget Pattern: Emit and Return</h3>
+
+<p>Widgets emit visual content and return reactive values:</p>
+
+<pre><code class="language-lean">-- Widget that emits visual content and returns events
+def button' (name : String) (label : String) : WidgetM ButtonResult := do
+  -- Register for focus management
+  let widgetName ← registerComponentW "button" (isInput := true) (nameOverride := name)
+
+  -- Get focused key events
+  let keyEvents ← useFocusedKeyEventsW widgetName
+
+  -- Create click event
+  let clickEvent ← Event.filterM (fun kd =>
+    kd.event.code == .enter || kd.event.code == .space) keyEvents
+  let clickEvent ← Event.voidM clickEvent
+
+  -- Create dynamic render
+  let focusDyn ← useIsFocused widgetName
+  let node ← focusDyn.map' fun focused =>
+    let style := if focused then focusedStyle else normalStyle
+    RNode.text s!"[{label}]" style
+
+  -- Emit the render
+  emit node
+
+  -- Return result with events
+  pure { onClick := clickEvent }</code></pre>
+
+<h3>Widget Naming Convention</h3>
+
+<p>Widget functions follow the naming pattern:</p>
+
+<ul>
+  <li><code>text'</code> - Static text widget</li>
+  <li><code>dynText'</code> - Dynamic (updating) text widget</li>
+  <li><code>button'</code> - Button that returns click events</li>
+  <li><code>selectableList'</code> - List that returns selection state</li>
+</ul>
+
+<p>The apostrophe (<code>'</code>) suffix indicates a WidgetM action.</p>
+
+<h3>emit and emitStatic</h3>
+
+<pre><code class="language-lean">-- Emit a dynamic render (updates when Dynamic changes)
+emit : ComponentRender → WidgetM Unit
+
+-- Emit a static render (never changes)
+emitStatic : RNode → WidgetM Unit</code></pre>
+
+<h3>runWidgetChildren</h3>
+
+<p>Container widgets use <code>runWidgetChildren</code> to collect child renders:</p>
+
+<pre><code class="language-lean">def column' (gap : Nat) (style : RStyle) (children : WidgetM α) : WidgetM α := do
+  -- Run children and collect their renders
+  let (result, childRenders) ← runWidgetChildren children
+
+  -- Combine into column node
+  let childrenList ← Reactive.Dynamic.sequence childRenders.toList
+  let node ← childrenList.map' fun nodes =>
+    RNode.column gap style nodes.toArray
+
+  -- Emit combined render
+  emit node
+  pure result</code></pre>
+
+<h3>Dynamic Widget Subtrees</h3>
+
+<p>Use <code>dynWidget</code> to rebuild subtrees when data changes:</p>
+
+<pre><code class="language-lean">-- When selectedItem changes, the builder re-runs
+let _ ← dynWidget listResult.selectedItem fun item =>
+  match item with
+  | some i => text' s!"Selected: {i}" {}
+  | none => text' "Nothing selected" {}</code></pre>
+
+<h3>Conditional Rendering</h3>
+
+<pre><code class="language-lean">-- Show only when condition is true
+when' isVisibleDyn do
+  text' "I'm visible!" {}
+
+-- If-then-else
+ifThenElse' conditionDyn
+  do text' "Condition true" {}
+  do text' "Condition false" {}</code></pre>
+
+<h3>ComponentRender</h3>
+
+<p>The type alias for widget renders:</p>
+
+<pre><code class="language-lean">abbrev ComponentRender := Dynamic Spider RNode</code></pre>
+
+<p>A <code>ComponentRender</code> is a <code>Dynamic</code> that holds the current render tree,
+automatically updating when the underlying state changes.</p>
+
+<h3>Application Entry Point</h3>
+
+<pre><code class="language-lean">def main : IO Unit := runReactiveApp do
+  -- ReactiveTermM context: set up state and events
+
+  -- Build widget tree
+  let (_, render) ← runWidget do
+    -- WidgetM context: emit widgets
+
+  -- Return the render
+  pure { render }</code></pre>

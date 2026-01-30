@@ -1,0 +1,149 @@
+<p>This guide walks you through building your first Terminus application.</p>
+
+<h3>The Reactive App Pattern</h3>
+
+<p>Terminus applications use <code>runReactiveApp</code> as their entry point. Inside, you:</p>
+
+<ol>
+  <li>Set up reactive state using hooks and FRP combinators</li>
+  <li>Build the widget tree using <code>WidgetM</code></li>
+  <li>Return a <code>ReactiveAppState</code> with the render function</li>
+</ol>
+
+<pre><code class="language-lean">import Terminus.Reactive
+
+open Terminus.Reactive
+
+def main : IO Unit := runReactiveApp do
+  -- 1. Set up reactive state
+  let keyEvents ← useKeyEvent
+
+  -- 2. Build widget tree
+  let (_, render) ← runWidget do
+    text' "Hello!" {}
+
+  -- 3. Return app state
+  pure { render }</code></pre>
+
+<h3>Adding Interactive State</h3>
+
+<p>Use <code>foldDyn</code> to create state that updates in response to events:</p>
+
+<pre><code class="language-lean">def main : IO Unit := runReactiveApp do
+  let keyEvents ← useKeyEvent
+
+  -- Count key presses
+  let count ← Reactive.foldDyn (fun _ n => n + 1) 0 keyEvents
+
+  let (_, render) ← runWidget do
+    column' (gap := 1) {} do
+      text' "Press any key to increment" {}
+      -- Dynamic text that updates when count changes
+      dynText' (← count.map' fun n => s!"Count: {n}") {}
+
+  pure { render }</code></pre>
+
+<h3>Using Themes</h3>
+
+<p>Themes provide consistent styling across your application:</p>
+
+<pre><code class="language-lean">def main : IO Unit := runReactiveApp do
+  let theme := Theme.dark
+
+  let (_, render) ← runWidget do
+    column' (gap := 1) {} do
+      heading1' "My Application" theme
+      bodyText' "Welcome to Terminus!" theme
+      caption' "Press Ctrl+C to exit" theme
+
+  pure { render }</code></pre>
+
+<h3>Building a Counter App</h3>
+
+<p>A more complete example with directional navigation:</p>
+
+<pre><code class="language-lean">import Terminus.Reactive
+
+open Terminus.Reactive
+
+def main : IO Unit := runReactiveApp do
+  let theme := Theme.dark
+  let keyEvents ← useKeyEvent
+
+  -- Map arrow keys to increment/decrement operations
+  let counterOps ← Event.mapMaybeM (fun kd =>
+    match kd.event.code with
+    | .up => some (· + 1)
+    | .down => some (· - 1)
+    | _ => none) keyEvents
+
+  -- Fold operations into counter value
+  let counter ← Reactive.foldDyn (fun op n => op n) 0 counterOps
+
+  let (_, render) ← runWidget do
+    titledPanel' "Counter" .rounded theme none do
+      column' (gap := 1) {} do
+        dynText' (← counter.map' fun n => s!"Value: {n}") theme.bodyStyle
+        caption' "Up/Down to change" theme
+
+  pure { render }</code></pre>
+
+<h3>Working with Widgets</h3>
+
+<p>Widgets return result structures containing dynamics and events:</p>
+
+<pre><code class="language-lean">def main : IO Unit := runReactiveApp do
+  let theme := Theme.dark
+
+  let (_, render) ← runWidget do
+    column' (gap := 2) {} do
+      text' "Select a fruit:" theme.bodyStyle
+
+      -- selectableList' returns a ListResult
+      let listResult ← selectableList' #["Apple", "Banana", "Cherry"] 0 {}
+
+      -- Display the selected item
+      let _ ← dynWidget listResult.selectedItem fun item =>
+        text' s!"Selected: {item.getD "none"}" theme.primaryStyle
+
+  pure { render }</code></pre>
+
+<h3>Focus and Tab Navigation</h3>
+
+<p>Widgets automatically participate in focus management:</p>
+
+<pre><code class="language-lean">def main : IO Unit := runReactiveApp do
+  let theme := Theme.dark
+  let keyEvents ← useKeyEvent
+
+  -- Tab cycles focus between inputs
+  let tabEvents ← Event.filterM (fun kd => kd.event.code == .tab) keyEvents
+  let events ← getEvents
+  let _unsub ← SpiderM.liftIO <| tabEvents.subscribe fun _ =>
+    events.registry.focusNext
+
+  let (_, render) ← runWidget do
+    column' (gap := 1) {} do
+      text' "Tab to switch focus:" theme.bodyStyle
+
+      let name ← textInput' "name" "" { placeholder := "Name" }
+      let email ← textInput' "email" "" { placeholder := "Email" }
+
+      let btn ← button' "submit" "Submit" {}
+
+      -- React to button click
+      let _ ← performEvent_ (← Event.mapM (fun _ => do
+        IO.println "Form submitted!") btn.onClick)
+
+  pure { render }</code></pre>
+
+<h3>Next Steps</h3>
+
+<p>Now that you have a basic application running, explore:</p>
+
+<ul>
+  <li><strong>Core Types</strong> - Understanding Style, Color, and Cell</li>
+  <li><strong>Input Handling</strong> - Working with keyboard and mouse events</li>
+  <li><strong>Reactive Widgets</strong> - The WidgetM monad and widget patterns</li>
+  <li><strong>Container Widgets</strong> - Layout with row', column', and panels</li>
+</ul>

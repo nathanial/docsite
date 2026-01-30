@@ -1,0 +1,166 @@
+<p>List and navigation widgets for selecting from options.</p>
+
+<h3>selectableList'</h3>
+
+<p>Keyboard-navigable list:</p>
+
+<pre><code class="language-lean">let items := #["Apple", "Banana", "Cherry", "Date", "Elderberry"]
+let list ← selectableList' items 0 { maxVisible := some 5 }
+
+-- list.selectedIndex : Dynamic Spider Nat
+-- list.selectedItem : Dynamic Spider (Option String)
+-- list.onSelect : Event Spider String (fires on Enter)
+-- list.onSelectionChange : Event Spider Nat
+
+-- Keys: Up/Down, j/k, Home/End, Enter/Space to select</code></pre>
+
+<h3>ListConfig</h3>
+
+<pre><code class="language-lean">structure ListConfig where
+  style : Style := {}
+  selectedStyle : Style := { bg := .ansi .blue, fg := .ansi .white }
+  maxVisible : Option Nat := none      -- Scroll if more items
+  selectedPrefix : String := "> "
+  unselectedPrefix : String := "  "
+  wrapAround : Bool := true
+  showScrollIndicators : Bool := true
+  scrollIndicatorStyle : Style := { fg := .ansi .brightBlack }
+  focusName : String := ""             -- Auto-generated if empty
+  globalKeys : Bool := false           -- Respond even without focus</code></pre>
+
+<h3>ListResult</h3>
+
+<pre><code class="language-lean">structure ListResult (α : Type) where
+  selectedIndex : Reactive.Dynamic Spider Nat
+  selectedItem : Reactive.Dynamic Spider (Option α)
+  onSelect : Reactive.Event Spider α
+  onSelectionChange : Reactive.Event Spider Nat</code></pre>
+
+<h3>dynSelectableList'</h3>
+
+<p>List with dynamic items array:</p>
+
+<pre><code class="language-lean">let itemsDyn ← ... -- Dynamic Spider (Array String)
+let list ← dynSelectableList' itemsDyn 0 {}</code></pre>
+
+<h3>stringList'</h3>
+
+<p>Convenience for string arrays:</p>
+
+<pre><code class="language-lean">let list ← stringList' #["Option A", "Option B", "Option C"] 0 {}</code></pre>
+
+<h3>numberedList'</h3>
+
+<p>List with number prefixes (1. 2. 3.):</p>
+
+<pre><code class="language-lean">let list ← numberedList' #["First", "Second", "Third"] 0 {}
+
+-- Keys: 1-9 for direct selection</code></pre>
+
+<h3>tabs'</h3>
+
+<p>Horizontal tab bar:</p>
+
+<pre><code class="language-lean">let tabs ← tabs' #["Home", "Settings", "Help"] 0 {}
+
+-- tabs.activeTab : Dynamic Spider Nat
+-- tabs.onTabChange : Event Spider Nat
+
+-- Keys: Left/Right, Home/End</code></pre>
+
+<h3>TabsConfig</h3>
+
+<pre><code class="language-lean">structure TabsConfig where
+  style : Style := {}
+  activeStyle : Style := { fg := .ansi .cyan, modifier := { bold := true } }
+  separator : String := " | "
+  separatorStyle : Style := { fg := .ansi .brightBlack }
+  highlightSymbol : String := ""
+  showNumbers : Bool := false
+  wrapAround : Bool := true
+  focusName : String := ""
+  globalKeys : Bool := false</code></pre>
+
+<h3>numberedTabs'</h3>
+
+<p>Tabs with number prefixes (1. 2. 3.):</p>
+
+<pre><code class="language-lean">let tabs ← numberedTabs' #["Home", "Settings", "Help"] 0 {}
+
+-- Keys: 1-9 for direct selection</code></pre>
+
+<h3>dynTabs'</h3>
+
+<p>Tabs with dynamic labels:</p>
+
+<pre><code class="language-lean">let labelsDyn ← ... -- Dynamic Spider (Array String)
+let tabs ← dynTabs' labelsDyn 0 {}</code></pre>
+
+<h3>Tab Content Pattern</h3>
+
+<p>Show different content based on active tab:</p>
+
+<pre><code class="language-lean">let tabs ← tabs' #["Profile", "Settings", "Help"] 0 {}
+
+let _ ← dynWidget tabs.activeTab fun idx =>
+  match idx with
+  | 0 => column' (gap := 1) {} do
+           heading2' "Profile" theme
+           text' "User profile content" {}
+  | 1 => column' (gap := 1) {} do
+           heading2' "Settings" theme
+           text' "Application settings" {}
+  | 2 => column' (gap := 1) {} do
+           heading2' "Help" theme
+           text' "Documentation and support" {}
+  | _ => text' "Unknown tab" {}</code></pre>
+
+<h3>Master-Detail Pattern</h3>
+
+<pre><code class="language-lean">let items := #["Alice", "Bob", "Charlie"]
+let list ← selectableList' items 0 { maxVisible := some 10 }
+
+row' (gap := 2) {} do
+  -- Master list
+  titledBlock' "Users" .rounded theme none do
+    -- List widget renders itself in the parent
+
+  -- Detail view
+  titledBlock' "Details" .rounded theme none do
+    let _ ← dynWidget list.selectedItem fun item =>
+      match item with
+      | some name => column' (gap := 1) {} do
+          text' s!"Name: {name}" {}
+          text' s!"Email: {name.toLower}@example.com" {}
+      | none => text' "Select a user" theme.captionStyle</code></pre>
+
+<h3>List Scrolling</h3>
+
+<p>Lists automatically scroll when <code>maxVisible</code> is set:</p>
+
+<pre><code class="language-lean">let longList ← selectableList' (Array.range 100 |>.map toString) 0
+  { maxVisible := some 10, showScrollIndicators := true }
+
+-- Shows:
+--   ...
+-- > 5
+--   6
+--   7
+--   ...
+-- (scroll indicators when items are hidden)</code></pre>
+
+<h3>Menu Navigation</h3>
+
+<pre><code class="language-lean">def main : IO Unit := runReactiveApp do
+  let menuItems := #["New File", "Open File", "Save", "Exit"]
+  let (_, render) ← runWidget do
+    titledBlock' "Menu" .rounded Theme.dark none do
+      let menu ← selectableList' menuItems 0 {}
+
+      -- Handle selection
+      let _ ← performEvent_ (← Event.mapM (fun item => do
+        match item with
+        | "Exit" => IO.println "Exiting..."
+        | action => IO.println s!"Selected: {action}") menu.onSelect)
+
+  pure { render }</code></pre>

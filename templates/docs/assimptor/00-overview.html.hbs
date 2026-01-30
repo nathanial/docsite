@@ -1,0 +1,52 @@
+<p>Assimptor is a <strong>3D model loading library</strong> for Lean 4, built on top of the Open Asset Import Library (Assimp). It provides a simple, single-function API for loading 3D models from common file formats and extracting the geometry data needed for rendering.</p>
+
+<h3>Key Features</h3>
+<ul>
+  <li><strong>Multiple Format Support</strong> - Load FBX, OBJ, COLLADA, glTF, and many other 3D formats via Assimp</li>
+  <li><strong>Unified Vertex Format</strong> - All models are converted to a consistent 12-float vertex layout</li>
+  <li><strong>Multi-Material Models</strong> - Sub-mesh support for models with multiple materials and textures</li>
+  <li><strong>Texture Path Extraction</strong> - Automatic extraction of diffuse texture paths for material loading</li>
+</ul>
+
+<h3>Design Philosophy</h3>
+
+<p>Assimptor uses an "ungranular" API design. Rather than exposing Assimp's complex scene graph, the library provides a single <code>loadAsset</code> function that returns all mesh data pre-processed and ready for rendering. This makes it straightforward to integrate with graphics pipelines like Afferent.</p>
+
+<h3>Vertex Layout</h3>
+
+<p>All loaded models use a consistent 12-float vertex format:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Attribute</th><th>Floats</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Position</strong></td><td>3</td><td>X, Y, Z coordinates</td></tr>
+    <tr><td><strong>Normal</strong></td><td>3</td><td>Surface normal vector</td></tr>
+    <tr><td><strong>UV</strong></td><td>2</td><td>Texture coordinates</td></tr>
+    <tr><td><strong>Color</strong></td><td>4</td><td>RGBA vertex color (defaults to white)</td></tr>
+  </tbody>
+</table>
+
+<h3>Use Cases</h3>
+
+<ul>
+  <li><strong>Game Development</strong> - Load character models, props, and environments</li>
+  <li><strong>3D Visualization</strong> - Import CAD models and scientific visualizations</li>
+  <li><strong>Graphics Applications</strong> - Integrate 3D assets into Metal-based renderers</li>
+</ul>
+
+<h3>Quick Example</h3>
+
+<pre><code class="language-lean">import Assimptor
+
+-- Load a 3D model
+let asset ← Assimptor.loadAsset "model.fbx" "textures/"
+
+-- Access the data
+let vertexCount := asset.vertices.size / 12
+let triangleCount := asset.indices.size / 3
+
+IO.println s!"Loaded {vertexCount} vertices, {triangleCount} triangles"
+IO.println s!"Sub-meshes: {asset.subMeshes.size}"
+IO.println s!"Textures: {asset.texturePaths.size}"</code></pre>

@@ -1,0 +1,143 @@
+<p>Text widgets display styled text content in the terminal.</p>
+
+<h3>text'</h3>
+
+<p>The basic text widget:</p>
+
+<pre><code class="language-lean">-- Plain text with style
+text' "Hello, World!" {}
+
+-- Colored text
+text' "Error!" { fg := .ansi .red }
+
+-- Styled text
+text' "Important" { fg := .ansi .yellow, modifier := { bold := true } }</code></pre>
+
+<h3>styledText'</h3>
+
+<p>Convenience for foreground color only:</p>
+
+<pre><code class="language-lean">styledText' "Cyan text" .cyan
+styledText' "Green text" .green</code></pre>
+
+<h3>Theme-Aware Text Widgets</h3>
+
+<p>These widgets use theme colors for consistent styling:</p>
+
+<pre><code class="language-lean">let theme := Theme.dark
+
+-- Headings (bold by default)
+heading1' "Main Title" theme
+heading2' "Section" theme
+heading3' "Subsection" theme
+
+-- Body text
+bodyText' "Regular paragraph text" theme
+
+-- Caption/muted text
+caption' "Secondary information" theme
+
+-- Primary accent color
+primaryText' "Highlighted text" theme</code></pre>
+
+<h3>dynText'</h3>
+
+<p>Text that updates when a Dynamic changes:</p>
+
+<pre><code class="language-lean">let counter ← Reactive.foldDyn (fun _ n => n + 1) 0 keyEvents
+
+-- Text updates automatically when counter changes
+dynText' (← counter.map' fun n => s!"Count: {n}") theme.bodyStyle</code></pre>
+
+<h3>dynBodyText' and dynCaption'</h3>
+
+<p>Dynamic text with theme styling:</p>
+
+<pre><code class="language-lean">dynBodyText' messageDyn theme
+dynCaption' statusDyn theme</code></pre>
+
+<h3>spacer'</h3>
+
+<p>Fixed-size empty space:</p>
+
+<pre><code class="language-lean">-- 1x1 spacer (default)
+spacer' 1 1
+
+-- Horizontal spacer (10 wide, 1 tall)
+spacer' 10 1
+
+-- Vertical spacer (1 wide, 5 tall)
+spacer' 1 5</code></pre>
+
+<h3>Progress Bars</h3>
+
+<p>Display progress with <code>progressBar'</code> and <code>dynProgressBar'</code>:</p>
+
+<pre><code class="language-lean">-- Static progress bar
+progressBar' 0.75 {}  -- 75% complete
+
+-- Custom configuration
+let config : ProgressBarConfig := {
+  width := 30
+  filledChar := '='
+  emptyChar := '-'
+  showPercentage := true
+  filledStyle := { fg := .ansi .green }
+  emptyStyle := { fg := .ansi .brightBlack }
+}
+progressBar' 0.5 config</code></pre>
+
+<p>Dynamic progress bar:</p>
+
+<pre><code class="language-lean">let progressDyn ← ... -- Dynamic Spider Float from 0.0 to 1.0
+dynProgressBar' progressDyn {}</code></pre>
+
+<h3>ProgressBarConfig</h3>
+
+<pre><code class="language-lean">structure ProgressBarConfig where
+  width : Nat := 20
+  filledChar : Char := '█'
+  emptyChar : Char := '░'
+  filledStyle : Style := { fg := .ansi .cyan }
+  emptyStyle : Style := { fg := .ansi .brightBlack }
+  showPercentage : Bool := true
+  percentageStyle : Style := {}</code></pre>
+
+<h3>Combining Text Widgets</h3>
+
+<p>Use containers to arrange multiple text elements:</p>
+
+<pre><code class="language-lean">column' (gap := 1) {} do
+  heading1' "Application" theme
+  bodyText' "Welcome to the application." theme
+
+  row' (gap := 1) {} do
+    text' "Status:" theme.captionStyle
+    text' "Running" { fg := .ansi .green }
+
+  caption' "Press ? for help" theme</code></pre>
+
+<h3>Custom Text Styling</h3>
+
+<p>Create reusable styled text helpers:</p>
+
+<pre><code class="language-lean">def errorText' (msg : String) : WidgetM Unit :=
+  text' msg { fg := .ansi .white, bg := .ansi .red, modifier := { bold := true } }
+
+def successText' (msg : String) : WidgetM Unit :=
+  text' msg { fg := .ansi .green }
+
+def linkText' (label : String) : WidgetM Unit :=
+  text' label { fg := .ansi .blue, modifier := { underline := true } }</code></pre>
+
+<h3>Dynamic Styling</h3>
+
+<p>Change styles based on state:</p>
+
+<pre><code class="language-lean">let isError ← someDynamic
+let styleDyn ← isError.map' fun err =>
+  if err then { fg := .ansi .red } else { fg := .ansi .green }
+
+-- Use dynWidget to switch styles
+let _ ← dynWidget styleDyn fun style =>
+  text' "Status indicator" style</code></pre>

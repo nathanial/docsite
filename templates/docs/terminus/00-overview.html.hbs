@@ -1,0 +1,100 @@
+<p>Terminus is a <strong>reactive terminal user interface (TUI) framework</strong> for Lean 4.
+It provides a declarative, FRP-powered widget system for building interactive
+terminal applications with clean, composable abstractions.</p>
+
+<h3>Key Features</h3>
+<ul>
+  <li><strong>Reactive Widget System</strong> - FRP-powered widgets using the Reactive library for state management</li>
+  <li><strong>Monadic Widget Building</strong> - Compose UIs with WidgetM monad, similar to Reflex-DOM</li>
+  <li><strong>60+ Built-in Widgets</strong> - Text, containers, inputs, lists, tabs, charts, and more</li>
+  <li><strong>Automatic Focus Management</strong> - Tab navigation and focus tracking out of the box</li>
+  <li><strong>Differential Rendering</strong> - Efficient updates via buffer diffing with row-level hashing</li>
+  <li><strong>Unicode Support</strong> - Full support for wide characters and combining marks</li>
+  <li><strong>Theme Support</strong> - Consistent styling with dark/light themes</li>
+</ul>
+
+<h3>Quick Example</h3>
+
+<pre><code class="language-lean">import Terminus.Reactive
+
+open Terminus.Reactive
+
+def main : IO Unit := runReactiveApp do
+  let keyEvents ← useKeyEvent
+  let count ← Reactive.foldDyn (fun _ n => n + 1) 0 keyEvents
+
+  let (_, render) ← runWidget do
+    column' (gap := 1) {} do
+      heading1' "Key Counter" Theme.dark
+      dynText' (← count.map' fun n => s!"Keys pressed: {n}") Theme.dark.bodyStyle
+
+  pure { render }</code></pre>
+
+<h3>Architecture</h3>
+
+<p>Terminus is built in layers, each providing a higher level of abstraction:</p>
+
+<table class="api-table">
+  <tr>
+    <th>Layer</th>
+    <th>Purpose</th>
+    <th>Key Types</th>
+  </tr>
+  <tr>
+    <td><strong>Core</strong></td>
+    <td>Foundation types for terminal rendering</td>
+    <td>Style, Color, Cell, Buffer, Rect</td>
+  </tr>
+  <tr>
+    <td><strong>Backend</strong></td>
+    <td>Terminal I/O, ANSI codes, raw mode</td>
+    <td>Terminal, Events</td>
+  </tr>
+  <tr>
+    <td><strong>Input</strong></td>
+    <td>Keyboard and mouse event parsing</td>
+    <td>KeyCode, KeyEvent, MouseEvent, Event</td>
+  </tr>
+  <tr>
+    <td><strong>Layout</strong></td>
+    <td>Constraint-based sizing system</td>
+    <td>Constraint, Direction</td>
+  </tr>
+  <tr>
+    <td><strong>Reactive</strong></td>
+    <td>FRP-powered widget system (main API)</td>
+    <td>WidgetM, RNode, Theme, hooks</td>
+  </tr>
+</table>
+
+<h3>Design Philosophy</h3>
+
+<p>Terminus follows the <strong>declarative FRP pattern</strong> popularized by Reflex. Instead of
+imperatively managing state with refs and callbacks, you describe state transitions as pure
+functions folded over event streams:</p>
+
+<pre><code class="language-lean">-- Map key events to state transformation functions
+let stateOps ← Event.mapMaybeM (fun kd =>
+  match kd.event.code with
+  | .up => some (·.moveUp)
+  | .down => some (·.moveDown)
+  | _ => none) keyEvents
+
+-- Fold transformations into state - no subscribe needed!
+let stateDyn ← foldDyn (fun op state => op state) initialState stateOps</code></pre>
+
+<p>This approach keeps state management pure, testable, and composable.</p>
+
+<h3>Widget Categories</h3>
+
+<p>Terminus provides widgets organized into categories:</p>
+
+<ul>
+  <li><strong>Text</strong> - text', dynText', heading', paragraph', badge'</li>
+  <li><strong>Containers</strong> - row', column', block', titledPanel', overlay'</li>
+  <li><strong>Inputs</strong> - textInput', switch', checkbox', slider', textArea'</li>
+  <li><strong>Lists</strong> - selectableList', numberedList', tree', menu'</li>
+  <li><strong>Navigation</strong> - tabs', breadcrumb', menuBar'</li>
+  <li><strong>Data</strong> - table', dataGrid', barChart', lineChart', sparkline'</li>
+  <li><strong>Feedback</strong> - spinner', progressBar', notification', toast'</li>
+</ul>

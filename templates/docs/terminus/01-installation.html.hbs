@@ -1,0 +1,90 @@
+<p>This guide covers adding Terminus to your Lean 4 project.</p>
+
+<h3>Prerequisites</h3>
+
+<ul>
+  <li>Lean 4 (compatible toolchain)</li>
+  <li>Lake build system</li>
+  <li>A terminal emulator with ANSI support</li>
+</ul>
+
+<h3>Adding the Dependency</h3>
+
+<p>Add Terminus to your <code>lakefile.lean</code>:</p>
+
+<pre><code class="language-lean">require terminus from git
+  "https://github.com/nathanial/terminus" @ "v0.0.1"</code></pre>
+
+<p>Terminus depends on the Reactive library, which will be fetched automatically.</p>
+
+<h3>Updating Dependencies</h3>
+
+<p>Fetch and build the dependencies:</p>
+
+<pre><code class="language-bash">lake update
+lake build</code></pre>
+
+<h3>Import Patterns</h3>
+
+<p>For most applications, import the reactive widget system:</p>
+
+<pre><code class="language-lean">import Terminus.Reactive
+
+open Terminus.Reactive</code></pre>
+
+<p>For lower-level access to core types:</p>
+
+<pre><code class="language-lean">import Terminus
+
+open Terminus</code></pre>
+
+<h3>Project Structure</h3>
+
+<p>A typical Terminus application structure:</p>
+
+<pre><code>my-tui-app/
+├── lakefile.lean
+├── MyApp.lean          -- Library root
+├── MyApp/
+│   ├── Widgets.lean    -- Custom widgets
+│   └── State.lean      -- Application state
+├── Main.lean           -- Entry point
+└── Tests/
+    └── Main.lean       -- Test runner</code></pre>
+
+<h3>Minimal Application</h3>
+
+<p>A complete minimal application (<code>Main.lean</code>):</p>
+
+<pre><code class="language-lean">import Terminus.Reactive
+
+open Terminus.Reactive
+
+def main : IO Unit := runReactiveApp do
+  let (_, render) ← runWidget do
+    column' (gap := 1) {} do
+      text' "Hello, Terminal!" { fg := .ansi .cyan }
+      text' "Press Ctrl+C to exit" { fg := .ansi .brightBlack }
+
+  pure { render }</code></pre>
+
+<h3>Building and Running</h3>
+
+<pre><code class="language-bash">lake build
+lake exe my-tui-app</code></pre>
+
+<p>The application will enter raw terminal mode, render the UI, and respond to input
+until you press Ctrl+C or Ctrl+Q to exit.</p>
+
+<h3>Terminal Requirements</h3>
+
+<p>Terminus works best with terminals that support:</p>
+
+<ul>
+  <li>ANSI escape codes (virtually all modern terminals)</li>
+  <li>256-color or true color mode</li>
+  <li>Mouse reporting (for mouse-enabled widgets)</li>
+  <li>Unicode (for box-drawing characters and wide text)</li>
+</ul>
+
+<p>Recommended terminals: iTerm2, Alacritty, WezTerm, Kitty, Windows Terminal.</p>

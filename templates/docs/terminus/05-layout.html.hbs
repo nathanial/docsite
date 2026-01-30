@@ -1,0 +1,163 @@
+<p>Terminus uses a constraint-based layout system for positioning widgets.</p>
+
+<h3>Constraint</h3>
+
+<p>The <code>Constraint</code> type defines how widgets should be sized:</p>
+
+<pre><code class="language-lean">inductive Constraint where
+  | fixed (size : Nat)         -- Exact size in cells
+  | percent (pct : Nat)        -- Percentage of available space (0-100)
+  | min (size : Nat)           -- Minimum size
+  | max (size : Nat)           -- Maximum size
+  | ratio (num denom : Nat)    -- Ratio relative to siblings
+  | fill                       -- Fill remaining space</code></pre>
+
+<h3>Constraint Examples</h3>
+
+<pre><code class="language-lean">Constraint.fixed 20      -- Exactly 20 cells
+Constraint.percent 50    -- Half of available space
+Constraint.min 10        -- At least 10 cells
+Constraint.max 100       -- At most 100 cells
+Constraint.ratio 1 3     -- One third of flex space
+Constraint.fill          -- All remaining space</code></pre>
+
+<h3>Shorthand Constructors</h3>
+
+<pre><code class="language-lean">Constraint.pct 50   -- Same as .percent 50
+Constraint.len 20   -- Same as .fixed 20</code></pre>
+
+<h3>Direction</h3>
+
+<p>Layout direction for splitting:</p>
+
+<pre><code class="language-lean">inductive Direction where
+  | horizontal   -- Left to right
+  | vertical     -- Top to bottom</code></pre>
+
+<h3>RStyle</h3>
+
+<p>Layout style for reactive containers:</p>
+
+<pre><code class="language-lean">structure RStyle where
+  minWidth : Option Nat := none
+  minHeight : Option Nat := none
+  padding : Nat := 0</code></pre>
+
+<h3>Container Layout</h3>
+
+<p>The reactive widget system uses <code>row'</code> and <code>column'</code> for layout:</p>
+
+<pre><code class="language-lean">-- Vertical layout (column)
+column' (gap := 1) {} do
+  text' "First" {}
+  text' "Second" {}
+  text' "Third" {}
+
+-- Horizontal layout (row)
+row' (gap := 2) {} do
+  text' "Left" {}
+  text' "Middle" {}
+  text' "Right" {}</code></pre>
+
+<h3>Gap Spacing</h3>
+
+<p>The <code>gap</code> parameter adds space between children:</p>
+
+<pre><code class="language-lean">-- No gap (items touch)
+column' (gap := 0) {} do ...
+
+-- 1-cell gap between items
+column' (gap := 1) {} do ...
+
+-- 2-cell gap for more separation
+column' (gap := 2) {} do ...</code></pre>
+
+<h3>Padding</h3>
+
+<p>Use <code>RStyle.padding</code> or <code>padded'</code> for internal spacing:</p>
+
+<pre><code class="language-lean">-- Via RStyle
+column' (gap := 0) { padding := 2 } do
+  text' "Content with padding" {}
+
+-- Via padded' wrapper
+padded' 2 do
+  text' "Also padded" {}</code></pre>
+
+<h3>Nested Layouts</h3>
+
+<p>Layouts can be nested for complex arrangements:</p>
+
+<pre><code class="language-lean">column' (gap := 1) {} do
+  -- Header row
+  row' (gap := 2) {} do
+    text' "Logo" {}
+    text' "Navigation" {}
+
+  -- Main content area
+  row' (gap := 1) {} do
+    -- Sidebar (vertical)
+    column' (gap := 1) {} do
+      text' "Menu 1" {}
+      text' "Menu 2" {}
+
+    -- Content (vertical)
+    column' (gap := 1) {} do
+      text' "Main content" {}
+      text' "More content" {}</code></pre>
+
+<h3>Docked Layout</h3>
+
+<p>Dock content at the bottom with fixed height:</p>
+
+<pre><code class="language-lean">dockBottom' (footerHeight := 1) do
+  -- Main scrollable content
+  column' (gap := 1) {} do
+    for item in items do
+      text' item {}
+do
+  -- Fixed footer
+  text' "Status: Ready | Press ? for help" {}</code></pre>
+
+<h3>Block Containers</h3>
+
+<p>Blocks add borders around content:</p>
+
+<pre><code class="language-lean">-- Simple bordered block
+block' .rounded theme none do
+  text' "Bordered content" {}
+
+-- Block with title
+titledBlock' "Settings" .rounded theme none do
+  column' (gap := 1) {} do
+    text' "Option 1" {}
+    text' "Option 2" {}</code></pre>
+
+<h3>Border Types</h3>
+
+<pre><code class="language-lean">inductive BorderType where
+  | none      -- No border
+  | single    -- ┌─┐ style
+  | double    -- ╔═╗ style
+  | rounded   -- ╭─╮ style (default)
+  | thick     -- ┏━┓ style</code></pre>
+
+<h3>Overlay Layout</h3>
+
+<p>Overlay content on top of a base layer:</p>
+
+<pre><code class="language-lean">-- The overlay' widget centers content over base
+let _ ← overlay' visible do
+  -- Base content (full screen)
+  text' "Background" {}
+do
+  -- Overlay content (centered)
+  block' .rounded theme (some { bg := .ansi .black }) do
+    text' "Modal dialog" {}</code></pre>
+
+<h3>Minimum Size Constraints</h3>
+
+<p>Ensure containers have minimum dimensions:</p>
+
+<pre><code class="language-lean">column' (gap := 0) { minWidth := some 40, minHeight := some 10 } do
+  text' "Content" {}</code></pre>

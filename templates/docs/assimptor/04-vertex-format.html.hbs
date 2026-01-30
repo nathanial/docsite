@@ -1,0 +1,106 @@
+<p>Assimptor converts all loaded models to a unified 12-float vertex format. This standardized layout simplifies shader development and GPU buffer management.</p>
+
+<h3>Vertex Layout</h3>
+
+<p>Each vertex occupies 12 consecutive floats (48 bytes):</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Offset</th><th>Attribute</th><th>Components</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>0-2</td><td><strong>Position</strong></td><td>x, y, z</td><td>Vertex position in model space</td></tr>
+    <tr><td>3-5</td><td><strong>Normal</strong></td><td>nx, ny, nz</td><td>Surface normal (normalized)</td></tr>
+    <tr><td>6-7</td><td><strong>UV</strong></td><td>u, v</td><td>Texture coordinates</td></tr>
+    <tr><td>8-11</td><td><strong>Color</strong></td><td>r, g, b, a</td><td>Vertex color (RGBA)</td></tr>
+  </tbody>
+</table>
+
+<h3>Attribute Details</h3>
+
+<h4>Position (3 floats)</h4>
+<p>The 3D position of the vertex in model space. Coordinates are preserved as-is from the source model without transformation.</p>
+
+<h4>Normal (3 floats)</h4>
+<p>The surface normal vector at this vertex, used for lighting calculations. Normals are normalized (unit length). If the source model lacks normals, Assimp generates them automatically.</p>
+
+<h4>UV (2 floats)</h4>
+<p>Texture coordinates for sampling textures. Standard convention: (0,0) is bottom-left, (1,1) is top-right. If the model lacks texture coordinates, these default to (0, 0).</p>
+
+<h4>Color (4 floats)</h4>
+<p>Per-vertex RGBA color. Values are in the 0.0 to 1.0 range. If the source model doesn't include vertex colors, these default to opaque white (1, 1, 1, 1).</p>
+
+<h3>Accessing Vertex Attributes</h3>
+
+<pre><code class="language-lean">import Assimptor
+
+def extractPositions (asset : Assimptor.LoadedAsset) : Array (Float × Float × Float) :=
+  let vertexCount := asset.vertices.size / 12
+  Array.ofFn fun i =>
+    let base := i * 12
+    (asset.vertices[base]!, asset.vertices[base + 1]!, asset.vertices[base + 2]!)
+
+def extractNormals (asset : Assimptor.LoadedAsset) : Array (Float × Float × Float) :=
+  let vertexCount := asset.vertices.size / 12
+  Array.ofFn fun i =>
+    let base := i * 12 + 3
+    (asset.vertices[base]!, asset.vertices[base + 1]!, asset.vertices[base + 2]!)
+
+def extractUVs (asset : Assimptor.LoadedAsset) : Array (Float × Float) :=
+  let vertexCount := asset.vertices.size / 12
+  Array.ofFn fun i =>
+    let base := i * 12 + 6
+    (asset.vertices[base]!, asset.vertices[base + 1]!)</code></pre>
+
+<h3>GPU Buffer Layout</h3>
+
+<p>The vertex format maps directly to GPU vertex buffer descriptors:</p>
+
+<pre><code class="language-lean">-- Metal shader vertex input structure
+-- struct Vertex {
+--     float3 position;  // offset 0, size 12
+--     float3 normal;    // offset 12, size 12
+--     float2 uv;        // offset 24, size 8
+--     float4 color;     // offset 32, size 16
+-- };                    // total: 48 bytes
+
+-- Stride between vertices
+let stride : Nat := 12 * 4  -- 48 bytes
+
+-- Attribute offsets (in bytes)
+let positionOffset : Nat := 0
+let normalOffset : Nat := 12
+let uvOffset : Nat := 24
+let colorOffset : Nat := 32</code></pre>
+
+<h3>Interleaved Format Benefits</h3>
+
+<p>The interleaved vertex format provides several advantages:</p>
+
+<ul>
+  <li><strong>Cache Efficiency</strong> - All attributes for a vertex are adjacent in memory</li>
+  <li><strong>Single Buffer</strong> - No need to manage multiple attribute buffers</li>
+  <li><strong>Simple Indexing</strong> - Index buffer references complete vertices</li>
+  <li><strong>GPU Friendly</strong> - Optimal for modern GPU vertex fetch</li>
+</ul>
+
+<h3>Working with Linalg</h3>
+
+<p>When using with the linalg library, you can convert to vector types:</p>
+
+<pre><code class="language-lean">import Assimptor
+import Linalg
+
+def getVertexPosition (asset : Assimptor.LoadedAsset) (index : Nat) : Vec3 :=
+  let base := index * 12
+  Vec3.mk
+    asset.vertices[base]!
+    asset.vertices[base + 1]!
+    asset.vertices[base + 2]!
+
+def getVertexNormal (asset : Assimptor.LoadedAsset) (index : Nat) : Vec3 :=
+  let base := index * 12 + 3
+  Vec3.mk
+    asset.vertices[base]!
+    asset.vertices[base + 1]!
+    asset.vertices[base + 2]!</code></pre>

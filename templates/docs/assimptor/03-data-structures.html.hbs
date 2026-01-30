@@ -1,0 +1,98 @@
+<p>Assimptor provides two main data structures for representing loaded 3D assets.</p>
+
+<h3>LoadedAsset</h3>
+
+<p>The <code>LoadedAsset</code> structure contains all data from a loaded 3D model:</p>
+
+<pre><code class="language-lean">structure LoadedAsset where
+  vertices : Array Float      -- Vertex data (12 floats per vertex)
+  indices : Array UInt32      -- Triangle indices
+  subMeshes : Array SubMesh   -- Sub-mesh definitions
+  texturePaths : Array String -- Paths to diffuse textures</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>vertices</code></td><td><code>Array Float</code></td><td>Flat array of vertex attributes. Each vertex uses 12 consecutive floats.</td></tr>
+    <tr><td><code>indices</code></td><td><code>Array UInt32</code></td><td>Triangle indices into the vertex array. Every 3 indices form one triangle.</td></tr>
+    <tr><td><code>subMeshes</code></td><td><code>Array SubMesh</code></td><td>Sub-mesh definitions for multi-material models.</td></tr>
+    <tr><td><code>texturePaths</code></td><td><code>Array String</code></td><td>File paths to diffuse textures, relative to the base path passed to <code>loadAsset</code>.</td></tr>
+  </tbody>
+</table>
+
+<h3>SubMesh</h3>
+
+<p>The <code>SubMesh</code> structure defines a portion of the model that uses a single material:</p>
+
+<pre><code class="language-lean">structure SubMesh where
+  indexOffset : UInt32   -- Offset into combined index buffer
+  indexCount : UInt32    -- Number of indices for this submesh
+  textureIndex : UInt32  -- Index into texturePaths array</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>indexOffset</code></td><td><code>UInt32</code></td><td>Starting index in the <code>indices</code> array for this sub-mesh.</td></tr>
+    <tr><td><code>indexCount</code></td><td><code>UInt32</code></td><td>Number of indices belonging to this sub-mesh.</td></tr>
+    <tr><td><code>textureIndex</code></td><td><code>UInt32</code></td><td>Index into <code>texturePaths</code>. If the sub-mesh has no texture, this is <code>UInt32.size - 1</code>.</td></tr>
+  </tbody>
+</table>
+
+<h3>Rendering with Sub-Meshes</h3>
+
+<p>When rendering a model with multiple materials, iterate over sub-meshes and bind the appropriate texture for each:</p>
+
+<pre><code class="language-lean">-- Pseudocode for rendering
+for mesh in asset.subMeshes do
+  -- Bind texture if available
+  if mesh.textureIndex < asset.texturePaths.size.toUInt32 then
+    let texturePath := asset.texturePaths[mesh.textureIndex.toNat]!
+    bindTexture texturePath
+
+  -- Draw this sub-mesh
+  drawIndexed
+    (indexOffset := mesh.indexOffset.toNat)
+    (indexCount := mesh.indexCount.toNat)</code></pre>
+
+<h3>Memory Layout</h3>
+
+<p>The vertex and index arrays are laid out for efficient GPU upload:</p>
+
+<pre><code class="language-lean">-- Vertices: contiguous 12-float blocks
+-- [v0: pos, normal, uv, color][v1: pos, normal, uv, color]...
+--  └─ 12 floats ─┘             └─ 12 floats ─┘
+
+-- Indices: groups of 3 form triangles
+-- [t0: i0, i1, i2][t1: i3, i4, i5]...
+--  └─ triangle ─┘  └─ triangle ─┘</code></pre>
+
+<h3>Single-Material Models</h3>
+
+<p>For simple models with a single material, the <code>subMeshes</code> array will contain exactly one entry covering all indices:</p>
+
+<pre><code class="language-lean">let asset ← Assimptor.loadAsset "simple.obj" "./"
+
+-- Single-material model: one sub-mesh
+assert! asset.subMeshes.size == 1
+
+let mesh := asset.subMeshes[0]!
+assert! mesh.indexOffset == 0
+assert! mesh.indexCount == asset.indices.size.toUInt32</code></pre>
+
+<h3>Type Instances</h3>
+
+<p>Both structures derive useful type class instances:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Instance</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Repr</code></td><td>Pretty-printing for debugging</td></tr>
+    <tr><td><code>Inhabited</code></td><td>Default empty instances</td></tr>
+  </tbody>
+</table>

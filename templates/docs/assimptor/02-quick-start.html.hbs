@@ -1,0 +1,114 @@
+<p>This guide shows you how to load a 3D model and access its data with Assimptor.</p>
+
+<h3>Loading a Model</h3>
+
+<p>The <code>loadAsset</code> function is the single entry point for loading 3D models:</p>
+
+<pre><code class="language-lean">import Assimptor
+
+def loadModel : IO Unit := do
+  -- Load a model file
+  -- First argument: path to the model file
+  -- Second argument: base directory for texture paths
+  let asset ← Assimptor.loadAsset "models/character.fbx" "models/"
+
+  IO.println s!"Vertices: {asset.vertices.size / 12}"
+  IO.println s!"Indices: {asset.indices.size}"
+  IO.println s!"Sub-meshes: {asset.subMeshes.size}"
+  IO.println s!"Textures: {asset.texturePaths.size}"</code></pre>
+
+<h3>Understanding the Base Path</h3>
+
+<p>The second parameter to <code>loadAsset</code> specifies where textures are located. Texture paths in the returned <code>LoadedAsset</code> are relative to this directory:</p>
+
+<pre><code class="language-lean">-- If your model references "textures/diffuse.png" internally,
+-- and you pass "assets/" as the base path,
+-- the texturePaths array will contain "assets/textures/diffuse.png"
+
+let asset ← Assimptor.loadAsset "scene.fbx" "assets/"
+
+for path in asset.texturePaths do
+  IO.println s!"Texture: {path}"</code></pre>
+
+<h3>Accessing Vertex Data</h3>
+
+<p>Vertices are stored as a flat array of floats. Each vertex uses 12 floats:</p>
+
+<pre><code class="language-lean">-- Extract vertex data
+let vertices := asset.vertices
+let vertexCount := vertices.size / 12
+
+-- Access individual vertices
+for i in [:vertexCount] do
+  let base := i * 12
+
+  -- Position (floats 0-2)
+  let px := vertices[base + 0]!
+  let py := vertices[base + 1]!
+  let pz := vertices[base + 2]!
+
+  -- Normal (floats 3-5)
+  let nx := vertices[base + 3]!
+  let ny := vertices[base + 4]!
+  let nz := vertices[base + 5]!
+
+  -- UV (floats 6-7)
+  let u := vertices[base + 6]!
+  let v := vertices[base + 7]!
+
+  -- Color (floats 8-11)
+  let r := vertices[base + 8]!
+  let g := vertices[base + 9]!
+  let b := vertices[base + 10]!
+  let a := vertices[base + 11]!
+
+  IO.println s!"Vertex {i}: pos=({px}, {py}, {pz})"</code></pre>
+
+<h3>Accessing Indices</h3>
+
+<p>Indices define triangles by referencing vertex positions:</p>
+
+<pre><code class="language-lean">let indices := asset.indices
+let triangleCount := indices.size / 3
+
+for i in [:triangleCount] do
+  let i0 := indices[i * 3 + 0]!
+  let i1 := indices[i * 3 + 1]!
+  let i2 := indices[i * 3 + 2]!
+  IO.println s!"Triangle {i}: vertices {i0}, {i1}, {i2}"</code></pre>
+
+<h3>Working with Sub-Meshes</h3>
+
+<p>Multi-material models are split into sub-meshes, each with its own texture:</p>
+
+<pre><code class="language-lean">for (mesh, idx) in asset.subMeshes.toList.enum do
+  IO.println s!"Sub-mesh {idx}:"
+  IO.println s!"  Index offset: {mesh.indexOffset}"
+  IO.println s!"  Index count: {mesh.indexCount}"
+
+  -- Get the texture for this sub-mesh
+  if mesh.textureIndex < asset.texturePaths.size.toUInt32 then
+    let texturePath := asset.texturePaths[mesh.textureIndex.toNat]!
+    IO.println s!"  Texture: {texturePath}"
+  else
+    IO.println s!"  No texture"</code></pre>
+
+<h3>Complete Example</h3>
+
+<pre><code class="language-lean">import Assimptor
+
+def main : IO Unit := do
+  let asset ← Assimptor.loadAsset "model.fbx" "./"
+
+  let vertexCount := asset.vertices.size / 12
+  let triangleCount := asset.indices.size / 3
+
+  IO.println s!"Loaded model with:"
+  IO.println s!"  {vertexCount} vertices"
+  IO.println s!"  {triangleCount} triangles"
+  IO.println s!"  {asset.subMeshes.size} sub-meshes"
+
+  -- List all textures
+  IO.println "Textures:"
+  for path in asset.texturePaths do
+    IO.println s!"  - {path}"</code></pre>

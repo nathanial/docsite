@@ -1,0 +1,172 @@
+<p>Data visualization widgets for tables, charts, and structured data display.</p>
+
+<h3>table'</h3>
+
+<p>Display tabular data with columns:</p>
+
+<pre><code class="language-lean">let columns := #["Name", "Age", "City"]
+let rows := #[
+  #["Alice", "30", "New York"],
+  #["Bob", "25", "London"],
+  #["Charlie", "35", "Tokyo"]
+]
+
+let tbl ← table' columns rows 0 {}</code></pre>
+
+<h3>TableConfig</h3>
+
+<pre><code class="language-lean">structure TableConfig where
+  headerStyle : Style := { modifier := { bold := true } }
+  rowStyle : Style := {}
+  selectedRowStyle : Style := { bg := .ansi .blue, fg := .ansi .white }
+  borderStyle : Style := { fg := .ansi .brightBlack }
+  showBorder : Bool := true
+  columnWidths : Array Nat := #[]  -- Auto-size if empty</code></pre>
+
+<h3>dataGrid'</h3>
+
+<p>Scrollable data grid for large datasets:</p>
+
+<pre><code class="language-lean">let grid ← dataGrid' columns rows {
+  visibleRows := 10
+  visibleColumns := 5
+}</code></pre>
+
+<h3>barChart'</h3>
+
+<p>Horizontal bar chart:</p>
+
+<pre><code class="language-lean">let data := #[
+  ("Sales", 150.0),
+  ("Marketing", 80.0),
+  ("Engineering", 200.0),
+  ("Support", 60.0)
+]
+
+barChart' data {
+  maxWidth := 40
+  barChar := '█'
+  showValues := true
+}</code></pre>
+
+<h3>BarChartConfig</h3>
+
+<pre><code class="language-lean">structure BarChartConfig where
+  maxWidth : Nat := 40
+  barChar : Char := '█'
+  barStyle : Style := { fg := .ansi .cyan }
+  labelStyle : Style := {}
+  valueStyle : Style := { fg := .ansi .brightBlack }
+  showValues : Bool := true
+  showLabels : Bool := true</code></pre>
+
+<h3>sparkline'</h3>
+
+<p>Compact inline chart:</p>
+
+<pre><code class="language-lean">let values := #[1.0, 3.0, 2.0, 5.0, 4.0, 6.0, 3.0, 7.0]
+
+sparkline' values {
+  width := 20
+  style := { fg := .ansi .green }
+}</code></pre>
+
+<h3>SparklineConfig</h3>
+
+<pre><code class="language-lean">structure SparklineConfig where
+  width : Nat := 20
+  style : Style := { fg := .ansi .cyan }
+  minValue : Option Float := none  -- Auto-detect if none
+  maxValue : Option Float := none</code></pre>
+
+<h3>gauge'</h3>
+
+<p>Semicircular or linear gauge:</p>
+
+<pre><code class="language-lean">gauge' 0.75 {
+  width := 20
+  label := "CPU Usage"
+  showPercentage := true
+}</code></pre>
+
+<h3>canvas'</h3>
+
+<p>Low-level drawing canvas using Braille characters:</p>
+
+<pre><code class="language-lean">canvas' 40 20 do
+  -- Draw points and lines using Braille patterns
+  drawLine 0 0 39 19
+  drawCircle 20 10 8</code></pre>
+
+<h3>Dynamic Data Updates</h3>
+
+<pre><code class="language-lean">let dataDyn ← ... -- Dynamic Spider (Array (String × Float))
+
+let _ ← dynWidget dataDyn fun data =>
+  barChart' data { maxWidth := 40 }</code></pre>
+
+<h3>Dashboard Example</h3>
+
+<pre><code class="language-lean">def main : IO Unit := runReactiveApp do
+  let theme := Theme.dark
+
+  let (_, render) ← runWidget do
+    column' (gap := 1) {} do
+      heading1' "System Dashboard" theme
+
+      row' (gap := 2) {} do
+        -- CPU gauge
+        titledBlock' "CPU" .rounded theme none do
+          gauge' 0.65 { label := "Usage" }
+
+        -- Memory gauge
+        titledBlock' "Memory" .rounded theme none do
+          gauge' 0.45 { label := "Usage" }
+
+      -- Network activity sparkline
+      titledBlock' "Network" .rounded theme none do
+        let networkData := #[10.0, 25.0, 15.0, 40.0, 35.0, 50.0, 45.0, 60.0]
+        row' (gap := 1) {} do
+          text' "Traffic:" {}
+          sparkline' networkData { width := 30 }
+
+      -- Process table
+      titledBlock' "Processes" .rounded theme none do
+        let columns := #["PID", "Name", "CPU%", "Memory"]
+        let rows := #[
+          #["1234", "nginx", "2.5", "128MB"],
+          #["5678", "postgres", "8.2", "512MB"],
+          #["9012", "node", "1.8", "256MB"]
+        ]
+        let _ ← table' columns rows 0 {}
+
+  pure { render }</code></pre>
+
+<h3>Tree View</h3>
+
+<p>Hierarchical tree display:</p>
+
+<pre><code class="language-lean">let tree := TreeNode.branch "Root" #[
+  TreeNode.branch "Folder A" #[
+    TreeNode.leaf "File 1"
+    TreeNode.leaf "File 2"
+  ],
+  TreeNode.branch "Folder B" #[
+    TreeNode.leaf "File 3"
+  ],
+  TreeNode.leaf "File 4"
+]
+
+tree' tree 0 { expandedByDefault := true }</code></pre>
+
+<h3>Breadcrumb Navigation</h3>
+
+<pre><code class="language-lean">let path := #["Home", "Documents", "Projects", "MyApp"]
+breadcrumb' path { separator := " > " }</code></pre>
+
+<h3>Badge</h3>
+
+<p>Small status indicator:</p>
+
+<pre><code class="language-lean">badge' "New" { style := { fg := .ansi .white, bg := .ansi .red } }
+badge' "3" { style := { fg := .ansi .black, bg := .ansi .yellow } }</code></pre>

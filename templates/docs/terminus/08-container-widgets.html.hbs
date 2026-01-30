@@ -1,0 +1,164 @@
+<p>Container widgets organize and arrange child widgets.</p>
+
+<h3>column'</h3>
+
+<p>Vertical layout container:</p>
+
+<pre><code class="language-lean">column' (gap := 1) {} do
+  text' "First item" {}
+  text' "Second item" {}
+  text' "Third item" {}</code></pre>
+
+<p>With minimum size:</p>
+
+<pre><code class="language-lean">column' (gap := 0) { minWidth := some 40, minHeight := some 10 } do
+  text' "Content" {}</code></pre>
+
+<h3>row'</h3>
+
+<p>Horizontal layout container:</p>
+
+<pre><code class="language-lean">row' (gap := 2) {} do
+  text' "Left" {}
+  text' "Center" {}
+  text' "Right" {}</code></pre>
+
+<h3>Flex Containers</h3>
+
+<p>Aliases for row' and column':</p>
+
+<pre><code class="language-lean">flexRow' (gap := 1) {} do ...
+flexColumn' (gap := 1) {} do ...</code></pre>
+
+<h3>block'</h3>
+
+<p>Add a border around content:</p>
+
+<pre><code class="language-lean">-- Default rounded border
+block' .rounded theme none do
+  text' "Bordered content" {}
+
+-- Different border styles
+block' .single theme none do ...   -- ┌─┐
+block' .double theme none do ...   -- ╔═╗
+block' .thick theme none do ...    -- ┏━┓</code></pre>
+
+<p>With background fill:</p>
+
+<pre><code class="language-lean">block' .rounded theme (some { bg := .ansi .blue }) do
+  text' "Blue background" { fg := .ansi .white }</code></pre>
+
+<h3>titledBlock'</h3>
+
+<p>Block with a title in the border:</p>
+
+<pre><code class="language-lean">titledBlock' "Settings" .rounded theme none do
+  column' (gap := 1) {} do
+    text' "Option 1: Enabled" {}
+    text' "Option 2: Disabled" {}</code></pre>
+
+<h3>Border Convenience Functions</h3>
+
+<pre><code class="language-lean">singleBlock' theme do ...   -- Single-line border
+doubleBlock' theme do ...   -- Double-line border
+roundedBlock' theme do ...  -- Rounded corners
+thickBlock' theme do ...    -- Thick lines</code></pre>
+
+<h3>titledPanel'</h3>
+
+<p>Panel with title and gap between children:</p>
+
+<pre><code class="language-lean">titledPanel' "User Profile" .rounded theme none do
+  text' "Name: John Doe" {}
+  text' "Email: john@example.com" {}</code></pre>
+
+<h3>outlinedPanel' and elevatedPanel'</h3>
+
+<pre><code class="language-lean">outlinedPanel' theme do ...   -- Simple single border
+elevatedPanel' theme do ...   -- Double border for emphasis</code></pre>
+
+<h3>padded'</h3>
+
+<p>Add padding around content:</p>
+
+<pre><code class="language-lean">padded' 2 do
+  text' "Content with 2-cell padding on all sides" {}</code></pre>
+
+<h3>centered'</h3>
+
+<p>Center content in a column:</p>
+
+<pre><code class="language-lean">centered' do
+  text' "Centered content" {}</code></pre>
+
+<h3>dockBottom'</h3>
+
+<p>Dock a footer at the bottom:</p>
+
+<pre><code class="language-lean">dockBottom' (footerHeight := 1)
+  do
+    -- Main content (scrollable area)
+    column' (gap := 1) {} do
+      for item in items do
+        text' item {}
+  do
+    -- Footer (fixed at bottom)
+    row' (gap := 2) {} do
+      text' "Ctrl+C: Quit" theme.captionStyle
+      text' "?: Help" theme.captionStyle</code></pre>
+
+<h3>overlay'</h3>
+
+<p>Overlay content on top of a base layer (for modals/dialogs):</p>
+
+<pre><code class="language-lean">let showDialog ← ... -- Dynamic Spider Bool
+
+when' showDialog do
+  overlay' do
+    -- Base content (dimmed background)
+    column' (gap := 1) {} do
+      text' "Main application content" {}
+  do
+    -- Overlay content (centered dialog)
+    block' .rounded theme (some { bg := .ansi .black }) do
+      column' (gap := 1) {} do
+        text' "Dialog Title" theme.heading2Style
+        text' "Are you sure?" theme.bodyStyle
+        row' (gap := 2) {} do
+          let yes ← button' "yes" "Yes" {}
+          let no ← button' "no" "No" {}
+  (some { bg := .indexed 236 })  -- Backdrop style</code></pre>
+
+<h3>Nested Layout Example</h3>
+
+<pre><code class="language-lean">column' (gap := 1) {} do
+  -- Header
+  titledBlock' "My App" .double theme none do
+    text' "Welcome!" {}
+
+  -- Main area: sidebar + content
+  row' (gap := 2) {} do
+    -- Sidebar
+    titledBlock' "Menu" .rounded theme none do
+      column' (gap := 1) {} do
+        text' "> Home" theme.primaryStyle
+        text' "  Settings" {}
+        text' "  About" {}
+
+    -- Content area
+    block' .rounded theme none do
+      column' (gap := 1) {} do
+        heading2' "Home" theme
+        bodyText' "Main content goes here." theme
+
+  -- Footer
+  caption' "Press Ctrl+C to exit" theme</code></pre>
+
+<h3>Focus-Aware Panels</h3>
+
+<p>Panel borders highlight when a child widget is focused:</p>
+
+<pre><code class="language-lean">titledPanel' "Form" .rounded theme none do
+  let name ← textInput' "name" "" { placeholder := "Name" }
+  let email ← textInput' "email" "" { placeholder := "Email" }
+  -- Panel border highlights when name or email is focused</code></pre>

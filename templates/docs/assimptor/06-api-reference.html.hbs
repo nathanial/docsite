@@ -1,0 +1,138 @@
+<p>Complete reference for all Assimptor types and functions.</p>
+
+<h3>Functions</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Function</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Assimptor.loadAsset (filePath : String) (basePath : String) : IO LoadedAsset</code></td>
+      <td>Load a 3D model file and return its geometry and material data. Supports FBX, OBJ, COLLADA, glTF, and other Assimp-supported formats.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Parameters</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>filePath</code></td><td><code>String</code></td><td>Path to the 3D model file (FBX, OBJ, etc.)</td></tr>
+    <tr><td><code>basePath</code></td><td><code>String</code></td><td>Base directory for resolving texture paths</td></tr>
+  </tbody>
+</table>
+
+<h3>LoadedAsset Structure</h3>
+
+<pre><code class="language-lean">structure LoadedAsset where
+  vertices : Array Float
+  indices : Array UInt32
+  subMeshes : Array SubMesh
+  texturePaths : Array String
+  deriving Repr, Inhabited</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>vertices</code></td><td><code>Array Float</code></td><td>Vertex data in 12-float format: position(3), normal(3), uv(2), color(4)</td></tr>
+    <tr><td><code>indices</code></td><td><code>Array UInt32</code></td><td>Triangle indices (3 indices per triangle)</td></tr>
+    <tr><td><code>subMeshes</code></td><td><code>Array SubMesh</code></td><td>Sub-mesh definitions for multi-material models</td></tr>
+    <tr><td><code>texturePaths</code></td><td><code>Array String</code></td><td>Paths to diffuse textures (relative to basePath)</td></tr>
+  </tbody>
+</table>
+
+<h3>SubMesh Structure</h3>
+
+<pre><code class="language-lean">structure SubMesh where
+  indexOffset : UInt32
+  indexCount : UInt32
+  textureIndex : UInt32
+  deriving Repr, Inhabited</code></pre>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>indexOffset</code></td><td><code>UInt32</code></td><td>Starting offset in the indices array</td></tr>
+    <tr><td><code>indexCount</code></td><td><code>UInt32</code></td><td>Number of indices for this sub-mesh</td></tr>
+    <tr><td><code>textureIndex</code></td><td><code>UInt32</code></td><td>Index into texturePaths (<code>UInt32.size - 1</code> if no texture)</td></tr>
+  </tbody>
+</table>
+
+<h3>Vertex Format</h3>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Offset</th><th>Attribute</th><th>Type</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>0</td><td>position.x</td><td><code>Float</code></td><td>X coordinate</td></tr>
+    <tr><td>1</td><td>position.y</td><td><code>Float</code></td><td>Y coordinate</td></tr>
+    <tr><td>2</td><td>position.z</td><td><code>Float</code></td><td>Z coordinate</td></tr>
+    <tr><td>3</td><td>normal.x</td><td><code>Float</code></td><td>Normal X component</td></tr>
+    <tr><td>4</td><td>normal.y</td><td><code>Float</code></td><td>Normal Y component</td></tr>
+    <tr><td>5</td><td>normal.z</td><td><code>Float</code></td><td>Normal Z component</td></tr>
+    <tr><td>6</td><td>uv.u</td><td><code>Float</code></td><td>Texture U coordinate</td></tr>
+    <tr><td>7</td><td>uv.v</td><td><code>Float</code></td><td>Texture V coordinate</td></tr>
+    <tr><td>8</td><td>color.r</td><td><code>Float</code></td><td>Red (0.0 to 1.0)</td></tr>
+    <tr><td>9</td><td>color.g</td><td><code>Float</code></td><td>Green (0.0 to 1.0)</td></tr>
+    <tr><td>10</td><td>color.b</td><td><code>Float</code></td><td>Blue (0.0 to 1.0)</td></tr>
+    <tr><td>11</td><td>color.a</td><td><code>Float</code></td><td>Alpha (0.0 to 1.0)</td></tr>
+  </tbody>
+</table>
+
+<h3>Supported File Formats</h3>
+
+<p>Assimptor supports all formats handled by the Assimp library:</p>
+
+<table class="api-table">
+  <thead>
+    <tr><th>Format</th><th>Extension</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Autodesk FBX</td><td><code>.fbx</code></td><td>Recommended for complex models</td></tr>
+    <tr><td>Wavefront OBJ</td><td><code>.obj</code></td><td>Simple geometry format</td></tr>
+    <tr><td>COLLADA</td><td><code>.dae</code></td><td>XML-based interchange format</td></tr>
+    <tr><td>glTF</td><td><code>.gltf, .glb</code></td><td>Modern web-friendly format</td></tr>
+    <tr><td>3DS</td><td><code>.3ds</code></td><td>Legacy 3ds Max format</td></tr>
+    <tr><td>Blender</td><td><code>.blend</code></td><td>Native Blender format</td></tr>
+    <tr><td>STL</td><td><code>.stl</code></td><td>3D printing format (geometry only)</td></tr>
+    <tr><td>PLY</td><td><code>.ply</code></td><td>Stanford polygon format</td></tr>
+  </tbody>
+</table>
+
+<h3>Import</h3>
+
+<pre><code class="language-lean">import Assimptor
+
+-- All types are in the Assimptor namespace
+open Assimptor (LoadedAsset SubMesh loadAsset)</code></pre>
+
+<h3>Error Handling</h3>
+
+<p>The <code>loadAsset</code> function throws an <code>IO.Error</code> if loading fails:</p>
+
+<pre><code class="language-lean">def tryLoad (path : String) : IO (Option LoadedAsset) := do
+  try
+    let asset ← Assimptor.loadAsset path "./"
+    return some asset
+  catch e =>
+    IO.eprintln s!"Failed to load: {e}"
+    return none</code></pre>
+
+<h3>PBR Extension Notes</h3>
+
+<p>The current implementation loads only diffuse textures. Future versions may support full PBR materials by extending <code>SubMesh</code> to include:</p>
+
+<ul>
+  <li><code>normalMapIndex</code> - Normal/bump map texture</li>
+  <li><code>metallicIndex</code> - Metallic texture</li>
+  <li><code>roughnessIndex</code> - Roughness texture</li>
+</ul>

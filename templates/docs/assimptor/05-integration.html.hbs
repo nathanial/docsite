@@ -1,0 +1,156 @@
+<p>Assimptor is designed to work seamlessly with the Afferent graphics library for rendering 3D models with Metal.</p>
+
+<h3>Basic Integration</h3>
+
+<p>Load a model with Assimptor and render it with Afferent:</p>
+
+<pre><code class="language-lean">import Assimptor
+import Afferent
+
+def loadAndRender : IO Unit := do
+  -- Load the 3D model
+  let asset ← Assimptor.loadAsset "character.fbx" "textures/"
+
+  -- Create vertex buffer from asset data
+  let vertices := asset.vertices
+  let indices := asset.indices
+
+  -- Set up transformation matrices
+  let model := Matrix4.identity
+  let view := camera.viewMatrix
+  let projection := Matrix4.perspective fov aspect near far
+  let mvp := projection * view * model
+
+  -- Render the mesh
+  renderer.drawMesh3D
+    vertices indices mvp model
+    lightDirection ambientFactor
+    cameraPosition
+    fogColor fogStart fogEnd</code></pre>
+
+<h3>Loading Textures</h3>
+
+<p>Use the texture paths from the loaded asset to load texture images:</p>
+
+<pre><code class="language-lean">-- Load textures for each material
+let textures ← asset.texturePaths.mapM fun path => do
+  Texture.load path
+
+-- During rendering, bind the appropriate texture for each sub-mesh
+for (mesh, texture) in asset.subMeshes.zip textures do
+  renderer.bindTexture texture
+  renderer.drawIndexed mesh.indexOffset.toNat mesh.indexCount.toNat</code></pre>
+
+<h3>Multi-Material Rendering</h3>
+
+<p>For models with multiple materials, render each sub-mesh with its associated texture:</p>
+
+<pre><code class="language-lean">def renderAsset
+    (asset : Assimptor.LoadedAsset)
+    (textures : Array Texture)
+    (mvp : Matrix4) : IO Unit := do
+  -- Upload vertex data once
+  let vertexBuffer ← createVertexBuffer asset.vertices
+  let indexBuffer ← createIndexBuffer asset.indices
+
+  -- Render each sub-mesh
+  for mesh in asset.subMeshes do
+    -- Bind texture if available
+    if h : mesh.textureIndex.toNat < textures.size then
+      bindTexture textures[mesh.textureIndex.toNat]
+    else
+      bindDefaultTexture
+
+    -- Draw this portion of the mesh
+    drawIndexed
+      vertexBuffer
+      indexBuffer
+      (offset := mesh.indexOffset.toNat)
+      (count := mesh.indexCount.toNat)
+      mvp</code></pre>
+
+<h3>Vertex Buffer Creation</h3>
+
+<p>The Assimptor vertex format matches Afferent's expected layout:</p>
+
+<pre><code class="language-lean">-- Assimptor vertex layout matches Afferent's Vertex3D
+-- Position: 3 floats
+-- Normal: 3 floats
+-- UV: 2 floats
+-- Color: 4 floats
+
+-- Upload directly to GPU buffer
+let buffer ← Metal.createBuffer
+  (data := asset.vertices.data)
+  (size := asset.vertices.size * sizeOf Float)
+  (options := .storageModeShared)</code></pre>
+
+<h3>Camera and Lighting</h3>
+
+<p>Combine Assimptor models with Afferent's camera and lighting systems:</p>
+
+<pre><code class="language-lean">import Afferent.Render.FPSCamera
+
+def gameLoop (asset : Assimptor.LoadedAsset) : IO Unit := do
+  -- Initialize camera
+  let mut camera := FPSCamera.create
+    (position := Vec3.mk 0 5 10)
+    (yaw := Float.pi)
+    (pitch := 0)
+
+  -- Game loop
+  while running do
+    -- Update camera from input
+    camera := camera.rotate mouseDeltaX mouseDeltaY sensitivity
+    camera := camera.moveForward speed deltaTime
+
+    -- Build matrices
+    let view := camera.viewMatrix
+    let projection := Matrix4.perspective fov aspect 0.1 1000.0
+    let mvp := projection * view * Matrix4.identity
+
+    -- Render the model
+    renderer.drawMesh3D
+      asset.vertices
+      asset.indices
+      mvp
+      Matrix4.identity
+      (lightDir := Vec3.mk 0.5 1.0 0.5 |>.normalize)
+      (ambient := 0.3)
+      camera.position
+      Color.lightSkyBlue 50.0 200.0</code></pre>
+
+<h3>Performance Tips</h3>
+
+<ul>
+  <li><strong>Upload Once</strong> - Create GPU buffers for vertices and indices at load time, not every frame</li>
+  <li><strong>Batch by Material</strong> - Sub-meshes with the same texture can potentially be batched</li>
+  <li><strong>LOD Support</strong> - Load multiple detail levels and switch based on distance</li>
+  <li><strong>Frustum Culling</strong> - Skip rendering models outside the camera view</li>
+</ul>
+
+<h3>Complete Example</h3>
+
+<pre><code class="language-lean">import Assimptor
+import Afferent
+
+structure Model where
+  asset : Assimptor.LoadedAsset
+  textures : Array Texture
+
+def Model.load (modelPath : String) (basePath : String) : IO Model := do
+  let asset ← Assimptor.loadAsset modelPath basePath
+  let textures ← asset.texturePaths.mapM Texture.load
+  return { asset, textures }
+
+def Model.render (model : Model) (mvp : Matrix4) : IO Unit := do
+  for mesh in model.asset.subMeshes do
+    if h : mesh.textureIndex.toNat < model.textures.size then
+      bindTexture model.textures[mesh.textureIndex.toNat]
+
+    drawMesh3D
+      model.asset.vertices
+      model.asset.indices
+      mesh.indexOffset.toNat
+      mesh.indexCount.toNat
+      mvp</code></pre>

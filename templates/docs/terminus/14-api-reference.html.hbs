@@ -1,0 +1,183 @@
+<p>Complete API reference for Terminus types and functions.</p>
+
+<h3>Core Types</h3>
+
+<table class="api-table">
+  <tr><th>Type</th><th>Description</th></tr>
+  <tr><td><code>Color</code></td><td>Terminal color (default, ansi, indexed, rgb)</td></tr>
+  <tr><td><code>Color16</code></td><td>Standard 16 ANSI colors</td></tr>
+  <tr><td><code>Modifier</code></td><td>Text modifiers (bold, italic, etc.)</td></tr>
+  <tr><td><code>Style</code></td><td>Combined fg, bg, and modifiers</td></tr>
+  <tr><td><code>Cell</code></td><td>Single terminal cell (char + style)</td></tr>
+  <tr><td><code>Buffer</code></td><td>2D grid of cells</td></tr>
+  <tr><td><code>Rect</code></td><td>Rectangle (x, y, width, height)</td></tr>
+</table>
+
+<h3>Input Types</h3>
+
+<table class="api-table">
+  <tr><th>Type</th><th>Description</th></tr>
+  <tr><td><code>KeyCode</code></td><td>Keyboard key identifier</td></tr>
+  <tr><td><code>KeyModifiers</code></td><td>Ctrl, Alt, Shift state</td></tr>
+  <tr><td><code>KeyEvent</code></td><td>Complete keyboard event</td></tr>
+  <tr><td><code>MouseButton</code></td><td>Mouse button (left, right, scroll)</td></tr>
+  <tr><td><code>MouseAction</code></td><td>Press, release, or motion</td></tr>
+  <tr><td><code>MouseEvent</code></td><td>Complete mouse event</td></tr>
+  <tr><td><code>Event</code></td><td>Union of key, mouse, resize, none</td></tr>
+</table>
+
+<h3>Layout Types</h3>
+
+<table class="api-table">
+  <tr><th>Type</th><th>Description</th></tr>
+  <tr><td><code>Constraint</code></td><td>Size constraint (fixed, percent, fill)</td></tr>
+  <tr><td><code>Direction</code></td><td>Horizontal or vertical</td></tr>
+  <tr><td><code>RStyle</code></td><td>Layout style (minWidth, minHeight, padding)</td></tr>
+</table>
+
+<h3>Reactive Types</h3>
+
+<table class="api-table">
+  <tr><th>Type</th><th>Description</th></tr>
+  <tr><td><code>ReactiveTermM</code></td><td>ReaderT TerminusEvents SpiderM</td></tr>
+  <tr><td><code>WidgetM</code></td><td>StateT WidgetMState ReactiveTermM</td></tr>
+  <tr><td><code>RNode</code></td><td>Render tree node</td></tr>
+  <tr><td><code>ComponentRender</code></td><td>Dynamic Spider RNode</td></tr>
+  <tr><td><code>Theme</code></td><td>Color theme</td></tr>
+  <tr><td><code>BorderType</code></td><td>Border style (single, double, rounded)</td></tr>
+</table>
+
+<h3>Event Data Types</h3>
+
+<table class="api-table">
+  <tr><th>Type</th><th>Description</th></tr>
+  <tr><td><code>KeyData</code></td><td>KeyEvent + focusedWidget context</td></tr>
+  <tr><td><code>MouseData</code></td><td>MouseEvent wrapper</td></tr>
+  <tr><td><code>ResizeData</code></td><td>New terminal dimensions</td></tr>
+  <tr><td><code>TickData</code></td><td>Frame number and elapsed time</td></tr>
+</table>
+
+<h3>Event Hooks</h3>
+
+<table class="api-table">
+  <tr><th>Function</th><th>Return Type</th><th>Description</th></tr>
+  <tr><td><code>useKeyEvent</code></td><td><code>Event Spider KeyData</code></td><td>All keyboard events</td></tr>
+  <tr><td><code>useMouseEvent</code></td><td><code>Event Spider MouseData</code></td><td>All mouse events</td></tr>
+  <tr><td><code>useResize</code></td><td><code>Event Spider ResizeData</code></td><td>Resize events</td></tr>
+  <tr><td><code>useTick</code></td><td><code>Event Spider TickData</code></td><td>Frame tick events</td></tr>
+  <tr><td><code>useKey</code></td><td><code>Event Spider KeyData</code></td><td>Specific key events</td></tr>
+  <tr><td><code>useAnyChar</code></td><td><code>Event Spider Char</code></td><td>Character input</td></tr>
+  <tr><td><code>useEnter</code></td><td><code>Event Spider Unit</code></td><td>Enter key</td></tr>
+  <tr><td><code>useEscape</code></td><td><code>Event Spider Unit</code></td><td>Escape key</td></tr>
+  <tr><td><code>useLeftClick</code></td><td><code>Event Spider MouseData</code></td><td>Left clicks</td></tr>
+  <tr><td><code>useScroll</code></td><td><code>Event Spider MouseData</code></td><td>Scroll events</td></tr>
+</table>
+
+<h3>Focus Hooks</h3>
+
+<table class="api-table">
+  <tr><th>Function</th><th>Description</th></tr>
+  <tr><td><code>useFocusedInput</code></td><td>Get focused input name</td></tr>
+  <tr><td><code>useIsFocused name</code></td><td>Check if widget is focused</td></tr>
+  <tr><td><code>setFocus name</code></td><td>Set focus to widget</td></tr>
+  <tr><td><code>useFocusedKeyEventsW name</code></td><td>Events when widget focused</td></tr>
+</table>
+
+<h3>Text Widgets</h3>
+
+<table class="api-table">
+  <tr><th>Function</th><th>Description</th></tr>
+  <tr><td><code>text' content style</code></td><td>Static styled text</td></tr>
+  <tr><td><code>dynText' dyn style</code></td><td>Dynamic text</td></tr>
+  <tr><td><code>heading1' content theme</code></td><td>Level 1 heading</td></tr>
+  <tr><td><code>heading2' content theme</code></td><td>Level 2 heading</td></tr>
+  <tr><td><code>bodyText' content theme</code></td><td>Body text</td></tr>
+  <tr><td><code>caption' content theme</code></td><td>Muted caption</td></tr>
+  <tr><td><code>spacer' w h</code></td><td>Empty space</td></tr>
+  <tr><td><code>progressBar' progress config</code></td><td>Progress bar</td></tr>
+</table>
+
+<h3>Container Widgets</h3>
+
+<table class="api-table">
+  <tr><th>Function</th><th>Description</th></tr>
+  <tr><td><code>column' gap style children</code></td><td>Vertical layout</td></tr>
+  <tr><td><code>row' gap style children</code></td><td>Horizontal layout</td></tr>
+  <tr><td><code>block' borderType theme fill children</code></td><td>Bordered container</td></tr>
+  <tr><td><code>titledBlock' title borderType theme fill children</code></td><td>Titled border</td></tr>
+  <tr><td><code>titledPanel' title borderType theme fill children</code></td><td>Titled panel</td></tr>
+  <tr><td><code>dockBottom' height content footer</code></td><td>Docked footer</td></tr>
+  <tr><td><code>padded' amount children</code></td><td>Padded container</td></tr>
+</table>
+
+<h3>Input Widgets</h3>
+
+<table class="api-table">
+  <tr><th>Function</th><th>Returns</th></tr>
+  <tr><td><code>textInput' name initial config</code></td><td><code>TextInputResult</code></td></tr>
+  <tr><td><code>passwordInput' name config</code></td><td><code>PasswordInputResult</code></td></tr>
+  <tr><td><code>button' name label config</code></td><td><code>ButtonResult</code></td></tr>
+  <tr><td><code>switch' name initial config</code></td><td><code>SwitchResult</code></td></tr>
+  <tr><td><code>stepper' name initial config</code></td><td><code>StepperResult</code></td></tr>
+  <tr><td><code>slider' name initial config</code></td><td><code>SliderResult</code></td></tr>
+</table>
+
+<h3>List Widgets</h3>
+
+<table class="api-table">
+  <tr><th>Function</th><th>Returns</th></tr>
+  <tr><td><code>selectableList' items initial config</code></td><td><code>ListResult α</code></td></tr>
+  <tr><td><code>dynSelectableList' items initial config</code></td><td><code>ListResult α</code></td></tr>
+  <tr><td><code>numberedList' items initial config</code></td><td><code>ListResult α</code></td></tr>
+  <tr><td><code>tabs' labels initial config</code></td><td><code>TabsResult</code></td></tr>
+  <tr><td><code>numberedTabs' labels initial config</code></td><td><code>TabsResult</code></td></tr>
+</table>
+
+<h3>WidgetM Operations</h3>
+
+<table class="api-table">
+  <tr><th>Function</th><th>Description</th></tr>
+  <tr><td><code>emit render</code></td><td>Emit dynamic render</td></tr>
+  <tr><td><code>emitStatic node</code></td><td>Emit static node</td></tr>
+  <tr><td><code>runWidgetChildren m</code></td><td>Collect child renders</td></tr>
+  <tr><td><code>runWidget m</code></td><td>Run and get render</td></tr>
+  <tr><td><code>dynWidget dyn builder</code></td><td>Rebuild on dynamic change</td></tr>
+  <tr><td><code>when' cond content</code></td><td>Conditional render</td></tr>
+  <tr><td><code>ifThenElse' cond then else</code></td><td>Conditional branch</td></tr>
+</table>
+
+<h3>Application Entry Points</h3>
+
+<table class="api-table">
+  <tr><th>Function</th><th>Description</th></tr>
+  <tr><td><code>runReactiveApp setup config</code></td><td>Full reactive app</td></tr>
+  <tr><td><code>runSimpleApp widget</code></td><td>Simple static display</td></tr>
+  <tr><td><code>renderOnce widget w h</code></td><td>Test helper</td></tr>
+</table>
+
+<h3>AppConfig</h3>
+
+<pre><code class="language-lean">structure AppConfig where
+  frameMs : Nat := 16           -- Frame rate (ms)
+  debug : Bool := false         -- Enable debug logging
+  logPath : System.FilePath     -- Debug log path
+  debugDir : Option FilePath    -- Frame capture directory</code></pre>
+
+<h3>FRP Combinators</h3>
+
+<p>From the Reactive library, commonly used in Terminus:</p>
+
+<table class="api-table">
+  <tr><th>Function</th><th>Description</th></tr>
+  <tr><td><code>holdDyn initial event</code></td><td>Dynamic from event</td></tr>
+  <tr><td><code>foldDyn f init event</code></td><td>Fold events into state</td></tr>
+  <tr><td><code>Event.filterM pred event</code></td><td>Filter events</td></tr>
+  <tr><td><code>Event.mapM f event</code></td><td>Transform events</td></tr>
+  <tr><td><code>Event.mapMaybeM f event</code></td><td>Filter+transform</td></tr>
+  <tr><td><code>Event.mergeM e1 e2</code></td><td>Merge event streams</td></tr>
+  <tr><td><code>Event.attachWithM f beh event</code></td><td>Attach behavior value</td></tr>
+  <tr><td><code>Dynamic.map' dyn f</code></td><td>Transform dynamic</td></tr>
+  <tr><td><code>Dynamic.zipWith' d1 f d2</code></td><td>Combine dynamics</td></tr>
+  <tr><td><code>dyn.updated</code></td><td>Get update event</td></tr>
+  <tr><td><code>dyn.current</code></td><td>Get current behavior</td></tr>
+</table>

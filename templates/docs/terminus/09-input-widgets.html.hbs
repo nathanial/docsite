@@ -1,0 +1,189 @@
+<p>Input widgets handle user interaction and return reactive values.</p>
+
+<h3>textInput'</h3>
+
+<p>Single-line text input with cursor:</p>
+
+<pre><code class="language-lean">let input ← textInput' "username" "" { placeholder := "Enter username" }
+
+-- input.value : Dynamic Spider String
+-- input.onSubmit : Event Spider String (fires on Enter)
+-- input.onCancel : Event Spider Unit (fires on Escape)
+-- input.onChange : Event Spider String (fires on text change)</code></pre>
+
+<h3>TextInputConfig</h3>
+
+<pre><code class="language-lean">structure TextInputConfig where
+  placeholder : String := ""
+  maxLength : Option Nat := none
+  width : Nat := 20
+  style : Style := {}
+  focusedStyle : Style := { fg := .ansi .cyan }
+  cursorChar : Char := '|'
+  cursorStyle : Style := { fg := .ansi .cyan, modifier := { bold := true } }
+  placeholderStyle : Style := { fg := .ansi .brightBlack }</code></pre>
+
+<h3>TextInputResult</h3>
+
+<pre><code class="language-lean">structure TextInputResult where
+  value : Reactive.Dynamic Spider String
+  onSubmit : Reactive.Event Spider String
+  onCancel : Reactive.Event Spider Unit
+  onChange : Reactive.Event Spider String</code></pre>
+
+<h3>labeledTextInput'</h3>
+
+<p>Text input with a label above:</p>
+
+<pre><code class="language-lean">let email ← labeledTextInput' "Email:" "email" "" { placeholder := "user@example.com" } theme</code></pre>
+
+<h3>focusedTextInput'</h3>
+
+<p>Text input that auto-focuses on creation:</p>
+
+<pre><code class="language-lean">let search ← focusedTextInput' "search" "" { placeholder := "Search..." }</code></pre>
+
+<h3>passwordInput'</h3>
+
+<p>Masked password input with reveal toggle:</p>
+
+<pre><code class="language-lean">let pwd ← passwordInput' "password" { placeholder := "Enter password" }
+
+-- pwd.value : Dynamic Spider String (actual password)
+-- pwd.isRevealed : Dynamic Spider Bool
+-- pwd.onSubmit : Event Spider String
+-- Press Tab to toggle reveal</code></pre>
+
+<h3>PasswordInputConfig</h3>
+
+<pre><code class="language-lean">structure PasswordInputConfig where
+  maskChar : Char := '*'
+  placeholder : String := ""
+  maxLength : Option Nat := none
+  width : Nat := 20
+  style : Style := {}
+  focusedStyle : Style := { fg := .ansi .cyan }
+  revealKey : KeyCode := .tab</code></pre>
+
+<h3>button'</h3>
+
+<p>Clickable button widget:</p>
+
+<pre><code class="language-lean">let btn ← button' "submit" "Submit" {}
+
+-- Handle clicks
+let _ ← performEvent_ (← Event.mapM (fun _ => do
+  IO.println "Button clicked!") btn.onClick)</code></pre>
+
+<h3>ButtonConfig</h3>
+
+<pre><code class="language-lean">structure ButtonConfig where
+  style : Style := {}
+  focusedStyle : Style := { fg := .ansi .cyan, modifier := { bold := true } }
+  padding : Nat := 1</code></pre>
+
+<h3>switch'</h3>
+
+<p>Toggle switch (on/off):</p>
+
+<pre><code class="language-lean">let darkMode ← switch' "darkMode" false {}
+
+-- darkMode.isOn : Dynamic Spider Bool
+-- darkMode.onToggle : Event Spider Bool</code></pre>
+
+<h3>SwitchConfig</h3>
+
+<pre><code class="language-lean">structure SwitchConfig where
+  onLabel : String := " ON"
+  offLabel : String := "OFF"
+  onStyle : Style := { fg := .ansi .green }
+  offStyle : Style := { fg := .ansi .brightBlack }
+  focusedStyle : Style := { fg := .ansi .cyan, modifier := { bold := true } }</code></pre>
+
+<h3>stepper'</h3>
+
+<p>Numeric stepper (increment/decrement):</p>
+
+<pre><code class="language-lean">let qty ← stepper' "quantity" 1 { min := 0, max := 99, step := 1 }
+
+-- qty.value : Dynamic Spider Int
+-- qty.onChange : Event Spider Int
+
+-- Keys: Up/Down, +/-, Home/End</code></pre>
+
+<h3>StepperConfig</h3>
+
+<pre><code class="language-lean">structure StepperConfig where
+  min : Int := 0
+  max : Int := 100
+  step : Int := 1
+  buttonStyle : Style := {}
+  focusedStyle : Style := { fg := .ansi .cyan }
+  disabledStyle : Style := { fg := .ansi .brightBlack }
+  valueStyle : Style := {}
+  valueWidth : Nat := 4</code></pre>
+
+<h3>slider'</h3>
+
+<p>Horizontal slider for float values:</p>
+
+<pre><code class="language-lean">let volume ← slider' "volume" 0.5 { width := 20, showValue := true }
+
+-- volume.value : Dynamic Spider Float
+-- volume.onChange : Event Spider Float
+
+-- Keys: Left/Right, h/l, Home/End, Shift for large step</code></pre>
+
+<h3>SliderConfig</h3>
+
+<pre><code class="language-lean">structure SliderConfig where
+  width : Nat := 20
+  minValue : Float := 0.0
+  maxValue : Float := 1.0
+  step : Float := 0.05
+  largeStep : Float := 0.1
+  filledChar : Char := '='
+  unfilledChar : Char := '-'
+  thumbChar : Char := 'O'
+  showValue : Bool := true
+  formatValue : Float → String := fun v => s!"{(v * 100).toUInt32}%"</code></pre>
+
+<h3>Form Example</h3>
+
+<pre><code class="language-lean">def main : IO Unit := runReactiveApp do
+  let theme := Theme.dark
+  let keyEvents ← useKeyEvent
+  let events ← getEvents
+
+  -- Tab navigation
+  let tabEvents ← Event.filterM (fun kd => kd.event.code == .tab) keyEvents
+  let _unsub ← SpiderM.liftIO <| tabEvents.subscribe fun _ =>
+    events.registry.focusNext
+
+  let (_, render) ← runWidget do
+    titledPanel' "Registration" .rounded theme none do
+      column' (gap := 1) {} do
+        let name ← textInput' "name" "" { placeholder := "Full name", width := 30 }
+        let email ← textInput' "email" "" { placeholder := "Email", width := 30 }
+        let pwd ← passwordInput' "password" { placeholder := "Password", width := 30 }
+
+        spacer' 1 1
+
+        let notifications ← switch' "notifications" true {}
+        row' (gap := 1) {} do
+          text' "Email notifications:" {}
+          -- The switch renders itself
+
+        spacer' 1 1
+
+        let submit ← button' "submit" "Register" {}
+
+        -- Show validation status
+        let nameFilled ← name.value.map' (·.length > 0)
+        let emailFilled ← email.value.map' (·.length > 0)
+        let isValid ← nameFilled.zipWith' (· && ·) emailFilled
+
+        when' isValid do
+          text' "Ready to submit" { fg := .ansi .green }
+
+  pure { render }</code></pre>

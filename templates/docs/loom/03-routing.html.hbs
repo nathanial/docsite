@@ -1,0 +1,187 @@
+<p>Loom provides a fluent API for route registration with support for URL parameters,
+named routes, and URL generation.</p>
+
+<h3>Basic Route Registration</h3>
+
+<p>Register routes using the App builder pattern:</p>
+
+<pre><code class="language-lean">App.withSecret "secret"
+  |>.get "/" "home" [] homeAction
+  |>.get "/about" "about" [] aboutAction
+  |>.post "/login" "login" [] loginAction
+  |>.put "/users/:id" "user_update" [] updateUserAction
+  |>.delete "/users/:id" "user_delete" [] deleteUserAction
+  |>.patch "/posts/:id" "post_patch" [] patchPostAction
+  |>.run</code></pre>
+
+<h3>Route Methods</h3>
+
+<table class="api-table">
+  <tr>
+    <th>Method</th>
+    <th>HTTP Verb</th>
+    <th>Typical Use</th>
+  </tr>
+  <tr>
+    <td><code>.get</code></td>
+    <td>GET</td>
+    <td>Retrieve resources, display pages</td>
+  </tr>
+  <tr>
+    <td><code>.post</code></td>
+    <td>POST</td>
+    <td>Create resources, form submissions</td>
+  </tr>
+  <tr>
+    <td><code>.put</code></td>
+    <td>PUT</td>
+    <td>Replace entire resource</td>
+  </tr>
+  <tr>
+    <td><code>.patch</code></td>
+    <td>PATCH</td>
+    <td>Partial resource update</td>
+  </tr>
+  <tr>
+    <td><code>.delete</code></td>
+    <td>DELETE</td>
+    <td>Remove resource</td>
+  </tr>
+</table>
+
+<h3>URL Parameters</h3>
+
+<p>Use <code>:param</code> syntax for dynamic segments:</p>
+
+<pre><code class="language-lean">.get "/users/:id" "user_show" [] showUserAction
+.get "/posts/:year/:month/:slug" "post_show" [] showPostAction</code></pre>
+
+<p>Access parameters in actions:</p>
+
+<pre><code class="language-lean">def showUserAction : ActionM Response := do
+  let userId ← param "id"
+  match userId with
+  | some id => html s!"User ID: {id}"
+  | none => notFound "User ID required"
+
+def showPostAction : ActionM Response := do
+  let year ← paramD "year" "2024"
+  let month ← paramD "month" "01"
+  let slug ← paramD "slug" "untitled"
+  html s!"Post: {year}/{month}/{slug}"</code></pre>
+
+<h3>Named Routes</h3>
+
+<p>Every route has a name (the second argument) used for URL generation:</p>
+
+<pre><code class="language-lean">.get "/" "home" [] homeAction
+.get "/users/:id" "user_show" [] showUserAction
+.get "/posts/:id/edit" "post_edit" [] editPostAction</code></pre>
+
+<h3>URL Generation</h3>
+
+<p>Generate URLs from route names:</p>
+
+<pre><code class="language-lean">-- From Routes directly
+let routes := app.routes
+routes.pathFor "home" []                     -- Some "/"
+routes.pathFor "user_show" [("id", "42")]    -- Some "/users/42"
+routes.pathFor "post_edit" [("id", "7")]     -- Some "/posts/7/edit"
+
+-- Using pathFor! (panics if route not found)
+routes.pathFor! "user_show" [("id", "42")]   -- "/users/42"</code></pre>
+
+<h3>URL Helpers</h3>
+
+<p>Create URL helpers for templates:</p>
+
+<pre><code class="language-lean">let helpers := app.urlHelpers "https://example.com"
+helpers.pathFor "user_show" [("id", "42")]   -- "/users/42"
+helpers.urlFor "user_show" [("id", "42")]    -- "https://example.com/users/42"</code></pre>
+
+<h3>Route Matching</h3>
+
+<p>Routes are matched in order of specificity:</p>
+<ol>
+  <li>More literal segments beats fewer</li>
+  <li>Fewer parameter segments beats more</li>
+</ol>
+
+<pre><code class="language-lean">-- /users/new matches first (more specific)
+.get "/users/new" "user_new" [] newUserAction
+.get "/users/:id" "user_show" [] showUserAction</code></pre>
+
+<h3>Method Override</h3>
+
+<p>HTML forms only support GET and POST. Use the method override middleware to simulate
+PUT, PATCH, and DELETE from forms:</p>
+
+<pre><code class="language-lean">App.withSecret "secret"
+  |>.use Middleware.methodOverride
+  |>.put "/users/:id" "user_update" [] updateAction
+  |>.run</code></pre>
+
+<p>In your form:</p>
+
+<pre><code class="language-html">&lt;form method="POST" action="/users/42"&gt;
+  &lt;input type="hidden" name="_method" value="PUT"&gt;
+  &lt;input type="hidden" name="_csrf" value="{{csrfToken}}"&gt;
+  &lt;!-- form fields --&gt;
+  &lt;button type="submit"&gt;Update&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+
+<h3>Route Middleware</h3>
+
+<p>Add per-route middleware (guards) as the third argument:</p>
+
+<pre><code class="language-lean">.get "/admin" "admin_dashboard" [Auth.adminRequired] adminAction
+.get "/profile" "profile" [Auth.authRequired] profileAction</code></pre>
+
+<p>Route middleware has access to the parsed Context (sessions, params, db).</p>
+
+<h3>RESTful Resource Pattern</h3>
+
+<p>A typical RESTful resource:</p>
+
+<pre><code class="language-lean">-- Posts resource
+.get "/posts" "posts_index" [] indexPostsAction
+.get "/posts/new" "posts_new" [Auth.authRequired] newPostAction
+.post "/posts" "posts_create" [Auth.authRequired] createPostAction
+.get "/posts/:id" "posts_show" [] showPostAction
+.get "/posts/:id/edit" "posts_edit" [Auth.authRequired] editPostAction
+.put "/posts/:id" "posts_update" [Auth.authRequired] updatePostAction
+.delete "/posts/:id" "posts_delete" [Auth.authRequired] deletePostAction</code></pre>
+
+<h3>Type-Safe Routes</h3>
+
+<p>For compile-time route safety, define a route enum:</p>
+
+<pre><code class="language-lean">inductive PostRoutes where
+  | index
+  | show (id : String)
+  | edit (id : String)
+
+instance : App.HasRouteInfo PostRoutes where
+  pattern
+    | .index => "/posts"
+    | .show _ => "/posts/:id"
+    | .edit _ => "/posts/:id/edit"
+  routeName
+    | .index => "posts_index"
+    | .show _ => "posts_show"
+    | .edit _ => "posts_edit"
+
+-- Use with type-safe route registration
+.get' PostRoutes.index [] indexAction
+.get' (PostRoutes.show "ignored") [] showAction</code></pre>
+
+<h3>Query Strings</h3>
+
+<p>Query parameters are automatically parsed and merged with path params:</p>
+
+<pre><code class="language-lean">-- Request: GET /search?q=lean&amp;page=2
+
+def searchAction : ActionM Response := do
+  let query ← paramD "q" ""
+  let page ← paramD "page" "1"
+  html s!"Searching '{query}', page {page}"</code></pre>

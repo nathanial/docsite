@@ -1,0 +1,125 @@
+<p>Loom is a <strong>Rails-like full-stack web framework</strong> for Lean 4. It weaves together
+Citadel (HTTP server), Scribe (HTML builder), and Ledger (fact-based database) to provide
+a complete web development experience with sessions, forms, middleware, and real-time events.</p>
+
+<h3>Key Features</h3>
+<ul>
+  <li><strong>Fluent Route Registration</strong> - Chain route definitions with the App builder pattern</li>
+  <li><strong>ActionM Monad</strong> - StateT-based actions with implicit context threading</li>
+  <li><strong>Cookie-Based Sessions</strong> - Signed sessions with automatic CSRF protection</li>
+  <li><strong>Flash Messages</strong> - One-time messages across requests (success, error, info, warning)</li>
+  <li><strong>Route Middleware</strong> - Per-route guards with access to parsed context</li>
+  <li><strong>Ledger Integration</strong> - In-memory or persistent fact-based database</li>
+  <li><strong>Server-Sent Events</strong> - Real-time push notifications to browsers</li>
+  <li><strong>HTMX Support</strong> - Response helpers for partial page updates</li>
+  <li><strong>Template Engine</strong> - Stencil integration with hot reload</li>
+</ul>
+
+<h3>Quick Example</h3>
+
+<pre><code class="language-lean">import Loom
+
+open Loom
+
+def homeAction : ActionM Response := do
+  let name ← paramD "name" "Guest"
+  flashSuccess s!"Welcome, {name}!"
+  html s!"&lt;h1&gt;Hello, {name}!&lt;/h1&gt;"
+
+def main : IO Unit :=
+  App.withSecret "my-secret-key"
+    |>.get "/" "home" [] homeAction
+    |>.run "0.0.0.0" 3000</code></pre>
+
+<h3>Architecture</h3>
+
+<p>Loom layers functionality on top of its core dependencies:</p>
+
+<table class="api-table">
+  <tr>
+    <th>Component</th>
+    <th>Purpose</th>
+    <th>Dependency</th>
+  </tr>
+  <tr>
+    <td><strong>HTTP Server</strong></td>
+    <td>Request handling, TLS, SSE</td>
+    <td>Citadel</td>
+  </tr>
+  <tr>
+    <td><strong>HTML Builder</strong></td>
+    <td>Type-safe HTML generation</td>
+    <td>Scribe</td>
+  </tr>
+  <tr>
+    <td><strong>Database</strong></td>
+    <td>Fact-based data storage</td>
+    <td>Ledger</td>
+  </tr>
+  <tr>
+    <td><strong>Logging</strong></td>
+    <td>Structured application logs</td>
+    <td>Chronicle</td>
+  </tr>
+  <tr>
+    <td><strong>Templates</strong></td>
+    <td>Handlebars-style rendering</td>
+    <td>Stencil</td>
+  </tr>
+</table>
+
+<h3>Core Types</h3>
+
+<pre><code class="language-lean">-- Application container
+structure App where
+  config : AppConfig
+  routes : Routes
+  middlewares : List Citadel.Middleware
+  sseEnabled : Bool
+  sseRoutes : List (String × String)
+
+-- Request context available to actions
+structure Context where
+  request : Citadel.ServerRequest
+  session : Session
+  flash : Flash
+  params : Params
+  config : AppConfig
+  csrfToken : String
+  db : Option Ledger.Connection
+  persistentDb : Option Ledger.Persist.PersistentConnection
+
+-- Action monad with implicit context threading
+abbrev ActionM := StateT Context IO
+
+-- Traditional action type
+abbrev Action := Context → IO (Response × Context)</code></pre>
+
+<h3>Design Philosophy</h3>
+
+<p>Loom provides <strong>convention over configuration</strong> where sensible defaults work out of the box,
+but everything can be customized. The ActionM monad eliminates context passing boilerplate,
+while the fluent App builder makes route registration clear and composable.</p>
+
+<p>The framework is batteries-included but modular. You can use just the routing, add sessions,
+enable SSE, integrate Ledger for persistence, or use Stencil templates - each feature is
+opt-in and integrates naturally.</p>
+
+<h3>Module Overview</h3>
+
+<ul>
+  <li><strong>Loom.App</strong> - Application builder and server startup</li>
+  <li><strong>Loom.ActionM</strong> - Monadic action interface</li>
+  <li><strong>Loom.Controller</strong> - Context and action helpers</li>
+  <li><strong>Loom.Router</strong> - Named routes and URL generation</li>
+  <li><strong>Loom.Session</strong> - Cookie-based session management</li>
+  <li><strong>Loom.Flash</strong> - Flash messages</li>
+  <li><strong>Loom.Form</strong> - Form parsing and CSRF</li>
+  <li><strong>Loom.Middleware</strong> - Built-in middleware</li>
+  <li><strong>Loom.Auth</strong> - Authentication helpers</li>
+  <li><strong>Loom.Database</strong> - Ledger integration</li>
+  <li><strong>Loom.SSE</strong> - Server-Sent Events</li>
+  <li><strong>Loom.Htmx</strong> - HTMX helpers</li>
+  <li><strong>Loom.Static</strong> - Static file serving</li>
+  <li><strong>Loom.Stencil</strong> - Template engine</li>
+</ul>

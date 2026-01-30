@@ -1,0 +1,232 @@
+<p>Loom provides authentication helpers for session-based auth with route guards
+and common auth patterns.</p>
+
+<h3>Session-Based Authentication</h3>
+
+<p>Loom's auth system uses the session to track logged-in users:</p>
+
+<pre><code class="language-lean">-- Login: store user_id in session
+def loginAction : ActionM Response := do
+  let email ← paramD "email" ""
+  let password ← paramD "password" ""
+
+  match ← validateCredentials email password with
+  | none =>
+    flashError "Invalid email or password"
+    seeOther "/login"
+  | some user =>
+    sessionSet "user_id" user.id
+    sessionSet "user_name" user.name
+    flashSuccess s!"Welcome back, {user.name}!"
+    seeOther "/"
+
+-- Logout: clear session
+def logoutAction : ActionM Response := do
+  sessionClear
+  flashSuccess "Logged out"
+  seeOther "/"</code></pre>
+
+<h3>Auth Helpers</h3>
+
+<pre><code class="language-lean">namespace Auth
+  -- Check if user is logged in
+  def isLoggedIn (ctx : Context) : Bool :=
+    ctx.session.has "user_id"
+
+  -- Get current user ID
+  def currentUserId (ctx : Context) : Option String :=
+    ctx.session.get "user_id"
+end Auth</code></pre>
+
+<h3>Auth Middleware</h3>
+
+<p>Protect routes with auth guards:</p>
+
+<pre><code class="language-lean">import Loom.Auth
+
+-- Require login
+.get "/profile" "profile" [Auth.authRequired] profileAction
+
+-- Require admin
+.get "/admin" "admin" [Auth.adminRequired] adminAction
+
+-- Both
+.get "/admin/users" "admin_users"
+  [Auth.authRequired, Auth.adminRequired] adminUsersAction</code></pre>
+
+<h3>Built-in Auth Guards</h3>
+
+<table class="api-table">
+  <tr>
+    <th>Guard</th>
+    <th>Checks</th>
+    <th>Redirects To</th>
+  </tr>
+  <tr>
+    <td><code>Auth.authRequired</code></td>
+    <td>user_id in session</td>
+    <td>/login</td>
+  </tr>
+  <tr>
+    <td><code>Auth.adminRequired</code></td>
+    <td>is_admin = "true"</td>
+    <td>/</td>
+  </tr>
+  <tr>
+    <td><code>Auth.authRequiredTo path msg</code></td>
+    <td>user_id in session</td>
+    <td>Custom path</td>
+  </tr>
+  <tr>
+    <td><code>Auth.adminRequiredTo path msg</code></td>
+    <td>is_admin = "true"</td>
+    <td>Custom path</td>
+  </tr>
+</table>
+
+<h3>Custom Auth Redirect</h3>
+
+<pre><code class="language-lean">-- Custom redirect and message
+let loginRequired := Auth.authRequiredTo
+  "/signin"
+  "You must be signed in to view this page"
+
+.get "/dashboard" "dashboard" [loginRequired] dashboardAction</code></pre>
+
+<h3>Admin Authentication</h3>
+
+<pre><code class="language-lean">def loginAction : ActionM Response := do
+  let email ← paramD "email" ""
+  let password ← paramD "password" ""
+
+  match ← validateCredentials email password with
+  | none => flashError "Invalid credentials"; seeOther "/login"
+  | some user =>
+    sessionSet "user_id" user.id
+    -- Set admin flag if user is admin
+    if user.isAdmin then
+      sessionSet "is_admin" "true"
+    flashSuccess "Logged in"
+    seeOther "/"</code></pre>
+
+<h3>Custom Session Checks</h3>
+
+<pre><code class="language-lean">-- Require specific session value
+let requireVerified := Auth.requireSessionValue
+  "email_verified" "true"
+  "/verify-email"
+  "Please verify your email first"
+
+-- Check any session value
+def hasSessionValue (key : String) (value : String) (ctx : Context) : Bool :=
+  ctx.session.get key == some value</code></pre>
+
+<h3>Conditional Rendering</h3>
+
+<pre><code class="language-lean">def navAction : ActionM Response := do
+  let ctx ← getCtx
+
+  let nav := do
+    if Auth.isLoggedIn ctx then
+      a [href "/profile"] (text "Profile")
+      a [href "/logout"] (text "Logout")
+    else
+      a [href "/login"] (text "Login")
+      a [href "/signup"] (text "Sign Up")
+
+  html (render nav)</code></pre>
+
+<h3>In Templates</h3>
+
+<pre><code class="language-html">&lt;!-- Check if logged in --&gt;
+&#123;&#123;#if session.user_id&#125;&#125;
+  &lt;a href="/profile"&gt;&#123;&#123;session.user_name&#125;&#125;&lt;/a&gt;
+  &lt;a href="/logout"&gt;Logout&lt;/a&gt;
+&#123;&#123;else&#125;&#125;
+  &lt;a href="/login"&gt;Login&lt;/a&gt;
+&#123;&#123;/if&#125;&#125;
+
+&lt;!-- Check admin --&gt;
+&#123;&#123;#if session.is_admin&#125;&#125;
+  &lt;a href="/admin"&gt;Admin Panel&lt;/a&gt;
+&#123;&#123;/if&#125;&#125;</code></pre>
+
+<h3>Registration Flow</h3>
+
+<pre><code class="language-lean">def signupAction : ActionM Response := do
+  let name ← paramD "name" ""
+  let email ← paramD "email" ""
+  let password ← paramD "password" ""
+
+  -- Validate
+  if name.isEmpty || email.isEmpty || password.length < 8 then
+    flashError "Please fill all fields (password min 8 chars)"
+    return ← seeOther "/signup"
+
+  -- Check if email exists
+  if ← emailExists email then
+    flashError "Email already registered"
+    return ← seeOther "/signup"
+
+  -- Create user
+  match ← createUser name email password with
+  | .error e =>
+    flashError s!"Registration failed: {e}"
+    seeOther "/signup"
+  | .ok user =>
+    -- Auto-login after registration
+    sessionSet "user_id" user.id
+    sessionSet "user_name" user.name
+    flashSuccess "Account created!"
+    seeOther "/"</code></pre>
+
+<h3>Password Hashing</h3>
+
+<p>Loom doesn't include password hashing. Use a proper hashing library:</p>
+
+<pre><code class="language-lean">-- Example with external crypto library
+def hashPassword (password : String) : IO String := do
+  -- Use bcrypt, argon2, or similar
+  Crypto.bcrypt password
+
+def verifyPassword (password hash : String) : IO Bool := do
+  Crypto.bcryptVerify password hash</code></pre>
+
+<h3>Remember Me</h3>
+
+<p>Sessions persist as long as the cookie is valid. For "remember me" functionality,
+you can set a longer-lived token:</p>
+
+<pre><code class="language-lean">def loginAction : ActionM Response := do
+  let remember ← param "remember"
+  -- ...login logic...
+  if remember.isSome then
+    sessionSet "remember_token" (← generateToken)
+  seeOther "/"</code></pre>
+
+<h3>Role-Based Access</h3>
+
+<pre><code class="language-lean">-- Check role in session
+def requireRole (role : String) : RouteMiddleware :=
+  RouteMiddleware.guard
+    (fun ctx => ctx.session.get "role" == some role)
+    "/"
+    "error"
+    s!"{role} access required"
+
+-- Usage
+.get "/editor" "editor" [Auth.authRequired, requireRole "editor"] editorAction
+.get "/admin" "admin" [Auth.authRequired, requireRole "admin"] adminAction</code></pre>
+
+<h3>Getting Current User in Actions</h3>
+
+<pre><code class="language-lean">def profileAction : ActionM Response := do
+  let ctx ← getCtx
+
+  match Auth.currentUserId ctx with
+  | none => seeOther "/login"  -- Shouldn't happen with auth guard
+  | some userId =>
+    match ← loadUser userId with
+    | none => notFound "User not found"
+    | some user =>
+      render "pages/profile" (.object #[("user", userToValue user)])</code></pre>

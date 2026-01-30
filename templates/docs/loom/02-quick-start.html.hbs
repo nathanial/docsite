@@ -1,0 +1,146 @@
+<p>Build a simple web application with Loom in under 50 lines.</p>
+
+<h3>The Goal</h3>
+
+<p>We'll create a greeting app with:</p>
+<ul>
+  <li>A form to enter your name</li>
+  <li>Flash message on submission</li>
+  <li>Session to remember the name</li>
+</ul>
+
+<h3>Complete Example</h3>
+
+<pre><code class="language-lean">import Loom
+import Scribe
+
+open Loom
+open Scribe
+
+def renderPage (content : HtmlM Unit) : HtmlM Unit := do
+  doctype
+  html [] do
+    head [] do
+      title [] (text "Loom Demo")
+      style_ [] "body { font-family: system-ui; max-width: 600px; margin: 2rem auto; }"
+    body [] content
+
+def homeAction : ActionM Response := do
+  let name ← sessionGet "name"
+  let flash ← flashGet "success"
+
+  let page := renderPage do
+    h1 [] (text "Welcome to Loom!")
+
+    -- Show flash message if present
+    match flash with
+    | some msg => div [style "color: green; margin: 1rem 0;"] (text msg)
+    | none => pure ()
+
+    -- Show greeting if name is in session
+    match name with
+    | some n => p [] (text s!"Hello, {n}!")
+    | none => p [] (text "Enter your name below.")
+
+    -- Form with CSRF token
+    let csrf ← csrfToken
+    form [method "POST", action "/greet"] do
+      input [type_ "hidden", name_ "_csrf", value_ csrf]
+      input [type_ "text", name_ "name", placeholder "Your name"]
+      button [type_ "submit"] (text "Submit")
+
+  html (render page)
+
+def greetAction : ActionM Response := do
+  let name ← paramD "name" "Anonymous"
+  sessionSet "name" name
+  flashSuccess s!"Hello, {name}!"
+  seeOther "/"
+
+def main : IO Unit :=
+  App.withSecret "super-secret-key-change-me"
+    |>.use Middleware.logging
+    |>.get "/" "home" [] homeAction
+    |>.post "/greet" "greet" [] greetAction
+    |>.run "0.0.0.0" 3000</code></pre>
+
+<h3>Running the App</h3>
+
+<pre><code class="language-bash">lake build && lake exe myapp</code></pre>
+
+<p>Visit <code>http://localhost:3000</code> in your browser.</p>
+
+<h3>What's Happening</h3>
+
+<h4>App Configuration</h4>
+
+<pre><code class="language-lean">App.withSecret "super-secret-key-change-me"</code></pre>
+
+<p>Creates an App with a secret key for signing sessions and CSRF tokens.</p>
+
+<h4>Middleware</h4>
+
+<pre><code class="language-lean">.use Middleware.logging</code></pre>
+
+<p>Adds request logging to stderr. You'll see output like:</p>
+
+<pre><code>[GET] /
+  -> 200 (2.3ms)</code></pre>
+
+<h4>Route Registration</h4>
+
+<pre><code class="language-lean">.get "/" "home" [] homeAction
+.post "/greet" "greet" [] greetAction</code></pre>
+
+<p>Routes take: pattern, name, middleware list, and action. Named routes enable URL generation.</p>
+
+<h4>ActionM Usage</h4>
+
+<pre><code class="language-lean">def homeAction : ActionM Response := do
+  let name ← sessionGet "name"     -- Read from session
+  let flash ← flashGet "success"   -- Read flash message
+  let csrf ← csrfToken             -- Get CSRF token
+  html (render page)               -- Return HTML response</code></pre>
+
+<p>ActionM is a StateT over Context, so you can read/write session and flash without passing context.</p>
+
+<h4>Form Handling</h4>
+
+<pre><code class="language-lean">def greetAction : ActionM Response := do
+  let name ← paramD "name" "Anonymous"  -- Get form parameter
+  sessionSet "name" name                 -- Store in session
+  flashSuccess s!"Hello, {name}!"        -- Set flash for next request
+  seeOther "/"                           -- Redirect (303)</code></pre>
+
+<p>The <code>seeOther</code> redirect uses status 303, which forces a GET request (proper POST-redirect-GET pattern).</p>
+
+<h3>Adding Static Files</h3>
+
+<p>Create a <code>public/</code> directory and Loom serves files automatically:</p>
+
+<pre><code class="language-lean">def config : AppConfig := {
+  secretKey := "secret".toUTF8
+  staticPath := some "public"
+}</code></pre>
+
+<p>Files in <code>public/css/style.css</code> are served at <code>/css/style.css</code>.</p>
+
+<h3>Adding Database</h3>
+
+<p>Enable Ledger for persistent data:</p>
+
+<pre><code class="language-lean">App.withSecret "secret"
+  |>.withPersistentDatabase "data/app.jsonl"
+  |>.get "/" "home" [] homeAction
+  |>.run</code></pre>
+
+<p>Now actions can use <code>transact</code> and <code>database</code> to store and query data.</p>
+
+<h3>Next Steps</h3>
+
+<ul>
+  <li>Learn about <a href="#routing">Routing</a> for URL parameters and named routes</li>
+  <li>Explore <a href="#sessions">Sessions &amp; Flash</a> for user state</li>
+  <li>Add authentication with <a href="#authentication">Auth middleware</a></li>
+  <li>Store data with <a href="#database">Database integration</a></li>
+</ul>

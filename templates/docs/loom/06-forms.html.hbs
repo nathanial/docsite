@@ -1,0 +1,209 @@
+<p>Loom handles form parsing, file uploads, and CSRF protection out of the box.</p>
+
+<h3>Form Parsing</h3>
+
+<p>Form parameters from URL-encoded bodies and query strings are automatically parsed
+and available via the <code>params</code> interface:</p>
+
+<pre><code class="language-lean">def submitAction : ActionM Response := do
+  let name ← param "name"           -- Option String
+  let email ← paramD "email" ""     -- String with default
+  let tags ← paramsGetAll "tags[]"  -- List String (multi-select)
+  ...</code></pre>
+
+<h3>Parameter Sources</h3>
+
+<p>Parameters are merged from multiple sources (later sources override earlier):</p>
+
+<ol>
+  <li>Query string (<code>?name=value</code>)</li>
+  <li>URL path parameters (<code>/users/:id</code>)</li>
+  <li>Form body (POST/PUT/PATCH)</li>
+</ol>
+
+<h3>Params API</h3>
+
+<pre><code class="language-lean">namespace Params
+  def get (p : Params) (key : String) : Option String
+  def getD (p : Params) (key : String) (default : String) : String
+  def getAll (p : Params) (key : String) : List String
+  def has (p : Params) (key : String) : Bool
+  def merge (p1 p2 : Params) : Params
+end Params</code></pre>
+
+<h3>CSRF Protection</h3>
+
+<p>Loom automatically validates CSRF tokens on POST, PUT, PATCH, and DELETE requests.
+Include the token in your forms:</p>
+
+<pre><code class="language-lean">def formAction : ActionM Response := do
+  let csrf ← csrfToken
+
+  let page := do
+    form [method "POST", action "/submit"] do
+      -- Hidden CSRF field
+      input [type_ "hidden", name_ "_csrf", value_ csrf]
+
+      -- Form fields
+      input [type_ "text", name_ "title"]
+      button [type_ "submit"] (text "Submit")
+
+  html (render page)</code></pre>
+
+<h3>CSRF for AJAX</h3>
+
+<p>For AJAX requests, you can send the token as a header instead:</p>
+
+<pre><code class="language-lean">-- Include meta tag in your layout
+def layout : ActionM HtmlM Unit := do
+  let csrf ← csrfToken
+  pure do
+    head [] do
+      meta_ [name_ "csrf-token", content_ csrf]
+    ...</code></pre>
+
+<pre><code class="language-javascript">// JavaScript
+const token = document.querySelector('meta[name="csrf-token"]').content;
+fetch('/api/data', {
+  method: 'POST',
+  headers: { 'X-CSRF-Token': token },
+  body: JSON.stringify(data)
+});</code></pre>
+
+<h3>CSRF Configuration</h3>
+
+<pre><code class="language-lean">structure AppConfig where
+  csrfEnabled : Bool := true        -- Enable/disable CSRF
+  csrfFieldName : String := "_csrf" -- Form field name
+  ...</code></pre>
+
+<h3>Disabling CSRF</h3>
+
+<p>For APIs that use token-based auth instead:</p>
+
+<pre><code class="language-lean">def config : AppConfig := {
+  secretKey := "...".toUTF8
+  csrfEnabled := false
+}</code></pre>
+
+<h3>File Uploads</h3>
+
+<p>Loom parses multipart/form-data for file uploads:</p>
+
+<pre><code class="language-lean">def uploadAction : ActionM Response := do
+  let ctx ← getCtx
+
+  -- Check if multipart
+  if !ctx.isMultipart then
+    return ← badRequest "Expected multipart form"
+
+  -- Get single file
+  match ctx.file "avatar" with
+  | none => badRequest "No file uploaded"
+  | some part =>
+    -- part.name: field name
+    -- part.filename: original filename (Option String)
+    -- part.contentType: MIME type (Option String)
+    -- part.content: ByteArray
+
+    let filename := part.filename.getD "unknown"
+    IO.FS.writeBinFile s!"/uploads/{filename}" part.content
+    flashSuccess s!"Uploaded {filename}"
+    seeOther "/"</code></pre>
+
+<h3>Multiple Files</h3>
+
+<pre><code class="language-lean">def multiUploadAction : ActionM Response := do
+  let ctx ← getCtx
+
+  -- All files with field name "files[]"
+  let files := ctx.filesByName "files[]"
+
+  -- All uploaded files regardless of field name
+  let allFiles := ctx.files
+
+  -- Check if any files uploaded
+  if !ctx.hasFiles then
+    return ← badRequest "No files"
+
+  for file in files do
+    let name := file.filename.getD "unknown"
+    IO.FS.writeBinFile s!"/uploads/{name}" file.content
+
+  flashSuccess s!"Uploaded {files.length} files"
+  seeOther "/"</code></pre>
+
+<h3>MultipartData API</h3>
+
+<pre><code class="language-lean">structure MultipartPart where
+  name : String                    -- Field name
+  filename : Option String         -- Original filename
+  contentType : Option String      -- MIME type
+  content : ByteArray              -- Raw content
+
+structure MultipartData where
+  parts : List MultipartPart
+
+namespace MultipartData
+  def getField (m : MultipartData) (name : String) : Option String
+  def getFields (m : MultipartData) (name : String) : List String
+  def getFile (m : MultipartData) (name : String) : Option MultipartPart
+  def getFilesByName (m : MultipartData) (name : String) : List MultipartPart
+  def getFiles (m : MultipartData) : List MultipartPart
+  def toParams (m : MultipartData) : Params  -- Form fields only
+end MultipartData</code></pre>
+
+<h3>Upload Form</h3>
+
+<pre><code class="language-lean">def uploadForm : ActionM Response := do
+  let csrf ← csrfToken
+
+  let page := do
+    form [method "POST", action "/upload", enctype "multipart/form-data"] do
+      input [type_ "hidden", name_ "_csrf", value_ csrf]
+      input [type_ "file", name_ "avatar", accept "image/*"]
+      button [type_ "submit"] (text "Upload")
+
+  html (render page)</code></pre>
+
+<h3>Form Validation Pattern</h3>
+
+<pre><code class="language-lean">def createUserAction : ActionM Response := do
+  let email ← paramD "email" ""
+  let password ← paramD "password" ""
+  let confirm ← paramD "confirm" ""
+
+  -- Validate
+  let mut errors : List String := []
+
+  if email.isEmpty then
+    errors := errors ++ ["Email is required"]
+  if password.length < 8 then
+    errors := errors ++ ["Password must be at least 8 characters"]
+  if password != confirm then
+    errors := errors ++ ["Passwords don't match"]
+
+  if !errors.isEmpty then
+    for err in errors do
+      flashError err
+    return ← seeOther "/signup"
+
+  -- Create user...
+  flashSuccess "Account created!"
+  seeOther "/login"</code></pre>
+
+<h3>Query String Parsing</h3>
+
+<pre><code class="language-lean">-- Extract query parameters programmatically
+let query := Form.parseQueryString "/search?q=lean&page=2"
+-- [("q", "lean"), ("page", "2")]
+
+-- Get path without query string
+let path := Form.pathWithoutQuery "/search?q=lean"
+-- "/search"</code></pre>
+
+<h3>URL Encoding</h3>
+
+<pre><code class="language-lean">-- Cookie module provides URL encoding/decoding
+Cookie.urlEncode "hello world"  -- "hello%20world"
+Cookie.urlDecode "hello%20world" -- "hello world"</code></pre>

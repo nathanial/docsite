@@ -1,0 +1,259 @@
+<p>Loom provides helpers for HTMX, a library that allows you to build dynamic web
+interfaces using HTML attributes instead of JavaScript.</p>
+
+<h3>What is HTMX?</h3>
+
+<p>HTMX lets any HTML element make HTTP requests and swap content dynamically:</p>
+
+<pre><code class="language-html">&lt;!-- Click button, POST to /items, replace this button --&gt;
+&lt;button hx-post="/items" hx-swap="outerHTML"&gt;
+  Add Item
+&lt;/button&gt;
+
+&lt;!-- Load content on page load --&gt;
+&lt;div hx-get="/sidebar" hx-trigger="load"&gt;
+  Loading...
+&lt;/div&gt;</code></pre>
+
+<h3>Detecting HTMX Requests</h3>
+
+<pre><code class="language-lean">def itemsAction : ActionM Response := do
+  if ← isHtmx then
+    -- HTMX request: return partial HTML
+    htmlFragment "&lt;li&gt;New item&lt;/li&gt;"
+  else
+    -- Normal request: full page
+    html fullPage</code></pre>
+
+<h3>HTMX Request Headers</h3>
+
+<p>ActionM provides helpers to read HTMX-specific headers:</p>
+
+<table class="api-table">
+  <tr>
+    <th>Function</th>
+    <th>HTMX Header</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>isHtmx</code></td>
+    <td>HX-Request</td>
+    <td>True if request is from HTMX</td>
+  </tr>
+  <tr>
+    <td><code>htmxTarget</code></td>
+    <td>HX-Target</td>
+    <td>ID of target element</td>
+  </tr>
+  <tr>
+    <td><code>htmxTrigger</code></td>
+    <td>HX-Trigger</td>
+    <td>ID of element that triggered</td>
+  </tr>
+  <tr>
+    <td><code>htmxPrompt</code></td>
+    <td>HX-Prompt</td>
+    <td>User's response to hx-prompt</td>
+  </tr>
+</table>
+
+<h3>Context HTMX Methods</h3>
+
+<pre><code class="language-lean">-- These work on Context directly
+ctx.isHtmx              -- Bool
+ctx.htmxCurrentUrl      -- Option String
+ctx.htmxTarget          -- Option String
+ctx.htmxTrigger         -- Option String
+ctx.htmxTriggerName     -- Option String
+ctx.htmxPrompt          -- Option String
+ctx.htmxBoosted         -- Bool (via hx-boost)
+ctx.htmxHistoryRestoreRequest  -- Bool</code></pre>
+
+<h3>HTMX Response Headers</h3>
+
+<p>Control HTMX behavior from the server:</p>
+
+<table class="api-table">
+  <tr>
+    <th>Function</th>
+    <th>Header Set</th>
+    <th>Effect</th>
+  </tr>
+  <tr>
+    <td><code>htmxRedirect url</code></td>
+    <td>HX-Redirect</td>
+    <td>Client-side redirect</td>
+  </tr>
+  <tr>
+    <td><code>htmxRefresh</code></td>
+    <td>HX-Refresh</td>
+    <td>Full page refresh</td>
+  </tr>
+  <tr>
+    <td><code>htmlWithRetarget html sel</code></td>
+    <td>HX-Retarget</td>
+    <td>Change swap target</td>
+  </tr>
+  <tr>
+    <td><code>htmlWithReswap html strategy</code></td>
+    <td>HX-Reswap</td>
+    <td>Change swap strategy</td>
+  </tr>
+  <tr>
+    <td><code>htmlWithTrigger html event</code></td>
+    <td>HX-Trigger</td>
+    <td>Trigger client event</td>
+  </tr>
+  <tr>
+    <td><code>htmlWithPushUrl html url</code></td>
+    <td>HX-Push-Url</td>
+    <td>Push URL to history</td>
+  </tr>
+  <tr>
+    <td><code>htmlWithReplaceUrl html url</code></td>
+    <td>HX-Replace-Url</td>
+    <td>Replace URL in history</td>
+  </tr>
+  <tr>
+    <td><code>htmxStopPolling</code></td>
+    <td>Status 286</td>
+    <td>Stop hx-trigger polling</td>
+  </tr>
+</table>
+
+<h3>Response Examples</h3>
+
+<pre><code class="language-lean">-- Redirect the browser (HTMX intercepts and navigates)
+def loginAction : ActionM Response := do
+  -- ...validate...
+  htmxRedirect "/"
+
+-- Trigger a client-side event after swap
+def createItemAction : ActionM Response := do
+  -- ...create item...
+  htmlWithTrigger "&lt;li&gt;New item&lt;/li&gt;" "itemCreated"
+
+-- Change where content is swapped
+def searchAction : ActionM Response := do
+  let results ← search query
+  htmlWithRetarget (renderResults results) "#search-results"
+
+-- Stop polling
+def checkStatusAction : ActionM Response := do
+  if taskComplete then
+    htmxStopPolling  -- Returns 286 status
+  else
+    html "&lt;span&gt;Still processing...&lt;/span&gt;"</code></pre>
+
+<h3>Common HTMX Patterns</h3>
+
+<h4>Delete with Confirmation</h4>
+
+<pre><code class="language-html">&lt;button hx-delete="/items/&#123;&#123;id&#125;&#125;"
+        hx-confirm="Delete this item?"
+        hx-target="closest .item"
+        hx-swap="outerHTML"&gt;
+  Delete
+&lt;/button&gt;</code></pre>
+
+<pre><code class="language-lean">def deleteItemAction : ActionM Response := do
+  let id ← paramD "id" ""
+  deleteItem id
+  html ""  -- Empty response removes the element</code></pre>
+
+<h4>Inline Editing</h4>
+
+<pre><code class="language-html">&lt;!-- Display mode --&gt;
+&lt;div id="name-&#123;&#123;id&#125;&#125;"&gt;
+  &lt;span&gt;&#123;&#123;name&#125;&#125;&lt;/span&gt;
+  &lt;button hx-get="/items/&#123;&#123;id&#125;&#125;/edit"
+          hx-target="#name-&#123;&#123;id&#125;&#125;"
+          hx-swap="innerHTML"&gt;Edit&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+
+<pre><code class="language-lean">-- Return edit form
+def editAction : ActionM Response := do
+  let id ← paramD "id" ""
+  let item ← loadItem id
+  htmlFragment s!"
+    &lt;form hx-put=\"/items/{id}\" hx-target=\"#name-{id}\"&gt;
+      &lt;input name=\"name\" value=\"{item.name}\"&gt;
+      &lt;button type=\"submit\"&gt;Save&lt;/button&gt;
+    &lt;/form&gt;"
+
+-- Return updated display
+def updateAction : ActionM Response := do
+  let id ← paramD "id" ""
+  let name ← paramD "name" ""
+  updateItem id name
+  htmlFragment s!"
+    &lt;span&gt;{name}&lt;/span&gt;
+    &lt;button hx-get=\"/items/{id}/edit\"&gt;Edit&lt;/button&gt;"</code></pre>
+
+<h4>Search with Debounce</h4>
+
+<pre><code class="language-html">&lt;input type="search"
+       name="q"
+       hx-get="/search"
+       hx-trigger="keyup changed delay:300ms"
+       hx-target="#results"&gt;
+
+&lt;div id="results"&gt;&lt;/div&gt;</code></pre>
+
+<pre><code class="language-lean">def searchAction : ActionM Response := do
+  let q ← paramD "q" ""
+  let results ← search q
+  htmlFragment (renderResultsList results)</code></pre>
+
+<h4>Infinite Scroll</h4>
+
+<pre><code class="language-html">&lt;div id="items"&gt;
+  &#123;&#123;#each items&#125;&#125;
+    &#123;&#123;&gt; item_row&#125;&#125;
+  &#123;&#123;/each&#125;&#125;
+
+  &lt;div hx-get="/items?page=&#123;&#123;nextPage&#125;&#125;"
+       hx-trigger="revealed"
+       hx-swap="outerHTML"&gt;
+    Loading more...
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+
+<h3>HTMX with SSE</h3>
+
+<p>Use HTMX's SSE extension for real-time updates:</p>
+
+<pre><code class="language-html">&lt;div hx-ext="sse" sse-connect="/events"&gt;
+  &lt;!-- Updated when server sends "message" event --&gt;
+  &lt;div sse-swap="message"&gt;&lt;/div&gt;
+
+  &lt;!-- Updated when server sends "count" event --&gt;
+  &lt;span sse-swap="count"&gt;0&lt;/span&gt;
+&lt;/div&gt;</code></pre>
+
+<pre><code class="language-lean">-- In action, publish HTML directly
+def updateCountAction : ActionM Response := do
+  let count ← getCount
+  ssePublishHtml "default" "count" s!"&lt;span&gt;{count}&lt;/span&gt;"
+  html "OK"</code></pre>
+
+<h3>Loading States</h3>
+
+<pre><code class="language-html">&lt;button hx-post="/slow-operation"&gt;
+  &lt;span class="htmx-indicator"&gt;Loading...&lt;/span&gt;
+  &lt;span&gt;Submit&lt;/span&gt;
+&lt;/button&gt;
+
+&lt;style&gt;
+  .htmx-indicator { display: none; }
+  .htmx-request .htmx-indicator { display: inline; }
+  .htmx-request span:not(.htmx-indicator) { display: none; }
+&lt;/style&gt;</code></pre>
+
+<h3>Including HTMX</h3>
+
+<p>Add HTMX to your layout:</p>
+
+<pre><code class="language-html">&lt;script src="https://unpkg.com/htmx.org@1.9.10"&gt;&lt;/script&gt;
+&lt;!-- Optional: SSE extension --&gt;
+&lt;script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/sse.js"&gt;&lt;/script&gt;</code></pre>

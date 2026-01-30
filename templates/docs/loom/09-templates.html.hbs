@@ -1,0 +1,243 @@
+<p>Loom integrates with Stencil, a Handlebars-style template engine for Lean 4, providing
+file-based templates with layouts, partials, and hot reload support.</p>
+
+<h3>Enabling Stencil</h3>
+
+<pre><code class="language-lean">import Loom
+import Loom.Stencil
+
+App.withSecret "secret"
+  |>.withStencil {
+      templateDir := "templates"
+      hotReload := true           -- Reload on file change
+      defaultLayout := some "application"
+    }
+  |>.run</code></pre>
+
+<h3>Template Directory Structure</h3>
+
+<pre><code>templates/
+├── layouts/
+│   └── application.stencil    -- Main layout
+├── partials/
+│   ├── _header.stencil        -- Header partial
+│   └── _footer.stencil        -- Footer partial
+└── pages/
+    ├── home.stencil           -- pages/home
+    ├── users/
+    │   ├── index.stencil      -- pages/users/index
+    │   └── show.stencil       -- pages/users/show
+    └── posts/
+        └── index.stencil      -- pages/posts/index</code></pre>
+
+<h3>Rendering Templates</h3>
+
+<pre><code class="language-lean">def homeAction : ActionM Response := do
+  let users ← loadUsers
+  render "pages/home" (.object #[
+    ("title", .string "Welcome"),
+    ("users", usersToValue users)
+  ])</code></pre>
+
+<h3>Template Syntax</h3>
+
+<p>Stencil uses Handlebars-style syntax:</p>
+
+<pre><code class="language-html">&lt;!-- Variable interpolation --&gt;
+&lt;h1&gt;&#123;&#123;title&#125;&#125;&lt;/h1&gt;
+
+&lt;!-- Unescaped HTML (triple braces) --&gt;
+&#123;&#123;&#123;content&#125;&#125;&#125;
+
+&lt;!-- Conditionals --&gt;
+&#123;&#123;#if user&#125;&#125;
+  &lt;p&gt;Hello, &#123;&#123;user.name&#125;&#125;!&lt;/p&gt;
+&#123;&#123;else&#125;&#125;
+  &lt;p&gt;Please log in.&lt;/p&gt;
+&#123;&#123;/if&#125;&#125;
+
+&lt;!-- Loops --&gt;
+&lt;ul&gt;
+&#123;&#123;#each users&#125;&#125;
+  &lt;li&gt;&#123;&#123;this.name&#125;&#125; - &#123;&#123;this.email&#125;&#125;&lt;/li&gt;
+&#123;&#123;/each&#125;&#125;
+&lt;/ul&gt;
+
+&lt;!-- Partials --&gt;
+&#123;&#123;&gt; header&#125;&#125;
+&#123;&#123;&gt; footer&#125;&#125;</code></pre>
+
+<h3>Layouts</h3>
+
+<p>Layout template (<code>templates/layouts/application.stencil</code>):</p>
+
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;title&gt;&#123;&#123;title&#125;&#125; - My App&lt;/title&gt;
+  &lt;meta name="csrf-token" content="&#123;&#123;csrfToken&#125;&#125;"&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &#123;&#123;&gt; header&#125;&#125;
+
+  &#123;&#123;#if flash.success&#125;&#125;
+    &lt;div class="alert success"&gt;&#123;&#123;flash.success&#125;&#125;&lt;/div&gt;
+  &#123;&#123;/if&#125;&#125;
+
+  &#123;&#123;#if flash.error&#125;&#125;
+    &lt;div class="alert error"&gt;&#123;&#123;flash.error&#125;&#125;&lt;/div&gt;
+  &#123;&#123;/if&#125;&#125;
+
+  &#123;&#123;&#123;content&#125;&#125;&#125;
+
+  &#123;&#123;&gt; footer&#125;&#125;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+<p>The <code>&#123;&#123;&#123;content&#125;&#125;&#125;</code> placeholder is where the rendered template content appears.</p>
+
+<h3>Explicit Layout</h3>
+
+<pre><code class="language-lean">-- Use specific layout
+renderWithLayout "admin" "pages/admin/dashboard" data
+
+-- Render without layout
+renderInline "&lt;p&gt;&#123;&#123;message&#125;&#125;&lt;/p&gt;" (.object #[("message", .string "Hi")])</code></pre>
+
+<h3>Partials</h3>
+
+<p>Partials are templates that can be included in other templates:</p>
+
+<pre><code class="language-html">&lt;!-- templates/partials/_user_card.stencil --&gt;
+&lt;div class="user-card"&gt;
+  &lt;h3&gt;&#123;&#123;user.name&#125;&#125;&lt;/h3&gt;
+  &lt;p&gt;&#123;&#123;user.email&#125;&#125;&lt;/p&gt;
+&lt;/div&gt;</code></pre>
+
+<pre><code class="language-html">&lt;!-- In another template --&gt;
+&#123;&#123;#each users&#125;&#125;
+  &#123;&#123;&gt; user_card user=this&#125;&#125;
+&#123;&#123;/each&#125;&#125;</code></pre>
+
+<h3>Context Data</h3>
+
+<p>Templates automatically have access to Loom context:</p>
+
+<pre><code class="language-html">&lt;!-- Request parameters --&gt;
+&lt;p&gt;ID: &#123;&#123;params.id&#125;&#125;&lt;/p&gt;
+
+&lt;!-- Session data --&gt;
+&#123;&#123;#if session.user_id&#125;&#125;
+  &lt;p&gt;Logged in as: &#123;&#123;session.user_name&#125;&#125;&lt;/p&gt;
+&#123;&#123;/if&#125;&#125;
+
+&lt;!-- Flash messages --&gt;
+&#123;&#123;#if flash.success&#125;&#125;
+  &lt;div class="success"&gt;&#123;&#123;flash.success&#125;&#125;&lt;/div&gt;
+&#123;&#123;/if&#125;&#125;
+
+&lt;!-- CSRF token --&gt;
+&lt;input type="hidden" name="_csrf" value="&#123;&#123;csrfToken&#125;&#125;"&gt;
+
+&lt;!-- Request info --&gt;
+&lt;p&gt;Path: &#123;&#123;request.path&#125;&#125;&lt;/p&gt;</code></pre>
+
+<h3>Stencil Configuration</h3>
+
+<pre><code class="language-lean">structure Config where
+  templateDir : String := "templates"
+  hotReload : Bool := false
+  defaultLayout : Option String := none
+  extension : String := ".stencil"</code></pre>
+
+<h3>Rendering Functions</h3>
+
+<table class="api-table">
+  <tr>
+    <th>Function</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>render name data</code></td>
+    <td>Render template with default layout</td>
+  </tr>
+  <tr>
+    <td><code>renderWithLayout layout name data</code></td>
+    <td>Render with explicit layout</td>
+  </tr>
+  <tr>
+    <td><code>renderInline template data</code></td>
+    <td>Render inline template string</td>
+  </tr>
+  <tr>
+    <td><code>renderPartial name data</code></td>
+    <td>Render partial directly (for HTMX)</td>
+  </tr>
+</table>
+
+<h3>Hot Reload</h3>
+
+<p>Enable hot reload for development:</p>
+
+<pre><code class="language-lean">App.withSecret "secret"
+  |>.withSSE
+  |>.sseEndpoint "/events" "hot-reload"
+  |>.withStencil { templateDir := "templates", hotReload := true }
+  |>.run</code></pre>
+
+<p>Add the hot reload script to your layout:</p>
+
+<pre><code class="language-html">&lt;script&gt;
+if (typeof EventSource !== 'undefined') {
+  const es = new EventSource('/events');
+  es.addEventListener('reload', () =&gt; window.location.reload());
+  es.addEventListener('css', (e) =&gt; {
+    // Reload specific CSS file
+    const link = document.querySelector(`link[href*="${e.data}"]`);
+    if (link) link.href = link.href.split('?')[0] + '?v=' + Date.now();
+  });
+}
+&lt;/script&gt;</code></pre>
+
+<h3>Stencil Values</h3>
+
+<p>Convert Lean data to Stencil values:</p>
+
+<pre><code class="language-lean">-- Basic values
+Stencil.Value.string "hello"
+Stencil.Value.int 42
+Stencil.Value.bool true
+Stencil.Value.null
+
+-- Arrays
+Stencil.Value.array #[.string "a", .string "b"]
+
+-- Objects
+Stencil.Value.object #[
+  ("name", .string "Alice"),
+  ("age", .int 30)
+]</code></pre>
+
+<h3>HTMX Partial Rendering</h3>
+
+<p>For HTMX requests, render partials without layouts:</p>
+
+<pre><code class="language-lean">def usersAction : ActionM Response := do
+  let users ← loadUsers
+
+  if ← isHtmx then
+    -- HTMX request: return just the partial
+    renderPartial "user_list" (.object #[("users", usersToValue users)])
+  else
+    -- Normal request: full page with layout
+    render "pages/users/index" (.object #[("users", usersToValue users)])</code></pre>
+
+<h3>Error Handling</h3>
+
+<pre><code class="language-lean">inductive RenderError where
+  | noStencilManager : RenderError
+  | templateNotFound : String → RenderError
+  | layoutNotFound : String → RenderError
+  | renderError : String → RenderError</code></pre>
+
+<p>Render functions throw on error with descriptive messages.</p>

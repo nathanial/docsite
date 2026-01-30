@@ -1,0 +1,237 @@
+<p>Loom integrates with Citadel's Server-Sent Events (SSE) for pushing real-time
+updates to connected browsers.</p>
+
+<h3>Enabling SSE</h3>
+
+<pre><code class="language-lean">App.withSecret "secret"
+  |>.withSSE
+  |>.sseEndpoint "/events" "default"
+  |>.get "/" "home" [] homeAction
+  |>.run</code></pre>
+
+<p>This enables SSE and creates an endpoint at <code>/events</code> subscribed to the "default" topic.</p>
+
+<h3>SSE Endpoints</h3>
+
+<p>Register multiple endpoints for different topics:</p>
+
+<pre><code class="language-lean">App.withSecret "secret"
+  |>.withSSE
+  |>.sseEndpoint "/events" "default"
+  |>.sseEndpoint "/admin/events" "admin"
+  |>.sseEndpoint "/chat/events" "chat"
+  |>.run</code></pre>
+
+<p>Clients connecting to each endpoint receive events published to that topic.</p>
+
+<h3>Publishing Events</h3>
+
+<p>From actions, use the SSE publishing functions:</p>
+
+<pre><code class="language-lean">def createItemAction : ActionM Response := do
+  -- ...create item...
+
+  -- Publish to "default" topic
+  ssePublishMessage "default" "Item created"
+
+  -- Publish named event
+  ssePublishEvent "default" "itemCreated" itemId
+
+  -- Publish HTML (for HTMX)
+  ssePublishHtml "default" "newItem" "&lt;li&gt;New item&lt;/li&gt;"
+
+  seeOther "/"</code></pre>
+
+<h3>Publishing Functions</h3>
+
+<table class="api-table">
+  <tr>
+    <th>Function</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>ssePublishMessage topic data</code></td>
+    <td>Send data as "message" event</td>
+  </tr>
+  <tr>
+    <td><code>ssePublishEvent topic eventType data</code></td>
+    <td>Send named event with data</td>
+  </tr>
+  <tr>
+    <td><code>ssePublishHtml topic eventType html</code></td>
+    <td>Send HTML for HTMX swapping</td>
+  </tr>
+  <tr>
+    <td><code>sseBroadcastMessage data</code></td>
+    <td>Send to all topics</td>
+  </tr>
+  <tr>
+    <td><code>sseBroadcastEvent eventType data</code></td>
+    <td>Send named event to all</td>
+  </tr>
+</table>
+
+<h3>Global SSE Functions</h3>
+
+<p>Outside of ActionM (e.g., in background tasks):</p>
+
+<pre><code class="language-lean">-- These are in the Loom.SSE namespace
+SSE.publish topic event
+SSE.publishMessage topic data
+SSE.publishEvent topic eventType data
+SSE.publishHtml topic eventType html
+SSE.publishAll event
+SSE.publishMessageAll data
+SSE.publishEventAll eventType data
+
+-- Check SSE status
+SSE.isInitialized  -- IO Bool
+SSE.clientCount    -- IO Nat</code></pre>
+
+<h3>Client-Side JavaScript</h3>
+
+<pre><code class="language-javascript">// Connect to SSE endpoint
+const eventSource = new EventSource('/events');
+
+// Listen for "message" events (default)
+eventSource.onmessage = (event) => {
+  console.log('Received:', event.data);
+};
+
+// Listen for named events
+eventSource.addEventListener('itemCreated', (event) => {
+  console.log('Item created:', event.data);
+  // Update UI...
+});
+
+// Handle errors
+eventSource.onerror = (error) => {
+  console.error('SSE error:', error);
+};</code></pre>
+
+<h3>SSE with HTMX</h3>
+
+<p>HTMX has a built-in SSE extension:</p>
+
+<pre><code class="language-html">&lt;!-- Include HTMX SSE extension --&gt;
+&lt;script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/sse.js"&gt;&lt;/script&gt;
+
+&lt;!-- Connect to SSE and swap content on events --&gt;
+&lt;div hx-ext="sse" sse-connect="/events"&gt;
+  &lt;!-- This div updates when "message" event arrives --&gt;
+  &lt;div sse-swap="message"&gt;
+    Waiting for updates...
+  &lt;/div&gt;
+
+  &lt;!-- This updates on "newItem" event --&gt;
+  &lt;ul sse-swap="newItem" hx-swap="beforeend"&gt;
+    &lt;!-- New items appended here --&gt;
+  &lt;/ul&gt;
+
+  &lt;!-- Counter updates on "count" event --&gt;
+  &lt;span sse-swap="count"&gt;0&lt;/span&gt;
+&lt;/div&gt;</code></pre>
+
+<pre><code class="language-lean">-- Server-side: publish HTML directly
+def incrementAction : ActionM Response := do
+  let count ← incrementCounter
+  ssePublishHtml "default" "count" s!"&lt;span&gt;{count}&lt;/span&gt;"
+  html "OK"</code></pre>
+
+<h3>Hot Reload</h3>
+
+<p>Loom's hot reload uses SSE internally:</p>
+
+<pre><code class="language-lean">App.withSecret "secret"
+  |>.withSSE
+  |>.sseEndpoint "/events" "hot-reload"
+  |>.withStencil { templateDir := "templates", hotReload := true }
+  |>.run</code></pre>
+
+<p>When templates change, Loom publishes a "reload" event. Add this to your layout:</p>
+
+<pre><code class="language-html">&lt;script&gt;
+if (typeof EventSource !== 'undefined') {
+  const es = new EventSource('/events');
+
+  // Full page reload on template change
+  es.addEventListener('reload', () => window.location.reload());
+
+  // CSS hot reload
+  es.addEventListener('css', (e) => {
+    const href = e.data;
+    document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+      if (link.href.includes(href)) {
+        link.href = link.href.split('?')[0] + '?v=' + Date.now();
+      }
+    });
+  });
+}
+&lt;/script&gt;</code></pre>
+
+<h3>Chat Application Example</h3>
+
+<pre><code class="language-lean">def sendMessageAction : ActionM Response := do
+  let message ← paramD "message" ""
+  let username ← sessionGet "username" |>.map (·.getD "Anonymous")
+
+  -- Store message in database
+  storeMessage username message
+
+  -- Broadcast to all chat clients
+  let html := s!"&lt;div class=\"message\"&gt;
+    &lt;strong&gt;{username}&lt;/strong&gt;: {message}
+  &lt;/div&gt;"
+  ssePublishHtml "chat" "newMessage" html
+
+  -- Return empty for HTMX (form resets)
+  html ""
+
+-- Chat page
+def chatPage : ActionM Response := do
+  html "
+    &lt;div hx-ext=\"sse\" sse-connect=\"/chat/events\"&gt;
+      &lt;div id=\"messages\" sse-swap=\"newMessage\" hx-swap=\"beforeend\"&gt;
+        &lt;!-- Messages appear here --&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;form hx-post=\"/chat/send\" hx-swap=\"none\"&gt;
+      &lt;input name=\"message\" placeholder=\"Type a message...\"&gt;
+      &lt;button type=\"submit\"&gt;Send&lt;/button&gt;
+    &lt;/form&gt;"</code></pre>
+
+<h3>Real-Time Notifications</h3>
+
+<pre><code class="language-lean">def notifyUser (userId : String) (message : String) : IO Unit := do
+  -- Each user subscribes to their own topic
+  SSE.publishEvent s!"user-{userId}" "notification" message
+
+-- When something happens
+def commentAction : ActionM Response := do
+  let postId ← paramD "postId" ""
+  -- ...save comment...
+
+  -- Notify post author
+  let authorId ← getPostAuthor postId
+  notifyUser authorId "Someone commented on your post"
+
+  seeOther s!"/posts/{postId}"</code></pre>
+
+<h3>SSE Connection Management</h3>
+
+<p>Citadel manages connections automatically:</p>
+<ul>
+  <li>Connections are registered when clients connect to SSE endpoints</li>
+  <li>Connections are removed when clients disconnect</li>
+  <li>Events are only sent to active connections</li>
+</ul>
+
+<pre><code class="language-lean">-- Check how many clients are connected
+def statsAction : ActionM Response := do
+  let count ← SSE.clientCount
+  json s!"\{\"connected\": {count}}"</code></pre>
+
+<h3>Heartbeat</h3>
+
+<p>SSE connections stay alive with periodic comments (handled by Citadel).
+The default heartbeat interval is 15 seconds.</p>

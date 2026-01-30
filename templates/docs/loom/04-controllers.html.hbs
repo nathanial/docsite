@@ -1,0 +1,223 @@
+<p>Actions in Loom handle HTTP requests using the ActionM monad, which provides implicit
+context threading for cleaner code.</p>
+
+<h3>Action Types</h3>
+
+<p>Loom supports two action styles:</p>
+
+<pre><code class="language-lean">-- Traditional Action (explicit context)
+abbrev Action := Context → IO (Response × Context)
+
+-- ActionM (StateT-based, recommended)
+abbrev ActionM := StateT Context IO</code></pre>
+
+<p>Both can be used with route registration thanks to the <code>ToAction</code> typeclass:</p>
+
+<pre><code class="language-lean">.get "/" "home" [] myActionMHandler      -- ActionM Response
+.get "/old" "old" [] myTraditionalAction  -- Context → IO ActionResult</code></pre>
+
+<h3>ActionM Basics</h3>
+
+<pre><code class="language-lean">def myAction : ActionM Response := do
+  -- Read request data
+  let name ← param "name"
+  let body ← body
+  let method ← method
+
+  -- Read/write session
+  let userId ← sessionGet "user_id"
+  sessionSet "last_visit" "2024-01-15"
+
+  -- Set flash messages
+  flashSuccess "Operation completed!"
+
+  -- Return response
+  html "&lt;h1&gt;Hello&lt;/h1&gt;"</code></pre>
+
+<h3>Context Structure</h3>
+
+<p>The Context contains everything about the current request:</p>
+
+<pre><code class="language-lean">structure Context where
+  request : Citadel.ServerRequest    -- Raw HTTP request
+  session : Session                   -- Session data
+  flash : Flash                       -- Flash messages
+  params : Params                     -- Merged parameters
+  config : AppConfig                  -- Application config
+  csrfToken : String                  -- CSRF token
+  db : Option Ledger.Connection       -- In-memory database
+  persistentDb : Option PersistentConnection  -- Persistent database
+  logger : Option Chronicle.MultiLogger
+  multipartData : Option MultipartData
+  stencilManager : Option (IO.Ref Stencil.Manager)</code></pre>
+
+<h3>Request Data</h3>
+
+<table class="api-table">
+  <tr>
+    <th>Function</th>
+    <th>Type</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>param</code></td>
+    <td><code>String → ActionM (Option String)</code></td>
+    <td>Get parameter by name</td>
+  </tr>
+  <tr>
+    <td><code>paramD</code></td>
+    <td><code>String → String → ActionM String</code></td>
+    <td>Get parameter with default</td>
+  </tr>
+  <tr>
+    <td><code>header</code></td>
+    <td><code>String → ActionM (Option String)</code></td>
+    <td>Get request header</td>
+  </tr>
+  <tr>
+    <td><code>body</code></td>
+    <td><code>ActionM String</code></td>
+    <td>Get request body</td>
+  </tr>
+  <tr>
+    <td><code>path</code></td>
+    <td><code>ActionM String</code></td>
+    <td>Get request path</td>
+  </tr>
+  <tr>
+    <td><code>method</code></td>
+    <td><code>ActionM Method</code></td>
+    <td>Get HTTP method</td>
+  </tr>
+  <tr>
+    <td><code>csrfToken</code></td>
+    <td><code>ActionM String</code></td>
+    <td>Get CSRF token</td>
+  </tr>
+</table>
+
+<h3>Response Builders</h3>
+
+<table class="api-table">
+  <tr>
+    <th>Function</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>html content</code></td>
+    <td>Return HTML response (text/html)</td>
+  </tr>
+  <tr>
+    <td><code>text content</code></td>
+    <td>Return plain text response</td>
+  </tr>
+  <tr>
+    <td><code>json content</code></td>
+    <td>Return JSON response (application/json)</td>
+  </tr>
+  <tr>
+    <td><code>redirect url</code></td>
+    <td>302 redirect (or 301 if permanent := true)</td>
+  </tr>
+  <tr>
+    <td><code>seeOther url</code></td>
+    <td>303 redirect (forces GET, use after POST)</td>
+  </tr>
+  <tr>
+    <td><code>notFound msg</code></td>
+    <td>404 Not Found response</td>
+  </tr>
+  <tr>
+    <td><code>badRequest msg</code></td>
+    <td>400 Bad Request response</td>
+  </tr>
+</table>
+
+<h3>Session Operations</h3>
+
+<pre><code class="language-lean">-- Read session value
+let userId ← sessionGet "user_id"  -- Option String
+
+-- Write session value
+sessionSet "user_id" "42"
+
+-- Check if key exists
+let hasUser ← sessionHas "user_id"  -- Bool
+
+-- Clear all session data
+sessionClear</code></pre>
+
+<h3>Flash Messages</h3>
+
+<pre><code class="language-lean">-- Set flash messages (for next request)
+flash "custom_key" "Custom message"
+flashSuccess "Saved successfully!"
+flashError "Something went wrong"
+flashInfo "Did you know..."
+
+-- Read flash messages (from previous request)
+let msg ← flashGet "success"  -- Option String</code></pre>
+
+<h3>Context Helpers</h3>
+
+<p>Access context directly when needed:</p>
+
+<pre><code class="language-lean">def myAction : ActionM Response := do
+  let ctx ← getCtx
+
+  -- Check request type
+  if ctx.isXhr then ...
+  if ctx.acceptsJson then ...
+  if ctx.isMultipart then ...
+
+  -- Access raw request
+  let fullPath := ctx.request.fullPath
+  let contentType := ctx.contentType
+
+  html "..."</code></pre>
+
+<h3>Traditional Action Style</h3>
+
+<p>For explicit context passing:</p>
+
+<pre><code class="language-lean">def traditionalAction : Action := fun ctx => do
+  let name := ctx.paramD "name" "Guest"
+  let ctx' := ctx.withSession fun s => s.set "visited" "true"
+  Action.html s!"Hello, {name}!" ctx'</code></pre>
+
+<p>The traditional style is useful when you need fine-grained control over context
+modifications or are integrating with code that expects the Action type.</p>
+
+<h3>Converting Between Styles</h3>
+
+<pre><code class="language-lean">-- ActionM to Action
+def asAction : Action := myActionMHandler.toAction
+
+-- Action to ActionM (via do notation)
+def fromAction : ActionM Response := do
+  let ctx ← getCtx
+  let (resp, ctx') ← myTraditionalAction ctx
+  set ctx'
+  pure resp</code></pre>
+
+<h3>Error Handling</h3>
+
+<p>ActionM is based on IO, so standard error handling works:</p>
+
+<pre><code class="language-lean">def riskyAction : ActionM Response := do
+  try
+    let result ← someDangerousOperation
+    json result
+  catch e =>
+    flashError s!"Error: {e}"
+    seeOther "/"</code></pre>
+
+<h3>Context Modification</h3>
+
+<pre><code class="language-lean">-- Modify context directly
+modifyCtx fun ctx => { ctx with session := ctx.session.set "key" "value" }
+
+-- Helpers for common modifications
+def myAction : ActionM Response := do
+  sessionSet "key" "value"   -- Same as above, cleaner
+  ...</code></pre>

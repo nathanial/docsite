@@ -1,0 +1,244 @@
+<p>Loom provides two levels of middleware: global HTTP middleware that wraps all requests,
+and route-level middleware that has access to the parsed Context.</p>
+
+<h3>Global Middleware</h3>
+
+<p>Global middleware operates on raw HTTP requests before Loom processing:</p>
+
+<pre><code class="language-lean">App.withSecret "secret"
+  |>.use Middleware.logging
+  |>.use Middleware.securityHeaders
+  |>.use (Middleware.cors "*")
+  |>.get "/" "home" [] homeAction
+  |>.run</code></pre>
+
+<h3>Built-in Middleware</h3>
+
+<table class="api-table">
+  <tr>
+    <th>Middleware</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>Middleware.logging</code></td>
+    <td>Log requests with timing to stderr</td>
+  </tr>
+  <tr>
+    <td><code>Middleware.securityHeaders</code></td>
+    <td>Add X-Content-Type-Options, X-Frame-Options, X-XSS-Protection</td>
+  </tr>
+  <tr>
+    <td><code>Middleware.cors origin</code></td>
+    <td>Add CORS headers, handle OPTIONS preflight</td>
+  </tr>
+  <tr>
+    <td><code>Middleware.methodOverride</code></td>
+    <td>Support _method field for PUT/DELETE from forms</td>
+  </tr>
+  <tr>
+    <td><code>Middleware.errorRecovery</code></td>
+    <td>Catch exceptions, return 500</td>
+  </tr>
+  <tr>
+    <td><code>Middleware.httpsRedirect port</code></td>
+    <td>Redirect HTTP to HTTPS (301)</td>
+  </tr>
+  <tr>
+    <td><code>Middleware.queryLogging</code></td>
+    <td>Log slow requests (&gt;100ms)</td>
+  </tr>
+  <tr>
+    <td><code>Middleware.databaseErrorRecovery</code></td>
+    <td>Catch database errors, return 500</td>
+  </tr>
+</table>
+
+<h3>Request Logging</h3>
+
+<pre><code class="language-lean">.use Middleware.logging</code></pre>
+
+<p>Outputs to stderr:</p>
+
+<pre><code>[GET] /users/42
+  -> 200 (3.2ms)
+[POST] /login
+  -> 303 (15.7ms)</code></pre>
+
+<h3>Security Headers</h3>
+
+<pre><code class="language-lean">.use Middleware.securityHeaders</code></pre>
+
+<p>Adds headers to every response:</p>
+<ul>
+  <li><code>X-Content-Type-Options: nosniff</code></li>
+  <li><code>X-Frame-Options: DENY</code></li>
+  <li><code>X-XSS-Protection: 1; mode=block</code></li>
+</ul>
+
+<h3>CORS</h3>
+
+<pre><code class="language-lean">-- Allow any origin
+.use (Middleware.cors "*")
+
+-- Allow specific origin
+.use (Middleware.cors "https://myapp.com")</code></pre>
+
+<p>Automatically handles OPTIONS preflight requests with appropriate headers.</p>
+
+<h3>Method Override</h3>
+
+<p>HTML forms only support GET and POST. Enable PUT/DELETE via hidden field:</p>
+
+<pre><code class="language-lean">.use Middleware.methodOverride</code></pre>
+
+<pre><code class="language-html">&lt;form method="POST" action="/items/42"&gt;
+  &lt;input type="hidden" name="_method" value="DELETE"&gt;
+  &lt;button type="submit"&gt;Delete&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+
+<h3>HTTPS Redirect</h3>
+
+<p>For HTTP-to-HTTPS redirection:</p>
+
+<pre><code class="language-lean">-- Redirect to port 443
+.use (Middleware.httpsRedirect 443)
+
+-- With custom port
+.use (Middleware.httpsRedirect 8443)</code></pre>
+
+<p>Uses 301 (permanent redirect) so browsers cache the redirect.</p>
+
+<h3>Custom Global Middleware</h3>
+
+<pre><code class="language-lean">def myMiddleware : Citadel.Middleware := fun handler req => do
+  -- Before handling
+  IO.eprintln s!"Request: {req.method} {req.path}"
+
+  -- Call next handler
+  let resp ← handler req
+
+  -- After handling
+  let headers := resp.headers.add "X-Custom" "value"
+  pure { resp with headers }</code></pre>
+
+<h3>Middleware Composition</h3>
+
+<pre><code class="language-lean">-- Compose multiple middleware into one
+let combined := Middleware.compose [
+  Middleware.logging,
+  Middleware.securityHeaders,
+  Middleware.errorRecovery
+]
+
+App.withSecret "secret"
+  |>.use combined
+  |>.run</code></pre>
+
+<h3>Route Middleware</h3>
+
+<p>Route middleware has access to the parsed Context (sessions, params, database):</p>
+
+<pre><code class="language-lean">.get "/admin" "admin" [Auth.adminRequired] adminAction
+.get "/profile" "profile" [Auth.authRequired] profileAction</code></pre>
+
+<h3>Built-in Route Middleware</h3>
+
+<table class="api-table">
+  <tr>
+    <th>Middleware</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>Auth.authRequired</code></td>
+    <td>Require user_id in session, redirect to /login</td>
+  </tr>
+  <tr>
+    <td><code>Auth.adminRequired</code></td>
+    <td>Require is_admin = "true" in session</td>
+  </tr>
+  <tr>
+    <td><code>Auth.authRequiredTo path msg</code></td>
+    <td>Custom redirect path and flash message</td>
+  </tr>
+  <tr>
+    <td><code>Auth.adminRequiredTo path msg</code></td>
+    <td>Custom redirect for admin check</td>
+  </tr>
+</table>
+
+<h3>Custom Route Middleware</h3>
+
+<pre><code class="language-lean">def RouteMiddleware := Action → Action
+
+-- Guard that checks a condition
+def requireVerifiedEmail : RouteMiddleware :=
+  RouteMiddleware.guard
+    (fun ctx => ctx.session.get "email_verified" == some "true")
+    "/verify-email"
+    "error"
+    "Please verify your email first"
+
+-- IO guard for async checks
+def requireActiveSubscription : RouteMiddleware :=
+  RouteMiddleware.guardM
+    (fun ctx => do
+      match ctx.session.get "user_id" with
+      | none => pure false
+      | some uid => checkSubscription uid)
+    "/subscribe"
+    "error"
+    "Active subscription required"
+
+-- Use in routes
+.get "/premium" "premium" [Auth.authRequired, requireActiveSubscription] premiumAction</code></pre>
+
+<h3>Route Middleware Helpers</h3>
+
+<pre><code class="language-lean">namespace RouteMiddleware
+  -- Identity (pass through)
+  def identity : RouteMiddleware
+
+  -- Compose two middleware
+  def compose (m1 m2 : RouteMiddleware) : RouteMiddleware
+
+  -- Chain a list (first in list is outermost)
+  def chain (middlewares : List RouteMiddleware) : RouteMiddleware
+
+  -- Guard with sync check
+  def guard (check : Context → Bool)
+            (redirectTo : String)
+            (flashKey : String := "error")
+            (flashMsg : String := "") : RouteMiddleware
+
+  -- Guard with async check
+  def guardM (check : Context → IO Bool)
+             (redirectTo : String)
+             (flashKey : String := "error")
+             (flashMsg : String := "") : RouteMiddleware
+
+  -- Modify context before action
+  def mapContext (f : Context → Context) : RouteMiddleware
+
+  -- Modify context with IO before action
+  def mapContextM (f : Context → IO Context) : RouteMiddleware
+end RouteMiddleware</code></pre>
+
+<h3>Middleware Order</h3>
+
+<p>Route middleware executes from left to right:</p>
+
+<pre><code class="language-lean">.get "/page" "page" [first, second, third] action
+-- Execution: first → second → third → action</code></pre>
+
+<p>If any middleware redirects, subsequent middleware and the action are skipped.</p>
+
+<h3>Injecting Context Data</h3>
+
+<pre><code class="language-lean">def loadCurrentUser : RouteMiddleware :=
+  RouteMiddleware.mapContextM fun ctx => do
+    match ctx.session.get "user_id" with
+    | none => pure ctx
+    | some uid =>
+      -- Load user from database, store in session for action
+      let user ← loadUser uid
+      pure (ctx.withSession fun s => s.set "user_name" user.name)</code></pre>

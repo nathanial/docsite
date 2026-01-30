@@ -1,0 +1,240 @@
+<p>Loom serves static files from a configurable directory with automatic MIME type
+detection and caching support.</p>
+
+<h3>Basic Configuration</h3>
+
+<p>Static file serving is enabled by default with <code>staticPath := some "public"</code>:</p>
+
+<pre><code class="language-lean">-- Default: serves files from ./public
+def config : AppConfig := {
+  secretKey := "secret".toUTF8
+  staticPath := some "public"
+}
+
+-- Disable static file serving
+def config : AppConfig := {
+  secretKey := "secret".toUTF8
+  staticPath := none
+}</code></pre>
+
+<h3>Directory Structure</h3>
+
+<pre><code>public/
+├── css/
+│   └── style.css      → /css/style.css
+├── js/
+│   └── app.js         → /js/app.js
+├── images/
+│   └── logo.png       → /images/logo.png
+├── fonts/
+│   └── custom.woff2   → /fonts/custom.woff2
+└── favicon.ico        → /favicon.ico</code></pre>
+
+<h3>MIME Types</h3>
+
+<p>Loom detects MIME types by file extension:</p>
+
+<table class="api-table">
+  <tr>
+    <th>Extension</th>
+    <th>MIME Type</th>
+  </tr>
+  <tr>
+    <td><code>.html</code>, <code>.htm</code></td>
+    <td>text/html; charset=utf-8</td>
+  </tr>
+  <tr>
+    <td><code>.css</code></td>
+    <td>text/css; charset=utf-8</td>
+  </tr>
+  <tr>
+    <td><code>.js</code></td>
+    <td>application/javascript; charset=utf-8</td>
+  </tr>
+  <tr>
+    <td><code>.json</code></td>
+    <td>application/json; charset=utf-8</td>
+  </tr>
+  <tr>
+    <td><code>.png</code></td>
+    <td>image/png</td>
+  </tr>
+  <tr>
+    <td><code>.jpg</code>, <code>.jpeg</code></td>
+    <td>image/jpeg</td>
+  </tr>
+  <tr>
+    <td><code>.svg</code></td>
+    <td>image/svg+xml</td>
+  </tr>
+  <tr>
+    <td><code>.woff</code></td>
+    <td>font/woff</td>
+  </tr>
+  <tr>
+    <td><code>.woff2</code></td>
+    <td>font/woff2</td>
+  </tr>
+  <tr>
+    <td><code>.pdf</code></td>
+    <td>application/pdf</td>
+  </tr>
+  <tr>
+    <td>Other</td>
+    <td>application/octet-stream</td>
+  </tr>
+</table>
+
+<h3>Caching</h3>
+
+<p>In production mode, static files include caching headers:</p>
+
+<pre><code class="language-lean">def config : AppConfig := {
+  secretKey := "secret".toUTF8
+  devMode := false  -- Enable caching
+}</code></pre>
+
+<p>Response headers:</p>
+<ul>
+  <li><code>Cache-Control: public, max-age=3600</code></li>
+  <li><code>ETag: "1234567890"</code> (based on file modification time)</li>
+</ul>
+
+<h3>Development Mode</h3>
+
+<p>In development mode, caching is disabled:</p>
+
+<pre><code class="language-lean">def config : AppConfig := {
+  secretKey := "secret".toUTF8
+  devMode := true  -- Disable caching
+}</code></pre>
+
+<p>Response headers:</p>
+<ul>
+  <li><code>Cache-Control: no-cache, no-store, must-revalidate</code></li>
+</ul>
+
+<h3>Security</h3>
+
+<p>Loom prevents directory traversal attacks:</p>
+<ul>
+  <li>Paths containing <code>..</code> are rejected</li>
+  <li>Paths starting with <code>/</code> are sanitized</li>
+  <li>Paths containing <code>~</code> are rejected</li>
+</ul>
+
+<h3>Index Files</h3>
+
+<p>When a directory is requested, Loom looks for <code>index.html</code>:</p>
+
+<pre><code>GET /docs/ → public/docs/index.html
+GET /      → public/index.html (if exists)</code></pre>
+
+<h3>Route Priority</h3>
+
+<p>Routes are checked before static files. If you have both:</p>
+
+<pre><code class="language-lean">.get "/about" "about" [] aboutAction</code></pre>
+
+<p>And a file <code>public/about.html</code>, the route wins.</p>
+
+<h3>Static File Middleware</h3>
+
+<p>For more control, use static file middleware directly:</p>
+
+<pre><code class="language-lean">-- As middleware (tries static first, then handler)
+.use (Static.middleware "public" true)  -- devMode = true
+
+-- With config
+let staticConfig : Static.Config := {
+  basePath := "public"
+  devMode := true
+  maxAge := 86400  -- 1 day
+}
+.use (Static.middlewareWithConfig staticConfig)</code></pre>
+
+<h3>Direct Static Handler</h3>
+
+<p>For dedicated static routes:</p>
+
+<pre><code class="language-lean">-- Serve everything under /static from ./assets
+let staticHandler := Static.handler "assets" true
+
+-- Manual routing
+.get "/static/*" "static" [] (fun ctx => do
+  Static.serveFile "assets" ctx.request.path true)</code></pre>
+
+<h3>Programmatic File Serving</h3>
+
+<pre><code class="language-lean">-- Serve a specific file
+def downloadAction : ActionM Response := do
+  let fileId ← paramD "id" ""
+  let path := s!"uploads/{fileId}.pdf"
+
+  match ← Static.serveFile "uploads" path false with
+  | some resp => pure resp
+  | none => notFound "File not found"</code></pre>
+
+<h3>CSS Hot Reload</h3>
+
+<p>Loom can watch CSS files and notify browsers via SSE:</p>
+
+<pre><code class="language-lean">-- Automatic with SSE + static path
+App.withSecret "secret"
+  |>.withSSE
+  |>.sseEndpoint "/events" "hot-reload"
+  |>.run
+
+-- Watches public/css/*.css for changes
+-- Publishes "css" events with file path</code></pre>
+
+<p>Client-side handling:</p>
+
+<pre><code class="language-javascript">eventSource.addEventListener('css', (e) => {
+  const path = e.data;  // e.g., "/css/style.css"
+  document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+    if (link.href.includes(path)) {
+      // Cache bust by adding version param
+      link.href = link.href.split('?')[0] + '?v=' + Date.now();
+    }
+  });
+});</code></pre>
+
+<h3>Static Configuration API</h3>
+
+<pre><code class="language-lean">structure Config where
+  basePath : String       -- Directory to serve from
+  devMode : Bool := false -- Disable caching
+  maxAge : Nat := 3600    -- Cache-Control max-age seconds
+
+namespace Static
+  def mimeType (path : String) : String
+  def isSafePath (path : String) : Bool
+  def serveFile (basePath : String) (requestPath : String)
+                (devMode : Bool) (maxAge : Nat := 3600)
+                : IO (Option Response)
+  def handler (basePath : String) (devMode : Bool) : Handler
+  def middleware (basePath : String) (devMode : Bool) : Middleware
+end Static</code></pre>
+
+<h3>File Uploads</h3>
+
+<p>For user-uploaded files, consider a separate directory:</p>
+
+<pre><code class="language-lean">-- Upload handler
+def uploadAction : ActionM Response := do
+  let ctx ← getCtx
+  match ctx.file "document" with
+  | none => badRequest "No file"
+  | some file =>
+    let filename := file.filename.getD "upload"
+    IO.FS.writeBinFile s!"uploads/{filename}" file.content
+    flashSuccess "Uploaded"
+    seeOther "/"
+
+-- Serve uploaded files
+def downloadAction : ActionM Response := do
+  let filename ← paramD "filename" ""
+  match ← Static.serveFile "uploads" filename false 0 with
+  | some resp => pure resp
+  | none => notFound "Not found"</code></pre>

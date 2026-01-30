@@ -1,0 +1,215 @@
+<p>Loom provides cookie-based sessions with cryptographic signing and flash messages
+for one-time notifications across requests.</p>
+
+<h3>Session Overview</h3>
+
+<p>Sessions store key-value pairs in a signed cookie. Data persists across requests
+from the same browser until the session is cleared or the cookie expires.</p>
+
+<pre><code class="language-lean">structure Session where
+  data : List (String × String)
+  modified : Bool</code></pre>
+
+<h3>Session Operations in ActionM</h3>
+
+<pre><code class="language-lean">def myAction : ActionM Response := do
+  -- Read a value
+  let userId ← sessionGet "user_id"
+
+  -- Write a value
+  sessionSet "user_id" "42"
+  sessionSet "role" "admin"
+
+  -- Check existence
+  let isLoggedIn ← sessionHas "user_id"
+
+  -- Clear everything
+  sessionClear
+
+  html "Done"</code></pre>
+
+<h3>Session API</h3>
+
+<table class="api-table">
+  <tr>
+    <th>ActionM Function</th>
+    <th>Type</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>sessionGet key</code></td>
+    <td><code>ActionM (Option String)</code></td>
+    <td>Get value by key</td>
+  </tr>
+  <tr>
+    <td><code>sessionSet key value</code></td>
+    <td><code>ActionM Unit</code></td>
+    <td>Set a value</td>
+  </tr>
+  <tr>
+    <td><code>sessionHas key</code></td>
+    <td><code>ActionM Bool</code></td>
+    <td>Check if key exists</td>
+  </tr>
+  <tr>
+    <td><code>sessionClear</code></td>
+    <td><code>ActionM Unit</code></td>
+    <td>Remove all data</td>
+  </tr>
+</table>
+
+<h3>Direct Session API</h3>
+
+<p>For use with Context directly:</p>
+
+<pre><code class="language-lean">-- Session methods
+session.get "key"         -- Option String
+session.set "key" "value" -- Session (new session with value)
+session.delete "key"      -- Session (new session without key)
+session.clear             -- Session (empty session)
+session.has "key"         -- Bool
+session.isEmpty           -- Bool
+
+-- In traditional Action style
+def traditionalAction : Action := fun ctx => do
+  let name := ctx.session.get "name"
+  let ctx' := ctx.withSession fun s => s.set "visited" "true"
+  Action.html s!"Hello!" ctx'</code></pre>
+
+<h3>Session Security</h3>
+
+<p>Sessions are signed using the app's secret key (FNV-1a hash). The signature prevents
+tampering - if a user modifies the cookie, the signature check fails and the session
+is treated as empty.</p>
+
+<pre><code class="language-lean">-- Sessions are automatically signed/verified
+-- Cookie format: urlencoded_data.signature
+-- Example: user_id%3D42%26role%3Dadmin.abc123def456</code></pre>
+
+<p><strong>Important:</strong> Keep your secret key secure and don't commit it to version control.</p>
+
+<h3>Session Cookie Configuration</h3>
+
+<pre><code class="language-lean">structure AppConfig where
+  secretKey : ByteArray              -- Required for signing
+  sessionCookieName : String := "loom_session"
+  ...</code></pre>
+
+<p>Session cookies are set with:</p>
+<ul>
+  <li><code>HttpOnly</code> - Not accessible via JavaScript</li>
+  <li><code>SameSite=Lax</code> - CSRF protection</li>
+  <li><code>Path=/</code> - Available site-wide</li>
+</ul>
+
+<h3>Flash Messages</h3>
+
+<p>Flash messages are one-time notifications that appear on the next request only.
+They're stored in the session with a special prefix and automatically cleared
+after being read.</p>
+
+<pre><code class="language-lean">structure Flash where
+  current : List (String × String)  -- Available this request
+  next : List (String × String)     -- For next request</code></pre>
+
+<h3>Setting Flash Messages</h3>
+
+<pre><code class="language-lean">def createAction : ActionM Response := do
+  -- Validate and create...
+  flashSuccess "Item created successfully!"
+  seeOther "/items"
+
+def deleteAction : ActionM Response := do
+  match ← deleteItem id with
+  | .ok _ => flashSuccess "Deleted"
+  | .error e => flashError s!"Failed: {e}"
+  seeOther "/items"</code></pre>
+
+<h3>Flash Convenience Methods</h3>
+
+<table class="api-table">
+  <tr>
+    <th>Method</th>
+    <th>Key Used</th>
+  </tr>
+  <tr>
+    <td><code>flashSuccess msg</code></td>
+    <td>"success"</td>
+  </tr>
+  <tr>
+    <td><code>flashError msg</code></td>
+    <td>"error"</td>
+  </tr>
+  <tr>
+    <td><code>flashInfo msg</code></td>
+    <td>"info"</td>
+  </tr>
+  <tr>
+    <td><code>flash key value</code></td>
+    <td>Custom key</td>
+  </tr>
+</table>
+
+<h3>Reading Flash Messages</h3>
+
+<pre><code class="language-lean">def showAction : ActionM Response := do
+  let successMsg ← flashGet "success"
+  let errorMsg ← flashGet "error"
+
+  let page := renderPage do
+    match successMsg with
+    | some msg => div [class "alert success"] (text msg)
+    | none => pure ()
+
+    match errorMsg with
+    | some msg => div [class "alert error"] (text msg)
+    | none => pure ()
+
+    -- Rest of page...
+
+  html (render page)</code></pre>
+
+<h3>Direct Flash API</h3>
+
+<pre><code class="language-lean">-- Flash methods
+flash.get "key"           -- Option String (from current)
+flash.set "key" "value"   -- Flash (adds to next)
+flash.success "msg"       -- Flash (sets success message)
+flash.error "msg"         -- Flash (sets error message)
+flash.info "msg"          -- Flash (sets info message)
+flash.warning "msg"       -- Flash (sets warning message)
+flash.notice "msg"        -- Flash (sets notice message)
+flash.hasMessages         -- Bool (any current messages?)
+flash.all                 -- List (String × String)
+flash.keep "key"          -- Flash (keep current message for another request)
+flash.keepAll             -- Flash (keep all current messages)</code></pre>
+
+<h3>Flash Lifecycle</h3>
+
+<ol>
+  <li>User submits form (POST /create)</li>
+  <li>Action sets flash: <code>flashSuccess "Created!"</code></li>
+  <li>Action redirects: <code>seeOther "/items"</code></li>
+  <li>Flash is stored in session cookie</li>
+  <li>Browser follows redirect (GET /items)</li>
+  <li>Flash is loaded into <code>flash.current</code></li>
+  <li>Flash is removed from session</li>
+  <li>Action reads flash: <code>flashGet "success"</code></li>
+  <li>Message is displayed once, then gone</li>
+</ol>
+
+<h3>Keeping Flash Messages</h3>
+
+<p>Sometimes you want to preserve a flash message for another request:</p>
+
+<pre><code class="language-lean">def indexAction : ActionM Response := do
+  let ctx ← getCtx
+  -- Keep the error message if we're about to redirect again
+  if needsAnotherRedirect then
+    modifyCtx fun ctx => ctx.withFlash fun f => f.keep "error"
+  ...</code></pre>
+
+<h3>CSRF Protection</h3>
+
+<p>Loom automatically generates CSRF tokens tied to the session. See the Forms section
+for details on including and validating CSRF tokens.</p>

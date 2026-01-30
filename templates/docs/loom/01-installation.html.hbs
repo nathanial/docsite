@@ -1,0 +1,141 @@
+<p>This guide covers adding Loom to your Lean 4 project.</p>
+
+<h3>Prerequisites</h3>
+
+<ul>
+  <li>Lean 4 (compatible toolchain)</li>
+  <li>Lake build system</li>
+  <li>OpenSSL 3 (for TLS support)</li>
+</ul>
+
+<h3>Adding the Dependency</h3>
+
+<p>Add Loom to your <code>lakefile.lean</code>:</p>
+
+<pre><code class="language-lean">import Lake
+open Lake DSL
+
+package myapp where
+  version := v!"0.1.0"
+
+require loom from git
+  "https://github.com/nathanial/loom" @ "v0.1.3"
+
+-- OpenSSL linking (required for TLS support)
+def opensslLinkArgs : Array String :=
+  #["-L/opt/homebrew/opt/openssl@3/lib", "-lssl", "-lcrypto"]
+
+@[default_target]
+lean_lib MyApp where
+  roots := #[`MyApp]
+  moreLinkArgs := opensslLinkArgs
+
+lean_exe myapp where
+  root := `Main
+  moreLinkArgs := opensslLinkArgs</code></pre>
+
+<p>Loom depends on Citadel, Scribe, Ledger, Chronicle, Staple, and Stencil, which will be
+fetched automatically.</p>
+
+<h3>OpenSSL Setup (macOS)</h3>
+
+<p>Install OpenSSL via Homebrew:</p>
+
+<pre><code class="language-bash">brew install openssl@3</code></pre>
+
+<p>The linker args above assume Homebrew's default location on Apple Silicon. For Intel Macs,
+use <code>/usr/local/opt/openssl@3/lib</code> instead.</p>
+
+<h3>Updating Dependencies</h3>
+
+<pre><code class="language-bash">lake update
+lake build</code></pre>
+
+<h3>Import Patterns</h3>
+
+<p>For most applications, import the main Loom module:</p>
+
+<pre><code class="language-lean">import Loom
+
+open Loom</code></pre>
+
+<p>For Stencil template integration:</p>
+
+<pre><code class="language-lean">import Loom
+import Loom.Stencil
+
+open Loom</code></pre>
+
+<p>For HTMX helpers:</p>
+
+<pre><code class="language-lean">import Loom
+import Loom.Htmx
+
+open Loom</code></pre>
+
+<h3>Project Structure</h3>
+
+<p>A typical Loom application structure:</p>
+
+<pre><code>my-web-app/
+├── lakefile.lean
+├── MyApp.lean              -- Library root
+├── MyApp/
+│   ├── Actions.lean        -- Route handlers
+│   ├── Middleware.lean     -- Custom middleware
+│   └── Schema.lean         -- Ledger schema
+├── Main.lean               -- Entry point
+├── public/                 -- Static files
+│   ├── css/
+│   └── js/
+└── templates/              -- Stencil templates
+    ├── layouts/
+    ├── partials/
+    └── pages/</code></pre>
+
+<h3>Minimal Application</h3>
+
+<p>A complete minimal application (<code>Main.lean</code>):</p>
+
+<pre><code class="language-lean">import Loom
+
+open Loom
+
+def homeAction : ActionM Response := do
+  html "&lt;h1&gt;Hello, Loom!&lt;/h1&gt;"
+
+def main : IO Unit :=
+  App.withSecret "change-this-in-production"
+    |>.get "/" "home" [] homeAction
+    |>.run "0.0.0.0" 3000</code></pre>
+
+<h3>Building and Running</h3>
+
+<pre><code class="language-bash">lake build
+lake exe myapp</code></pre>
+
+<p>The server starts and listens on the configured host and port:</p>
+
+<pre><code>Loom starting on http://0.0.0.0:3000</code></pre>
+
+<h3>Development Mode</h3>
+
+<p>Enable development mode for cache-busting static files:</p>
+
+<pre><code class="language-lean">def config : AppConfig := {
+  secretKey := "my-secret".toUTF8
+  devMode := true
+}</code></pre>
+
+<p>When <code>devMode</code> is true, static files are served with <code>no-cache</code> headers.</p>
+
+<h3>Hot Reload</h3>
+
+<p>Loom supports hot reload for templates when using Stencil with SSE enabled.
+Template changes trigger browser refresh automatically:</p>
+
+<pre><code class="language-lean">App.withSecret "secret"
+  |>.withSSE
+  |>.sseEndpoint "/events" "hot-reload"
+  |>.withStencil { templateDir := "templates", hotReload := true }
+  |>.run</code></pre>

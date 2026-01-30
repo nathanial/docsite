@@ -1,0 +1,382 @@
+<p>Complete API reference for Loom types, functions, and modules.</p>
+
+<h3>Core Types</h3>
+
+<pre><code class="language-lean">-- Application container
+structure App where
+  config : AppConfig
+  routes : Routes := Routes.empty
+  middlewares : List Citadel.Middleware := []
+  sseEnabled : Bool := false
+  sseRoutes : List (String × String) := []
+  logger : Option Chronicle.MultiLogger := none
+  stencilConfig : Option Stencil.Config := none
+
+-- Application configuration
+structure AppConfig where
+  secretKey : ByteArray
+  sessionCookieName : String := "loom_session"
+  csrfFieldName : String := "_csrf"
+  staticPath : Option String := some "public"
+  csrfEnabled : Bool := true
+  dbConfig : Option Database.DbConfig := none
+  devMode : Bool := true
+
+-- Request context
+structure Context where
+  request : Citadel.ServerRequest
+  session : Session
+  flash : Flash
+  params : Params
+  config : AppConfig
+  csrfToken : String
+  db : Option Ledger.Connection := none
+  persistentDb : Option Ledger.Persist.PersistentConnection := none
+  logger : Option Chronicle.MultiLogger := none
+  multipartData : Option MultipartData := none
+  stencilManager : Option (IO.Ref Stencil.Manager) := none
+
+-- Action types
+abbrev Action := Context → IO (Response × Context)
+abbrev ActionM := StateT Context IO
+abbrev Params := List (String × String)</code></pre>
+
+<h3>App Builder</h3>
+
+<pre><code class="language-lean">namespace App
+  def create (config : AppConfig) : App
+  def withSecret (secret : String) : App
+
+  -- Middleware
+  def use (app : App) (mw : Citadel.Middleware) : App
+
+  -- Route registration
+  def get (app : App) (pattern name : String)
+          (middleware : List RouteMiddleware) (action : α) : App
+  def post (app : App) (pattern name : String)
+           (middleware : List RouteMiddleware) (action : α) : App
+  def put (app : App) (pattern name : String)
+          (middleware : List RouteMiddleware) (action : α) : App
+  def delete (app : App) (pattern name : String)
+             (middleware : List RouteMiddleware) (action : α) : App
+  def patch (app : App) (pattern name : String)
+            (middleware : List RouteMiddleware) (action : α) : App
+
+  -- Type-safe routes (with HasRouteInfo instance)
+  def get' (app : App) (r : R) (middleware : List RouteMiddleware) (action : α) : App
+  def post' (app : App) (r : R) (middleware : List RouteMiddleware) (action : α) : App
+
+  -- Database
+  def withDatabase (app : App) (factory : Database.ConnectionFactory) : App
+  def withDefaultDatabase (app : App) : App
+  def withPersistentDatabase (app : App) (journalPath : FilePath) : App
+
+  -- SSE
+  def withSSE (app : App) : App
+  def sseEndpoint (app : App) (pattern topic : String) : App
+
+  -- Templates
+  def withStencil (app : App) (config : Stencil.Config) : App
+  def withStencilDefault (app : App) : App
+
+  -- Logging
+  def withLogger (app : App) (logger : Chronicle.MultiLogger) : App
+
+  -- Running
+  def run (app : App) (host : String := "0.0.0.0") (port : UInt16 := 3000) : IO Unit
+  def runWithHttpsRedirect (app : App) (host : String) (httpsPort : UInt16)
+                           (httpPort : UInt16) (tlsConfig : Citadel.TlsConfig) : IO Unit
+
+  -- URL generation
+  def urlHelpers (app : App) (baseUrl : String := "") : UrlHelpers
+end App</code></pre>
+
+<h3>ActionM Functions</h3>
+
+<pre><code class="language-lean">namespace ActionM
+  -- Context
+  def getCtx : ActionM Context
+  def modifyCtx (f : Context → Context) : ActionM Unit
+
+  -- Request data
+  def param (name : String) : ActionM (Option String)
+  def paramD (name : String) (default : String) : ActionM String
+  def header (name : String) : ActionM (Option String)
+  def body : ActionM String
+  def path : ActionM String
+  def method : ActionM Method
+  def csrfToken : ActionM String
+
+  -- Session
+  def sessionGet (key : String) : ActionM (Option String)
+  def sessionSet (key value : String) : ActionM Unit
+  def sessionHas (key : String) : ActionM Bool
+  def sessionClear : ActionM Unit
+
+  -- Flash
+  def flash (key value : String) : ActionM Unit
+  def flashError (msg : String) : ActionM Unit
+  def flashSuccess (msg : String) : ActionM Unit
+  def flashInfo (msg : String) : ActionM Unit
+  def flashGet (key : String) : ActionM (Option String)
+
+  -- Database
+  def database : ActionM (Option Ledger.Db)
+  def hasDatabase : ActionM Bool
+  def allocEntityId : ActionM (Option Ledger.EntityId)
+  def transact (tx : Ledger.Transaction) : ActionM (Except TxError Unit)
+  def transact! (tx : Ledger.Transaction) : ActionM Unit
+  def runTx (m : Ledger.TxM α) : ActionM (Except TxError α)
+  def runTx! (m : Ledger.TxM α) : ActionM α
+  def withNewEntity (f : EntityId → TxM α) : ActionM (Except TxError (EntityId × α))
+  def withNewEntity! (f : EntityId → TxM α) : ActionM (EntityId × α)
+
+  -- Responses
+  def html (content : String) : ActionM Response
+  def text (content : String) : ActionM Response
+  def json (content : String) : ActionM Response
+  def redirect (location : String) (permanent : Bool := false) : ActionM Response
+  def seeOther (location : String) : ActionM Response
+  def notFound (message : String := "Not Found") : ActionM Response
+  def badRequest (message : String := "Bad Request") : ActionM Response
+
+  -- SSE
+  def ssePublish (topic : String) (event : SSE.Event) : ActionM Unit
+  def ssePublishMessage (topic data : String) : ActionM Unit
+  def ssePublishEvent (topic eventType data : String) : ActionM Unit
+  def ssePublishHtml (topic eventType html : String) : ActionM Unit
+  def sseBroadcastMessage (data : String) : ActionM Unit
+
+  -- HTMX
+  def isHtmx : ActionM Bool
+  def htmxTarget : ActionM (Option String)
+  def htmxTrigger : ActionM (Option String)
+  def htmxPrompt : ActionM (Option String)
+  def htmxRedirect (url : String) : ActionM Response
+  def htmxRefresh : ActionM Response
+  def htmlFragment (content : String) : ActionM Response
+  def htmlWithRetarget (content selector : String) : ActionM Response
+  def htmlWithReswap (content strategy : String) : ActionM Response
+  def htmlWithTrigger (content event : String) : ActionM Response
+  def htmlWithPushUrl (content url : String) : ActionM Response
+  def htmxStopPolling : ActionM Response
+
+  -- Templates (with Stencil)
+  def render (name : String) (data : Value := .null) : ActionM Response
+  def renderWithLayout (layout name : String) (data : Value := .null) : ActionM Response
+  def renderInline (template : String) (data : Value := .null) : ActionM Response
+  def renderPartial (name : String) (data : Value := .null) : ActionM Response
+
+  -- Conversion
+  def toAction (m : ActionM Response) : Action
+end ActionM</code></pre>
+
+<h3>Session</h3>
+
+<pre><code class="language-lean">structure Session where
+  data : List (String × String)
+  modified : Bool := false
+
+namespace Session
+  def empty : Session
+  def get (s : Session) (key : String) : Option String
+  def set (s : Session) (key value : String) : Session
+  def delete (s : Session) (key : String) : Session
+  def clear (s : Session) : Session
+  def has (s : Session) (key : String) : Bool
+  def isEmpty (s : Session) : Bool
+  def encode (s : Session) (secret : ByteArray) : String
+  def decode (cookie : String) (secret : ByteArray) : Option Session
+end Session</code></pre>
+
+<h3>Flash</h3>
+
+<pre><code class="language-lean">structure Flash where
+  current : List (String × String)
+  next : List (String × String)
+
+namespace Flash
+  def empty : Flash
+  def get (f : Flash) (key : String) : Option String
+  def set (f : Flash) (key value : String) : Flash
+  def info (f : Flash) (msg : String) : Flash
+  def error (f : Flash) (msg : String) : Flash
+  def success (f : Flash) (msg : String) : Flash
+  def warning (f : Flash) (msg : String) : Flash
+  def notice (f : Flash) (msg : String) : Flash
+  def hasMessages (f : Flash) : Bool
+  def all (f : Flash) : List (String × String)
+  def keep (f : Flash) (key : String) : Flash
+  def keepAll (f : Flash) : Flash
+end Flash</code></pre>
+
+<h3>Middleware</h3>
+
+<pre><code class="language-lean">namespace Middleware
+  def logging : Citadel.Middleware
+  def securityHeaders : Citadel.Middleware
+  def cors (allowOrigin : String := "*") : Citadel.Middleware
+  def methodOverride : Citadel.Middleware
+  def errorRecovery : Citadel.Middleware
+  def httpsRedirect (httpsPort : UInt16 := 443) : Citadel.Middleware
+  def httpsRedirectTemporary (httpsPort : UInt16 := 443) : Citadel.Middleware
+  def databaseErrorRecovery : Citadel.Middleware
+  def queryLogging : Citadel.Middleware
+  def compose (middlewares : List Citadel.Middleware) : Citadel.Middleware
+end Middleware
+
+def RouteMiddleware := Action → Action
+
+namespace RouteMiddleware
+  def identity : RouteMiddleware
+  def compose (m1 m2 : RouteMiddleware) : RouteMiddleware
+  def chain (middlewares : List RouteMiddleware) : RouteMiddleware
+  def guard (check : Context → Bool) (redirectTo : String)
+            (flashKey : String := "error") (flashMsg : String := "") : RouteMiddleware
+  def guardM (check : Context → IO Bool) (redirectTo : String)
+             (flashKey : String := "error") (flashMsg : String := "") : RouteMiddleware
+  def mapContext (f : Context → Context) : RouteMiddleware
+  def mapContextM (f : Context → IO Context) : RouteMiddleware
+end RouteMiddleware</code></pre>
+
+<h3>Auth</h3>
+
+<pre><code class="language-lean">namespace Auth
+  def isLoggedIn (ctx : Context) : Bool
+  def currentUserId (ctx : Context) : Option String
+  def authRequired : RouteMiddleware
+  def authRequiredTo (redirectTo : String) (flashMsg : String) : RouteMiddleware
+  def adminRequired : RouteMiddleware
+  def adminRequiredTo (redirectTo : String) (flashMsg : String) : RouteMiddleware
+  def hasSessionValue (key value : String) (ctx : Context) : Bool
+  def requireSessionValue (key value redirectTo flashMsg : String) : RouteMiddleware
+end Auth</code></pre>
+
+<h3>Routes</h3>
+
+<pre><code class="language-lean">structure NamedRoute where
+  name : String
+  method : Method
+  pattern : String
+  action : Action
+  middleware : List RouteMiddleware := []
+
+structure Routes where
+  routes : List NamedRoute := []
+
+namespace Routes
+  def empty : Routes
+  def add (r : Routes) (name : String) (method : Method) (pattern : String)
+          (middleware : List RouteMiddleware) (action : α) : Routes
+  def findByName (r : Routes) (name : String) : Option NamedRoute
+  def pathFor (r : Routes) (name : String)
+              (params : List (String × String) := []) : Option String
+  def pathFor! (r : Routes) (name : String)
+               (params : List (String × String) := []) : String
+  def names (r : Routes) : List String
+end Routes
+
+structure UrlHelpers where
+  routes : Routes
+  baseUrl : String := ""
+
+namespace UrlHelpers
+  def create (routes : Routes) (baseUrl : String := "") : UrlHelpers
+  def pathFor (h : UrlHelpers) (name : String)
+              (params : List (String × String) := []) : String
+  def urlFor (h : UrlHelpers) (name : String)
+             (params : List (String × String) := []) : String
+end UrlHelpers</code></pre>
+
+<h3>Database</h3>
+
+<pre><code class="language-lean">abbrev ConnectionFactory := IO Ledger.Connection
+
+structure DbConfig where
+  factory : ConnectionFactory
+  journalPath : Option FilePath := none
+  logQueries : Bool := false
+
+namespace DbConfig
+  def default : DbConfig
+  def withFactory (factory : ConnectionFactory) : DbConfig
+  def withPersistence (path : FilePath) : DbConfig
+  def isPersistent (config : DbConfig) : Bool
+end DbConfig</code></pre>
+
+<h3>Static Files</h3>
+
+<pre><code class="language-lean">structure Static.Config where
+  basePath : String
+  devMode : Bool := false
+  maxAge : Nat := 3600
+
+namespace Static
+  def mimeType (path : String) : String
+  def isSafePath (path : String) : Bool
+  def serveFile (basePath requestPath : String)
+                (devMode : Bool := false) (maxAge : Nat := 3600)
+                : IO (Option Response)
+  def handler (basePath : String) (devMode : Bool := false) : Handler
+  def middleware (basePath : String) (devMode : Bool := false) : Middleware
+end Static</code></pre>
+
+<h3>SSE</h3>
+
+<pre><code class="language-lean">namespace SSE
+  def setup (manager : Citadel.SSE.ConnectionManager) : IO Unit
+  def isInitialized : IO Bool
+  def clientCount : IO Nat
+  def publish (topic : String) (event : Citadel.SSE.Event) : IO Unit
+  def publishAll (event : Citadel.SSE.Event) : IO Unit
+  def publishMessage (topic data : String) : IO Unit
+  def publishEvent (topic eventType data : String) : IO Unit
+  def publishHtml (topic eventType html : String) : IO Unit
+  def publishMessageAll (data : String) : IO Unit
+  def publishEventAll (eventType data : String) : IO Unit
+end SSE</code></pre>
+
+<h3>Form Parsing</h3>
+
+<pre><code class="language-lean">namespace Params
+  def empty : Params
+  def get (p : Params) (key : String) : Option String
+  def getD (p : Params) (key : String) (default : String) : String
+  def getAll (p : Params) (key : String) : List String
+  def has (p : Params) (key : String) : Bool
+  def merge (p1 p2 : Params) : Params
+end Params
+
+namespace Form
+  def parseUrlEncoded (body : String) : Params
+  def parseQueryString (path : String) : Params
+  def pathWithoutQuery (path : String) : String
+  def generateCsrfToken (secret : ByteArray) (session : Session) : String
+  def validateCsrfToken (token : String) (secret : ByteArray) (session : Session) : Bool
+end Form</code></pre>
+
+<h3>Multipart</h3>
+
+<pre><code class="language-lean">structure MultipartPart where
+  name : String
+  filename : Option String := none
+  contentType : Option String := none
+  content : ByteArray
+
+structure MultipartData where
+  parts : List MultipartPart
+
+namespace MultipartData
+  def getField (m : MultipartData) (name : String) : Option String
+  def getFields (m : MultipartData) (name : String) : List String
+  def getFile (m : MultipartData) (name : String) : Option MultipartPart
+  def getFilesByName (m : MultipartData) (name : String) : List MultipartPart
+  def getFiles (m : MultipartData) : List MultipartPart
+  def toParams (m : MultipartData) : Params
+end MultipartData
+
+namespace Multipart
+  def isMultipart (contentType : String) : Bool
+  def extractBoundary (contentType : String) : Option String
+  def parse (contentType : String) (body : ByteArray) : Option MultipartData
+end Multipart</code></pre>

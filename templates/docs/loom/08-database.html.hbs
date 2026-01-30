@@ -1,0 +1,237 @@
+<p>Loom integrates with Ledger, a fact-based database inspired by Datomic. Data is stored
+as datoms (entity-attribute-value triples) and queried using a declarative pattern language.</p>
+
+<h3>Enabling Database</h3>
+
+<p>For in-memory storage (resets on restart):</p>
+
+<pre><code class="language-lean">App.withSecret "secret"
+  |>.withDefaultDatabase
+  |>.get "/" "home" [] homeAction
+  |>.run</code></pre>
+
+<p>For persistent storage (survives restarts):</p>
+
+<pre><code class="language-lean">App.withSecret "secret"
+  |>.withPersistentDatabase "data/app.jsonl"
+  |>.get "/" "home" [] homeAction
+  |>.run</code></pre>
+
+<p>Persistent databases write transactions to a JSONL journal file and replay on startup.</p>
+
+<h3>Database in Actions</h3>
+
+<pre><code class="language-lean">def listUsers : ActionM Response := do
+  -- Check if database is available
+  if !(← hasDatabase) then
+    return ← text "No database configured"
+
+  -- Get current database snapshot
+  match ← database with
+  | none => text "No database"
+  | some db =>
+    -- Query the database
+    let users := Ledger.Query.execute userQuery db
+    json (usersToJson users)</code></pre>
+
+<h3>Transactions</h3>
+
+<p>Modify data using transactions:</p>
+
+<pre><code class="language-lean">def createUser : ActionM Response := do
+  let name ← paramD "name" ""
+  let email ← paramD "email" ""
+
+  -- Allocate a new entity ID
+  match ← allocEntityId with
+  | none => badRequest "No database"
+  | some userId =>
+    -- Build transaction
+    let tx := [
+      Ledger.add userId "user/name" (.string name),
+      Ledger.add userId "user/email" (.string email),
+      Ledger.add userId "user/created" (.int (← IO.monoNanosNow).toInt)
+    ]
+
+    -- Execute transaction
+    match ← transact tx with
+    | .ok () =>
+      flashSuccess "User created"
+      seeOther "/"
+    | .error e =>
+      flashError s!"Failed: {e}"
+      seeOther "/new"</code></pre>
+
+<h3>Transaction Monad (TxM)</h3>
+
+<p>For cleaner transaction building:</p>
+
+<pre><code class="language-lean">def createPost : ActionM Response := do
+  let title ← paramD "title" ""
+  let body ← paramD "body" ""
+
+  match ← withNewEntity! fun postId => do
+    Ledger.TxM.add postId "post/title" (.string title)
+    Ledger.TxM.add postId "post/body" (.string body)
+    Ledger.TxM.add postId "post/published" (.bool false)
+    pure postId
+  with
+  | (postId, _) =>
+    flashSuccess s!"Post {postId} created"
+    seeOther "/"</code></pre>
+
+<h3>ActionM Database Functions</h3>
+
+<table class="api-table">
+  <tr>
+    <th>Function</th>
+    <th>Type</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>database</code></td>
+    <td><code>ActionM (Option Db)</code></td>
+    <td>Get current database snapshot</td>
+  </tr>
+  <tr>
+    <td><code>hasDatabase</code></td>
+    <td><code>ActionM Bool</code></td>
+    <td>Check if database is configured</td>
+  </tr>
+  <tr>
+    <td><code>allocEntityId</code></td>
+    <td><code>ActionM (Option EntityId)</code></td>
+    <td>Allocate new entity ID</td>
+  </tr>
+  <tr>
+    <td><code>transact tx</code></td>
+    <td><code>ActionM (Except TxError Unit)</code></td>
+    <td>Execute transaction</td>
+  </tr>
+  <tr>
+    <td><code>transact! tx</code></td>
+    <td><code>ActionM Unit</code></td>
+    <td>Execute transaction (throws on error)</td>
+  </tr>
+  <tr>
+    <td><code>runTx m</code></td>
+    <td><code>ActionM (Except TxError α)</code></td>
+    <td>Run TxM builder and commit</td>
+  </tr>
+  <tr>
+    <td><code>runTx! m</code></td>
+    <td><code>ActionM α</code></td>
+    <td>Run TxM (throws on error)</td>
+  </tr>
+  <tr>
+    <td><code>withNewEntity f</code></td>
+    <td><code>ActionM (Except TxError (EntityId × α))</code></td>
+    <td>Allocate ID, run TxM, commit</td>
+  </tr>
+  <tr>
+    <td><code>withNewEntity! f</code></td>
+    <td><code>ActionM (EntityId × α)</code></td>
+    <td>Same, throws on error</td>
+  </tr>
+</table>
+
+<h3>Querying</h3>
+
+<p>Use Ledger's pattern-based query language:</p>
+
+<pre><code class="language-lean">-- Find all users
+let userQuery := Ledger.Query.build do
+  e ← var "e"
+  return [(e, "user/name", Ledger.any)]
+
+-- Find user by email
+let findByEmail (email : String) := Ledger.Query.build do
+  e ← var "e"
+  return [(e, "user/email", Ledger.val (.string email))]
+
+-- In action
+def showUser : ActionM Response := do
+  let email ← paramD "email" ""
+  match ← database with
+  | none => notFound "No database"
+  | some db =>
+    let results := Ledger.Query.execute (findByEmail email) db
+    match results.head? with
+    | none => notFound "User not found"
+    | some datoms => json (userToJson datoms)</code></pre>
+
+<h3>Database Configuration</h3>
+
+<pre><code class="language-lean">structure DbConfig where
+  factory : ConnectionFactory          -- Creates connections
+  journalPath : Option FilePath := none -- JSONL persistence
+  logQueries : Bool := false           -- Log queries to stderr
+
+-- Helpers
+DbConfig.default                       -- In-memory
+DbConfig.withFactory factory           -- Custom factory
+DbConfig.withPersistence path          -- Persistent</code></pre>
+
+<h3>Custom Connection Factory</h3>
+
+<p>For seeded databases or testing:</p>
+
+<pre><code class="language-lean">def seededFactory : IO Ledger.Connection := do
+  let conn := Ledger.Connection.create
+  let (userId, conn) := conn.allocEntityId
+  let tx := [
+    Ledger.add userId "user/name" (.string "Admin"),
+    Ledger.add userId "user/role" (.string "admin")
+  ]
+  match conn.transact tx with
+  | .ok (conn', _) => pure conn'
+  | .error _ => pure conn
+
+App.withSecret "secret"
+  |>.withDatabase seededFactory
+  |>.run</code></pre>
+
+<h3>Transaction Errors</h3>
+
+<pre><code class="language-lean">inductive TxError where
+  | custom : String → TxError
+  | schemaViolation : String → TxError
+  | entityNotFound : EntityId → TxError
+  | ...</code></pre>
+
+<h3>Error Recovery Middleware</h3>
+
+<p>Database error middleware is automatically added with <code>withDatabase</code>:</p>
+
+<pre><code class="language-lean">def databaseErrorRecovery : Citadel.Middleware := fun handler req => do
+  try
+    handler req
+  catch e =>
+    IO.eprintln s!"Database error: {e}"
+    pure (Response.internalError)</code></pre>
+
+<h3>Auditing Transactions</h3>
+
+<p>Use <code>AuditTxM</code> to log changes:</p>
+
+<pre><code class="language-lean">def updateUser : ActionM Response := do
+  let userId ← paramD "id" ""
+  let name ← paramD "name" ""
+
+  match ← runAuditTx! do
+    AuditTxM.add userId "user/name" (.string name)
+    AuditTxM.audit "update" "user" userId s!"Changed name to {name}"
+  with
+  | () =>
+    flashSuccess "Updated"
+    seeOther "/"</code></pre>
+
+<h3>Best Practices</h3>
+
+<ul>
+  <li>Use <code>withNewEntity!</code> for create operations - it handles ID allocation and transactions atomically</li>
+  <li>Use persistent databases in production for data durability</li>
+  <li>Keep transactions small and focused</li>
+  <li>Use the query builder for complex queries</li>
+  <li>Handle <code>TxError</code> cases gracefully in user-facing actions</li>
+</ul>
